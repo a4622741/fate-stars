@@ -1,0 +1,1435 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>命運之星 · 108星辰錄</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@300;400;600;700&family=Cinzel:wght@400;600&display=swap');
+:root{
+  --bg:#080b12;--bg2:#0d1220;--bg3:#111827;--bgh:#1a2540;
+  --gold:#c9a84c;--goldl:#e8cc7a;--goldd:#7a6030;
+  --sil:#a8b5cc;--sild:#4a5568;
+  --grn:#4caf7a;--red:#cc4444;--blue:#4488cc;--orange:#e08c35;
+  --brd:rgba(201,168,76,.22);--brdb:rgba(201,168,76,.55);
+  --glow:rgba(201,168,76,.12);
+  --panel-w:310px;--hdr-h:50px;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;overflow:hidden;}
+body{background:var(--bg);color:var(--sil);font-family:'Noto Serif TC',serif;display:flex;flex-direction:column;}
+body::before{content:'';position:fixed;inset:0;background-image:
+  radial-gradient(1px 1px at 11% 17%,rgba(255,255,255,.42) 0,transparent 100%),
+  radial-gradient(1px 1px at 34% 74%,rgba(255,255,255,.26) 0,transparent 100%),
+  radial-gradient(1px 1px at 56% 8%,rgba(255,255,255,.35) 0,transparent 100%),
+  radial-gradient(1.5px 1.5px at 73% 61%,rgba(201,168,76,.32) 0,transparent 100%),
+  radial-gradient(1px 1px at 89% 29%,rgba(255,255,255,.38) 0,transparent 100%),
+  radial-gradient(1px 1px at 18% 53%,rgba(255,255,255,.3) 0,transparent 100%),
+  radial-gradient(1px 1px at 42% 87%,rgba(255,255,255,.25) 0,transparent 100%),
+  radial-gradient(1px 1px at 63% 38%,rgba(255,255,255,.38) 0,transparent 100%);
+  pointer-events:none;z-index:0;}
+
+/* ── HEADER ── */
+.hdr{position:relative;z-index:10;flex-shrink:0;height:var(--hdr-h);
+  display:flex;align-items:center;padding:0 .85rem;gap:.55rem;
+  border-bottom:1px solid var(--brd);
+  background:linear-gradient(135deg,rgba(201,168,76,.07),rgba(8,11,18,.9),rgba(201,168,76,.05));}
+.hdr-t{font-size:.92rem;font-weight:700;color:var(--gold);letter-spacing:.15em;}
+.hdr-s{font-family:'Cinzel',serif;font-size:.48rem;color:var(--goldd);letter-spacing:.22em;}
+.hdr-r{display:flex;align-items:center;gap:.45rem;margin-left:auto;flex-shrink:0;}
+.hdr-g{font-size:.67rem;color:var(--gold);white-space:nowrap;}
+.hdr-g b{color:var(--goldl);}
+.ib{background:transparent;border:1px solid var(--brd);border-radius:3px;color:var(--sild);
+  width:30px;height:30px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  font-size:.85rem;transition:all .2s;flex-shrink:0;}
+.ib:hover{border-color:var(--gold);color:var(--gold);background:var(--glow);}
+.ib.ac{border-color:var(--gold);color:var(--gold);background:rgba(201,168,76,.1);}
+.ib svg{width:14px;height:14px;fill:currentColor;}
+
+/* ── LAYOUT ── */
+.app-body{position:relative;z-index:1;flex:1;display:flex;overflow:hidden;}
+
+/* ── STORY ── */
+.story-side{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;}
+.scene-bar{flex-shrink:0;height:30px;display:flex;align-items:center;padding:0 .85rem;gap:.55rem;
+  background:rgba(201,168,76,.05);border-bottom:1px solid var(--brd);}
+.scene-t{font-size:.67rem;color:var(--gold);letter-spacing:.1em;font-weight:600;}
+.scene-l{font-size:.6rem;color:var(--sild);margin-left:auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:48%;}
+.story-scroll{flex:1;overflow-y:auto;padding:.85rem .85rem 0;}
+.story-scroll::-webkit-scrollbar{width:3px;}
+.story-scroll::-webkit-scrollbar-thumb{background:var(--goldd);border-radius:2px;}
+.sentry{animation:sfade .35s ease;margin-bottom:.7rem;}
+@keyframes sfade{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+.s-narr{font-size:.84rem;line-height:1.9;color:var(--sil);margin-bottom:.35rem;}
+.s-dial{font-size:.81rem;line-height:1.8;margin:.22rem 0;}
+.s-dial .sp{color:var(--goldl);font-weight:600;}
+.s-dial .wd{color:var(--sild);font-style:italic;}
+.s-sys{font-size:.67rem;color:var(--grn);background:rgba(76,175,122,.07);
+  border-left:2px solid rgba(76,175,122,.4);padding:.25rem .55rem;margin:.22rem 0;border-radius:0 2px 2px 0;}
+.s-sec{font-size:.6rem;color:var(--gold);letter-spacing:.12em;padding:.28rem .52rem;
+  background:rgba(201,168,76,.07);border-left:2px solid var(--gold);margin-bottom:.45rem;border-radius:0 2px 2px 0;}
+.s-action{font-size:.68rem;color:var(--goldd);letter-spacing:.05em;padding:.22rem .52rem;
+  background:rgba(201,168,76,.06);border-left:2px solid var(--goldd);border-radius:0 2px 2px 0;margin-bottom:.35rem;}
+.s-err{font-size:.68rem;color:#f9a;background:rgba(204,68,68,.08);
+  border-left:2px solid rgba(204,68,68,.5);padding:.3rem .6rem;margin:.25rem 0;border-radius:0 2px 2px 0;cursor:pointer;}
+.s-err:hover{background:rgba(204,68,68,.13);}
+.think-row{display:flex;align-items:center;gap:5px;padding:.55rem 0;}
+.dot{width:5px;height:5px;border-radius:50%;background:var(--gold);animation:bk 1.2s ease infinite;}
+.dot:nth-child(2){animation-delay:.2s;}.dot:nth-child(3){animation-delay:.4s;}
+@keyframes bk{0%,100%{opacity:.2}50%{opacity:1}}
+
+/* ── CHOICES ── */
+.choices-wrap{flex-shrink:0;padding:.6rem .85rem .7rem;
+  border-top:1px solid var(--brd);background:linear-gradient(to top,rgba(8,11,18,.98) 80%,transparent);}
+.ch-label{font-size:.53rem;color:var(--goldd);letter-spacing:.18em;margin-bottom:.42rem;}
+.ch-grid{display:flex;flex-direction:column;gap:.32rem;}
+.ch-btn{background:var(--bg3);border:1px solid var(--brd);border-radius:3px;padding:.48rem .75rem;
+  text-align:left;cursor:pointer;display:flex;align-items:baseline;gap:.48rem;
+  font-family:'Noto Serif TC',serif;transition:all .2s;}
+.ch-btn:hover{background:var(--bgh);border-color:var(--brdb);box-shadow:0 0 10px var(--glow);}
+.ch-btn:active{transform:scale(.99);}
+.ch-btn:disabled{opacity:.35;cursor:not-allowed;}
+.ch-num{font-size:.58rem;color:var(--goldd);flex-shrink:0;width:.85rem;}
+.ch-txt{font-size:.77rem;color:var(--sil);flex:1;line-height:1.4;}
+.ch-hint{font-size:.58rem;color:var(--sild);flex-shrink:0;}
+.ch-free{border-style:dashed;border-color:var(--sild);}
+.ch-free:hover{border-color:var(--goldd);}
+.free-row{display:none;gap:.45rem;margin-top:.38rem;}
+.free-row.open{display:flex;}
+.free-inp{flex:1;background:var(--bg3);border:1px solid var(--brd);border-radius:3px;
+  padding:.36rem .6rem;color:var(--sil);font-family:'Noto Serif TC',serif;font-size:.77rem;outline:none;}
+.free-inp:focus{border-color:var(--gold);}
+.free-send{background:rgba(201,168,76,.1);border:1px solid var(--goldd);border-radius:3px;
+  padding:.36rem .65rem;color:var(--gold);font-family:'Noto Serif TC',serif;font-size:.7rem;
+  cursor:pointer;flex-shrink:0;transition:all .2s;white-space:nowrap;}
+.free-send:hover{background:rgba(201,168,76,.2);}
+
+/* ── PANEL ── */
+.panel-side{width:var(--panel-w);flex-shrink:0;border-left:1px solid var(--brd);
+  display:flex;flex-direction:column;background:var(--bg2);
+  transition:width .25s ease,opacity .25s ease;overflow:hidden;}
+.panel-side.hidden{width:0;opacity:0;pointer-events:none;}
+.p-tabs{display:flex;border-bottom:1px solid var(--brd);flex-shrink:0;}
+.ptab{flex:1;padding:.43rem 0;background:transparent;border:none;border-bottom:2px solid transparent;
+  color:var(--sild);font-family:'Noto Serif TC',serif;font-size:.66rem;cursor:pointer;transition:all .2s;letter-spacing:.04em;}
+.ptab:hover{color:var(--sil);}
+.ptab.ac{color:var(--gold);border-bottom-color:var(--gold);background:rgba(201,168,76,.05);}
+.p-body{flex:1;overflow-y:auto;padding:.65rem;}
+.p-body::-webkit-scrollbar{width:3px;}
+.p-body::-webkit-scrollbar-thumb{background:var(--goldd);}
+.ptc{display:none;}.ptc.ac{display:block;}
+
+/* ── DRAWER ── */
+.drawer-ov{display:none;position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.6);backdrop-filter:blur(3px);}
+.drawer-ov.open{display:block;}
+.drawer{position:fixed;bottom:0;left:0;right:0;z-index:50;background:var(--bg2);
+  border-top:1px solid var(--brdb);border-radius:12px 12px 0 0;display:flex;flex-direction:column;
+  transform:translateY(calc(100% - 50px));transition:transform .28s cubic-bezier(.4,0,.2,1);max-height:80vh;}
+.drawer.open{transform:translateY(0);}
+.drawer-hrow{display:flex;flex-direction:column;align-items:center;padding:.5rem .85rem .28rem;cursor:pointer;flex-shrink:0;}
+.drawer-handle{width:34px;height:3px;background:var(--brd);border-radius:2px;margin-bottom:.45rem;}
+.drawer-peek{display:flex;align-items:center;justify-content:space-between;width:100%;}
+.drawer-lbl{font-size:.62rem;color:var(--goldd);letter-spacing:.1em;}
+.drawer-gold{font-size:.62rem;color:var(--gold);}
+.drawer-tabs{display:flex;border-bottom:1px solid var(--brd);flex-shrink:0;}
+.dtab{flex:1;padding:.47rem 0;background:transparent;border:none;border-bottom:2px solid transparent;
+  color:var(--sild);font-family:'Noto Serif TC',serif;font-size:.66rem;cursor:pointer;transition:all .15s;letter-spacing:.04em;}
+.dtab.ac{color:var(--gold);border-bottom-color:var(--gold);}
+.drawer-body{flex:1;overflow-y:auto;padding:.65rem;}
+.drawer-body::-webkit-scrollbar{width:3px;}
+.drawer-body::-webkit-scrollbar-thumb{background:var(--goldd);}
+.dtc{display:none;}.dtc.ac{display:block;}
+
+/* PORTRAIT */
+.pcard-portrait{width:100%;height:148px;overflow:hidden;display:block;flex-shrink:0;border-bottom:1px solid var(--brd);position:relative;}
+.port-ph{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.4rem;background:var(--bg3);}
+.port-spin{width:18px;height:18px;border:1.5px solid var(--brd);border-top-color:var(--gold);border-radius:50%;animation:spin .9s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.port-txt{font-size:.58rem;color:var(--sild);letter-spacing:.08em;}
+.port-retry{font-size:.6rem;padding:.18rem .5rem;background:transparent;border:1px solid var(--brd);border-radius:2px;color:var(--sild);cursor:pointer;font-family:'Noto Serif TC',serif;transition:all .2s;}
+.port-retry:hover{border-color:var(--goldd);color:var(--gold);}
+
+/* ── SHARED PANEL STYLES ── */
+.pcard{background:var(--bg3);border:1px solid var(--brd);border-radius:3px;margin-bottom:.6rem;overflow:hidden;cursor:pointer;transition:border-color .2s;}
+.pcard:hover{border-color:var(--brdb);}
+.pcard-hdr{display:flex;align-items:center;gap:.5rem;padding:.48rem .62rem;background:linear-gradient(135deg,rgba(201,168,76,.08),transparent);border-bottom:1px solid var(--brd);}
+.pbadge{width:36px;height:36px;border:1px solid var(--goldd);border-radius:2px;display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;background:rgba(0,0,0,.3);}
+.pbadge div{font-size:.43rem;color:var(--goldd);line-height:1.4;text-align:center;}
+.pbadge .bst{font-size:.52rem;color:var(--gold);font-weight:600;}
+.pi{flex:1;min-width:0;}.pname{font-size:.85rem;font-weight:700;color:var(--goldl);}
+.psub{font-size:.56rem;color:var(--sild);margin-top:.08rem;}.pemoji{font-size:1.05rem;flex-shrink:0;}
+.sminis{padding:.42rem .62rem;display:flex;flex-direction:column;gap:.26rem;}
+.smr{display:flex;align-items:center;gap:.36rem;}
+.sml{font-size:.56rem;color:var(--sild);width:1.9rem;flex-shrink:0;}
+.smb{flex:1;height:5px;background:rgba(255,255,255,.05);border-radius:1px;overflow:hidden;}
+.smf{height:100%;background:linear-gradient(90deg,var(--goldd),var(--gold));border-radius:1px;}
+.smf.lk{background:linear-gradient(90deg,#1a2540,#2a3550);}
+.smv{font-size:.56rem;color:var(--sil);width:1.7rem;text-align:right;flex-shrink:0;}
+.tgrow{padding:0 .62rem .48rem;display:flex;flex-wrap:wrap;gap:.16rem;}
+.tg{font-size:.53rem;padding:.08rem .3rem;border:1px solid var(--goldd);border-radius:2px;color:var(--goldd);background:rgba(201,168,76,.04);}
+.tg.sl{border-color:var(--sild);color:var(--sild);}
+.sfrow{display:flex;gap:.28rem;flex-wrap:wrap;margin-bottom:.52rem;}
+.sfb{padding:.17rem .48rem;background:transparent;border:1px solid var(--brd);border-radius:2px;color:var(--sild);font-family:'Noto Serif TC',serif;font-size:.58rem;cursor:pointer;transition:all .2s;}
+.sfb:hover{border-color:var(--goldd);color:var(--sil);}
+.sfb.ac{background:rgba(201,168,76,.08);border-color:var(--gold);color:var(--gold);}
+.sdiv{font-size:.56rem;color:var(--goldd);letter-spacing:.1em;padding:.32rem 0 .2rem;text-align:center;border-bottom:1px solid var(--brd);margin-bottom:.42rem;}
+.sgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:.26rem;margin-bottom:.6rem;}
+.sc{background:var(--bg3);border:1px solid var(--brd);border-radius:2px;padding:.3rem .16rem;text-align:center;cursor:pointer;transition:all .2s;display:flex;flex-direction:column;align-items:center;gap:.07rem;}
+.sc:hover{border-color:var(--gold);background:var(--bgh);}
+.sc.rec{border-color:rgba(76,175,122,.5);animation:sp 3s ease infinite;}
+.sc.unk{opacity:.4;}.sc.con{border-color:rgba(201,168,76,.45);}
+@keyframes sp{0%,100%{box-shadow:0 0 0 0 rgba(76,175,122,0)}50%{box-shadow:0 0 5px 1px rgba(76,175,122,.22)}}
+.sc .stp{font-size:.42rem;color:var(--goldd);}.sc .snm{font-size:.44rem;color:var(--sild);}
+.sc .sst{font-size:.54rem;color:var(--gold);font-weight:600;}.sc .snm2{font-size:.58rem;color:var(--sil);}
+.sc.unk .snm2{color:var(--sild);}
+.rcnt{font-size:.58rem;color:var(--sild);text-align:right;margin-bottom:.48rem;}
+.rcnt span{color:var(--gold);}
+.gold-box{background:linear-gradient(135deg,rgba(201,168,76,.09),transparent);border:1px solid var(--brdb);border-radius:3px;padding:.58rem .72rem;display:flex;align-items:center;justify-content:space-between;margin-bottom:.65rem;}
+.gl{font-size:.56rem;color:var(--goldd);letter-spacing:.1em;}.ga{font-size:.9rem;color:var(--gold);font-weight:700;}
+.isec{margin-bottom:.65rem;}.ittl{font-size:.56rem;color:var(--goldd);letter-spacing:.1em;padding-bottom:.2rem;border-bottom:1px solid var(--brd);margin-bottom:.36rem;}
+.irow{display:flex;justify-content:space-between;align-items:flex-start;padding:.26rem .2rem;border-bottom:1px solid rgba(255,255,255,.03);font-size:.66rem;}
+.irow:hover{background:var(--bgh);}.inm{color:var(--sil);}.int{font-size:.54rem;color:var(--sild);margin-top:.07rem;}.iqt{color:var(--sild);font-size:.6rem;flex-shrink:0;margin-left:.42rem;}
+.log-entry{padding:.52rem .42rem;border-bottom:1px solid rgba(255,255,255,.04);}
+.log-sec{font-size:.58rem;color:var(--gold);letter-spacing:.08em;padding:.22rem .42rem;background:rgba(201,168,76,.06);border-left:2px solid var(--gold);margin-bottom:.28rem;border-radius:0 2px 2px 0;}
+.log-loc{font-size:.52rem;color:var(--goldd);margin-bottom:.15rem;}
+.log-txt{font-size:.66rem;line-height:1.7;color:var(--sil);}
+.log-sys2{font-size:.58rem;color:var(--grn);background:rgba(76,175,122,.06);border-left:2px solid rgba(76,175,122,.35);padding:.17rem .36rem;margin:.17rem 0;}
+
+/* ── MODALS ── */
+.mlay{display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.85);backdrop-filter:blur(5px);align-items:center;justify-content:center;padding:1.2rem;}
+.mlay.open{display:flex;}
+.mbox{background:var(--bg2);border:1px solid var(--brdb);border-radius:5px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 0 60px rgba(201,168,76,.13);animation:mi .18s ease;}
+@keyframes mi{from{opacity:0;transform:scale(.96) translateY(8px)}to{opacity:1;transform:none}}
+.mbox::-webkit-scrollbar{width:3px;}
+.mbox::-webkit-scrollbar-thumb{background:var(--goldd);}
+.mclose{position:sticky;top:0;float:right;background:transparent;border:none;color:var(--sild);font-size:1rem;cursor:pointer;padding:.72rem;transition:color .2s;}
+.mclose:hover{color:var(--gold);}
+
+/* API KEY */
+.api-mbox{max-width:390px;padding:1.6rem 1.5rem;}
+.api-title{font-size:1rem;font-weight:700;color:var(--gold);letter-spacing:.12em;margin-bottom:.28rem;text-align:center;}
+.api-sub{font-size:.68rem;color:var(--sild);text-align:center;line-height:1.65;margin-bottom:1.1rem;}
+.api-sub a{color:var(--blue);text-decoration:none;}
+.api-sub a:hover{text-decoration:underline;}
+.flbl{font-size:.62rem;color:var(--goldd);letter-spacing:.1em;margin-bottom:.35rem;}
+.finp{width:100%;background:var(--bg3);border:1px solid var(--brd);border-radius:3px;padding:.52rem .72rem;
+  color:var(--sil);font-family:'Noto Serif TC',serif;font-size:.8rem;outline:none;letter-spacing:.05em;margin-bottom:.7rem;}
+.finp:focus{border-color:var(--gold);}
+.finp::placeholder{color:var(--sild);letter-spacing:.02em;}
+.fbtn{width:100%;background:rgba(201,168,76,.12);border:1px solid var(--goldd);border-radius:3px;
+  padding:.58rem;color:var(--gold);font-family:'Noto Serif TC',serif;font-size:.83rem;font-weight:600;
+  cursor:pointer;letter-spacing:.1em;transition:all .2s;}
+.fbtn:hover{background:rgba(201,168,76,.22);border-color:var(--gold);}
+.api-note{font-size:.6rem;color:var(--sild);text-align:center;margin-top:.7rem;line-height:1.55;}
+.api-warn{font-size:.63rem;color:#f9a;background:rgba(200,80,80,.1);border:1px solid rgba(200,80,80,.3);
+  border-radius:3px;padding:.38rem .55rem;margin-bottom:.7rem;display:none;}
+.api-warn.show{display:block;}
+
+/* CORS HELP */
+.cors-mbox{max-width:460px;padding:1.3rem 1.4rem 1.5rem;}
+.cors-title{font-size:.9rem;font-weight:700;color:var(--orange);letter-spacing:.08em;margin-bottom:.3rem;display:flex;align-items:center;gap:.5rem;}
+.cors-sub{font-size:.71rem;color:var(--sil);line-height:1.75;margin-bottom:.95rem;}
+.cors-sub code{color:#9fcfff;background:rgba(0,0,0,.3);padding:.05rem .3rem;border-radius:2px;font-size:.68rem;}
+.cors-method{background:var(--bg3);border:1px solid var(--brd);border-radius:3px;margin-bottom:.65rem;overflow:hidden;}
+.cors-mhdr{display:flex;align-items:center;gap:.5rem;padding:.5rem .68rem;background:rgba(201,168,76,.05);border-bottom:1px solid var(--brd);}
+.cors-badge{width:19px;height:19px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:700;flex-shrink:0;}
+.cb1{background:rgba(76,175,122,.18);color:var(--grn);}
+.cb2{background:rgba(68,136,204,.18);color:var(--blue);}
+.cb3{background:rgba(201,168,76,.15);color:var(--gold);}
+.cors-mtitle{font-size:.73rem;color:var(--sil);font-weight:600;}
+.cors-mbody{padding:.52rem .68rem;font-size:.69rem;color:var(--sild);line-height:1.78;}
+.code-block{background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.08);border-radius:2px;
+  padding:.38rem .62rem;font-family:monospace;font-size:.7rem;color:#9fcfff;letter-spacing:.03em;
+  margin:.38rem 0;display:flex;align-items:center;justify-content:space-between;gap:.5rem;overflow-x:auto;}
+.code-block span{white-space:nowrap;}
+.copy-btn{background:rgba(68,136,204,.1);border:1px solid rgba(68,136,204,.32);border-radius:2px;
+  color:var(--blue);font-family:'Noto Serif TC',serif;font-size:.56rem;padding:.09rem .38rem;
+  cursor:pointer;flex-shrink:0;transition:all .2s;white-space:nowrap;}
+.copy-btn:hover{background:rgba(68,136,204,.2);}
+.copy-btn.copied{border-color:rgba(76,175,122,.4);color:var(--grn);background:rgba(76,175,122,.08);}
+.cors-step{font-size:.67rem;color:var(--sild);margin:.18rem 0;}
+.cors-step b{color:var(--sil);}
+.cors-close-btn{width:100%;background:rgba(201,168,76,.08);border:1px solid var(--goldd);border-radius:3px;
+  padding:.5rem;color:var(--gold);font-family:'Noto Serif TC',serif;font-size:.76rem;cursor:pointer;
+  margin-top:.45rem;letter-spacing:.08em;transition:all .2s;}
+.cors-close-btn:hover{background:rgba(201,168,76,.18);}
+
+/* SETTINGS */
+.settings-mbox{max-width:365px;padding:1.2rem;}
+.s-title{font-size:.88rem;font-weight:700;color:var(--gold);letter-spacing:.12em;margin-bottom:.9rem;display:flex;align-items:center;justify-content:space-between;}
+.s-row{margin-bottom:.78rem;}
+.s-lbl{font-size:.6rem;color:var(--goldd);letter-spacing:.1em;margin-bottom:.3rem;}
+.s-inp{width:100%;background:var(--bg3);border:1px solid var(--brd);border-radius:3px;padding:.4rem .6rem;color:var(--sil);font-family:'Noto Serif TC',serif;font-size:.75rem;outline:none;}
+.s-inp:focus{border-color:var(--gold);}
+.s-sel{width:100%;background:var(--bg3);border:1px solid var(--brd);border-radius:3px;padding:.4rem .6rem;color:var(--sil);font-family:'Noto Serif TC',serif;font-size:.75rem;outline:none;cursor:pointer;}
+.s-sel option{background:var(--bg3);}
+.s-keydisp{font-size:.65rem;color:var(--sild);padding:.3rem .5rem;background:rgba(255,255,255,.04);border-radius:2px;font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:.3rem;}
+.s-status{font-size:.62rem;color:var(--sild);display:flex;align-items:center;gap:.3rem;margin-bottom:.38rem;}
+.s-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.s-dot.ok{background:var(--grn);}.s-dot.no{background:var(--red);}
+.s-test-row{display:flex;gap:.45rem;align-items:center;}
+.s-test-btn{background:rgba(68,136,204,.08);border:1px solid rgba(68,136,204,.3);border-radius:2px;
+  color:var(--blue);font-family:'Noto Serif TC',serif;font-size:.63rem;padding:.2rem .52rem;cursor:pointer;transition:all .2s;white-space:nowrap;}
+.s-test-btn:hover{background:rgba(68,136,204,.18);}
+.s-test-btn:disabled{opacity:.5;cursor:not-allowed;}
+.s-test-res{font-size:.62rem;flex:1;}
+.s-divider{border:none;border-top:1px solid var(--brd);margin:.78rem 0;}
+.s-btns{display:flex;gap:.42rem;margin-top:.9rem;}
+.sbn{flex:1;padding:.46rem;border-radius:3px;font-family:'Noto Serif TC',serif;font-size:.75rem;cursor:pointer;transition:all .2s;border:1px solid var(--brd);}
+.sbn.p{background:rgba(201,168,76,.12);border-color:var(--goldd);color:var(--gold);}
+.sbn.p:hover{background:rgba(201,168,76,.22);border-color:var(--gold);}
+.sbn.c{background:transparent;color:var(--sild);}
+.sbn.c:hover{color:var(--sil);}
+
+/* CHAR/STAR DETAIL */
+.detail-mbox{max-width:410px;}
+.mtop{display:flex;border-bottom:1px solid var(--brd);}
+.mscol{width:64px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.17rem;background:linear-gradient(135deg,rgba(201,168,76,.1),transparent);border-right:1px solid var(--brd);padding:.7rem .38rem;}
+.mscol .mtp{font-size:.5rem;color:var(--goldd);}
+.mscol .mnm{font-size:.52rem;color:var(--sild);}
+.mscol .mst{font-size:.95rem;color:var(--gold);font-weight:700;}
+.micol{flex:1;padding:.7rem;}
+.mname{font-size:1.1rem;font-weight:700;color:var(--goldl);letter-spacing:.1em;}
+.msub2{font-size:.63rem;color:var(--sild);margin-top:.17rem;}
+.mstat{display:inline-block;margin-top:.35rem;padding:.1rem .38rem;font-size:.57rem;border-radius:2px;}
+.mstat.r{background:rgba(76,175,122,.1);border:1px solid rgba(76,175,122,.35);color:#6fcca0;}
+.mstat.c{background:rgba(201,168,76,.08);border:1px solid var(--goldd);color:var(--goldd);}
+.mstat.u{background:rgba(100,100,120,.1);border:1px solid var(--sild);color:var(--sild);}
+.mbody{padding:.68rem;}
+.msect{font-size:.57rem;color:var(--goldd);letter-spacing:.1em;padding-bottom:.17rem;border-bottom:1px solid var(--brd);margin-bottom:.4rem;}
+.msec{margin-bottom:.72rem;}
+.mdesc{font-size:.71rem;color:var(--sil);line-height:1.75;}
+.mnote2{font-size:.6rem;color:var(--sild);background:rgba(255,255,255,.03);border-left:2px solid var(--goldd);padding:.35rem .5rem;margin-top:.4rem;font-style:italic;border-radius:0 2px 2px 0;}
+.tr2{display:flex;gap:.42rem;font-size:.6rem;padding:.13rem 0;}
+.ts{color:var(--sild);width:2.4rem;flex-shrink:0;}.ti{color:var(--sil);}
+.tarow{margin-bottom:.35rem;}
+.ta2{font-size:.58rem;padding:.1rem .36rem;border:1px solid var(--goldd);border-radius:2px;color:var(--goldd);background:rgba(201,168,76,.05);}
+.ta2.sl{border-color:var(--sild);color:var(--sild);}
+.tadesc{font-size:.6rem;color:var(--sild);margin-top:.09rem;padding-left:.32rem;}
+
+/* SAVE INDICATOR */
+.save-ind{position:fixed;bottom:1.1rem;right:1rem;font-size:.6rem;color:var(--grn);
+  background:rgba(13,42,28,.9);border:1px solid rgba(76,175,122,.4);border-radius:3px;
+  padding:.28rem .6rem;opacity:0;transition:opacity .3s;pointer-events:none;z-index:998;}
+.save-ind.show{opacity:1;}
+
+/* TOAST */
+.toast{position:fixed;bottom:1.1rem;left:50%;transform:translateX(-50%);padding:.42rem .95rem;border-radius:3px;font-size:.7rem;z-index:999;pointer-events:none;opacity:0;transition:opacity .25s;white-space:nowrap;max-width:90vw;}
+.toast.err{background:#3a1a1a;border:1px solid var(--red);color:#f99;}
+.toast.ok{background:#0d2a1c;border:1px solid rgba(76,175,122,.5);color:#6fcca0;}
+.toast.inf{background:#1a1f30;border:1px solid var(--goldd);color:var(--goldl);}
+.toast.show{opacity:1;}
+
+/* RESPONSIVE */
+@media(max-width:767px){
+  .panel-side{display:none;}
+  .app-body{padding-bottom:50px;}
+  .hdr-s{display:none;}
+}
+@media(min-width:768px){.drawer,.drawer-ov{display:none!important;}}
+@media(max-width:350px){.hdr-g{display:none;}}
+</style>
+</head>
+<body>
+
+<!-- API KEY MODAL -->
+<div class="mlay" id="api-modal">
+  <div class="mbox api-mbox">
+    <div class="api-title">✦ 命運之星 ✦</div>
+    <div class="api-sub">
+      需要 Anthropic API 金鑰啟動故事引擎。<br>
+      免費取得：<a href="https://console.anthropic.com/keys" target="_blank">console.anthropic.com/keys</a>
+    </div>
+    <div class="api-warn" id="api-warn"></div>
+    <div class="flbl">API 金鑰</div>
+    <input class="finp" id="api-inp" type="password" placeholder="sk-ant-api03-xxxxxxxxxx…" autocomplete="off"/>
+    <button class="fbtn" onclick="saveKey()">✦ 開始遊戲</button>
+    <div class="api-note">金鑰僅存於您的瀏覽器本地（localStorage），不會傳送至任何第三方。</div>
+  </div>
+</div>
+
+<!-- CORS HELP MODAL -->
+<div class="mlay" id="cors-modal">
+  <div class="mbox cors-mbox">
+    <button class="mclose" onclick="document.getElementById('cors-modal').classList.remove('open')">✕</button>
+    <div class="cors-title">
+      <span style="font-size:1.1rem">⚠</span> API 無法連線
+    </div>
+    <div class="cors-sub">
+      用 <code>file://</code> 直接開啟 HTML 時，瀏覽器安全機制會封鎖 API 請求。<br>
+      以下任一方式可解決，選擇最方便的：
+    </div>
+
+    <div class="cors-method">
+      <div class="cors-mhdr">
+        <div class="cors-badge cb1">1</div>
+        <div class="cors-mtitle">Python（最推薦・幾乎所有電腦都有）</div>
+      </div>
+      <div class="cors-mbody">
+        在 HTML 檔所在資料夾開終端機，執行：
+        <div class="code-block">
+          <span id="c1">python -m http.server 8765</span>
+          <button class="copy-btn" id="cpb1" onclick="doCopy('c1','cpb1')">複製</button>
+        </div>
+        <div class="cors-step">然後瀏覽器開啟 <b>http://localhost:8765</b>，點選 HTML 檔名。</div>
+        <div class="cors-step" style="font-size:.62rem;margin-top:.22rem;color:#5a6a7a;">Mac/Linux 可能需要用 <code style="color:#9fcfff;background:rgba(0,0,0,.25);padding:.03rem .25rem;border-radius:2px">python3</code></div>
+      </div>
+    </div>
+
+    <div class="cors-method">
+      <div class="cors-mhdr">
+        <div class="cors-badge cb2">2</div>
+        <div class="cors-mtitle">Node.js / npx</div>
+      </div>
+      <div class="cors-mbody">
+        <div class="code-block">
+          <span id="c2">npx serve . -p 8765</span>
+          <button class="copy-btn" id="cpb2" onclick="doCopy('c2','cpb2')">複製</button>
+        </div>
+        <div class="cors-step">開啟 <b>http://localhost:8765</b> → 點 HTML 檔名。</div>
+      </div>
+    </div>
+
+    <div class="cors-method">
+      <div class="cors-mhdr">
+        <div class="cors-badge cb3">3</div>
+        <div class="cors-mtitle">VS Code → Live Server 插件</div>
+      </div>
+      <div class="cors-mbody">
+        <div class="cors-step">在 VS Code 開啟 HTML → 右下角點 <b>Go Live</b>，自動啟動本地伺服器。</div>
+      </div>
+    </div>
+
+    <div style="margin-top:.85rem;padding:.6rem .68rem;background:rgba(201,168,76,.05);border:1px solid var(--brd);border-radius:3px;font-size:.67rem;color:var(--sild);line-height:1.7;">
+      💡 啟動伺服器後，原本這個 file:// 視窗就不需要了。<br>
+      改從 <b style="color:var(--sil)">http://localhost:8765</b> 開啟，API 就能正常使用。
+    </div>
+
+    <button class="cors-close-btn" onclick="document.getElementById('cors-modal').classList.remove('open')">關閉</button>
+  </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div class="mlay" id="settings-modal">
+  <div class="mbox settings-mbox">
+    <div class="s-title">
+      <span>設定</span>
+      <button class="ib" onclick="closeSettings()" style="width:26px;height:26px;">✕</button>
+    </div>
+    <div class="s-row">
+      <div class="s-lbl">目前金鑰</div>
+      <div class="s-keydisp" id="key-disp">—</div>
+      <div class="s-status"><span class="s-dot" id="s-dot"></span><span id="s-stxt">未設定</span></div>
+      <div class="s-test-row">
+        <button class="s-test-btn" id="test-btn" onclick="testConn()">測試連接</button>
+        <span class="s-test-res" id="test-res"></span>
+      </div>
+    </div>
+    <div class="s-row">
+      <div class="s-lbl">更換金鑰</div>
+      <input class="s-inp" id="s-key" type="password" placeholder="sk-ant-api03-…" autocomplete="off"/>
+    </div>
+    <div class="s-row">
+      <div class="s-lbl">模型</div>
+      <select class="s-sel" id="s-model">
+        <option value="claude-sonnet-4-20250514">Claude Sonnet 4（推薦）</option>
+        <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5（快速省費）</option>
+        <option value="claude-opus-4-5">Claude Opus 4.5（最強・較慢）</option>
+      </select>
+    </div>
+    <div class="s-row">
+      <div class="s-lbl">回應長度</div>
+      <select class="s-sel" id="s-tok">
+        <option value="800">800・快速</option>
+        <option value="1200" selected>1200・標準</option>
+        <option value="2000">2000・詳細</option>
+      </select>
+    </div>
+    <hr class="s-divider">
+    <div class="s-row">
+      <div class="s-lbl">角色頭像</div>
+      <div style="font-size:.62rem;color:var(--sild);margin-bottom:.5rem;">預設使用動漫風格頭像（即時顯示）。可貼上任意圖片網址自訂。</div>
+      <div id="portrait-inputs"></div>
+      <button class="sbn c" onclick="clearPortraitCache();renderBoth('party');showToast('頭像已重設為預設','inf');openSettings();" style="width:100%;margin-top:.35rem;font-size:.7rem;">重設為預設頭像</button>
+    </div>
+    <hr class="s-divider">
+    <div class="s-row">
+      <div class="s-lbl">故事記憶管理</div>
+      <div style="font-size:.62rem;color:var(--sild);margin-bottom:.38rem;" id="history-stat">—</div>
+      <button class="sbn p" onclick="compressHistory()" id="compress-btn" style="width:100%;margin-bottom:.4rem;">✦ 整理記憶（壓縮故事歷史）</button>
+      <div style="font-size:.6rem;color:var(--sild);line-height:1.55;">對話累積過長時使用。Claude 會將舊有劇情整理為摘要，釋放空間讓故事繼續。</div>
+    </div>
+    <hr class="s-divider">
+    <div class="s-row">
+      <div class="s-lbl">危險操作</div>
+      <button class="sbn c" onclick="resetGame()" style="width:100%;border-color:rgba(200,80,80,.35);color:#f99;">重置遊戲進度</button>
+    </div>
+    <hr class="s-divider">
+    <div class="s-row">
+      <div class="s-lbl">跨裝置同步</div>
+      <div style="font-size:.62rem;color:var(--sild);margin-bottom:.5rem;">匯出存檔文字 → 複製 → 到新裝置貼上匯入</div>
+      <div style="display:flex;gap:.45rem;margin-bottom:.4rem;">
+        <button class="sbn p" onclick="exportSave()" style="flex:1;">📤 匯出存檔</button>
+        <button class="sbn c" onclick="importSave()" style="flex:1;">📥 匯入存檔</button>
+      </div>
+      <textarea id="save-io" style="width:100%;height:72px;background:var(--bg3);border:1px solid var(--brd);border-radius:3px;color:var(--sil);font-family:monospace;font-size:.6rem;padding:.4rem;resize:none;outline:none;" placeholder="匯入時在此貼上存檔文字…"></textarea>
+    </div>
+    <div class="s-btns">
+      <button class="sbn c" onclick="closeSettings()">取消</button>
+      <button class="sbn p" onclick="applySettings()">儲存設定</button>
+    </div>
+  </div>
+</div>
+
+<!-- CHAR/STAR DETAIL MODAL -->
+<div class="mlay" id="detail-modal" onclick="closeDOut(event)">
+  <div class="mbox detail-mbox">
+    <button class="mclose" onclick="closeD()">✕</button>
+    <div id="modal-inner"></div>
+  </div>
+</div>
+
+<!-- SWAP MODAL -->
+<div class="mlay" id="swap-modal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="mbox" style="max-width:380px;padding:1.3rem 1.4rem;">
+    <div id="swap-inner"></div>
+  </div>
+</div>
+
+<div class="save-ind" id="save-indicator">✦ 已自動存檔</div>
+<div class="toast" id="toast"></div>
+
+<!-- HEADER -->
+<div class="hdr">
+  <div>
+    <div class="hdr-t">命運之星</div>
+    <div class="hdr-s">108 Stars · Elsa Continent</div>
+  </div>
+  <div class="hdr-r">
+    <div class="hdr-g">🪙 <b id="gold-hdr">銀8・銅135</b></div>
+    <button class="ib" id="drawer-btn" onclick="toggleDrawer()" style="display:none">
+      <svg viewBox="0 0 16 16"><rect x="1" y="2" width="14" height="2.5" rx="1"/><rect x="1" y="6.75" width="14" height="2.5" rx="1"/><rect x="1" y="11.5" width="14" height="2.5" rx="1"/></svg>
+    </button>
+    <button class="ib ac" id="panel-btn" onclick="togglePanel()">
+      <svg viewBox="0 0 16 16"><rect x="1" y="2" width="14" height="2.5" rx="1"/><rect x="1" y="6.75" width="14" height="2.5" rx="1"/><rect x="1" y="11.5" width="14" height="2.5" rx="1"/></svg>
+    </button>
+    <button class="ib" onclick="openSettings()">
+      <svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="2"/><path d="M8 2a.65.65 0 00-.63.49l-.25.88a4.5 4.5 0 00-.76.44l-.85-.21a.65.65 0 00-.72.31l-.65 1.13a.65.65 0 00.15.82l.69.58a4.5 4.5 0 000 .88l-.69.58a.65.65 0 00-.15.82l.65 1.13a.65.65 0 00.72.31l.85-.21c.24.17.49.32.76.44l.25.88A.65.65 0 008 14a.65.65 0 00.63-.49l.25-.88c.27-.12.52-.27.76-.44l.85.21a.65.65 0 00.72-.31l.65-1.13a.65.65 0 00-.15-.82l-.69-.58a4.5 4.5 0 000-.88l.69-.58a.65.65 0 00.15-.82l-.65-1.13a.65.65 0 00-.72-.31l-.85.21a4.5 4.5 0 00-.76-.44l-.25-.88A.65.65 0 008 2z"/></svg>
+    </button>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="app-body">
+  <div class="story-side">
+    <div class="scene-bar">
+      <span class="scene-t" id="scene-title">序章・Day 1　傍晚</span>
+      <span class="scene-l" id="scene-loc">📍 鐵霧城・碼頭</span>
+    </div>
+    <div class="story-scroll" id="story-scroll">
+      <div id="story-content"></div>
+      <div id="scroll-anchor"></div>
+    </div>
+    <div class="choices-wrap">
+      <div class="ch-label">＊ 行動選擇 ＊</div>
+      <div class="ch-grid" id="ch-grid"></div>
+      <div class="free-row" id="free-row">
+        <input class="free-inp" id="free-inp" placeholder="輸入自由行動…"/>
+        <button class="free-send" onclick="sendFree()">送出</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel-side" id="panel-side">
+    <div class="p-tabs">
+      <button class="ptab ac" onclick="switchTab(this,'p','party')">同伴</button>
+      <button class="ptab" onclick="switchTab(this,'p','stars')">星辰</button>
+      <button class="ptab" onclick="switchTab(this,'p','inv')">道具</button>
+      <button class="ptab" onclick="switchTab(this,'p','log')">劇誌</button>
+    </div>
+    <div class="p-body">
+      <div class="ptc ac" id="p-party"></div>
+      <div class="ptc" id="p-stars"></div>
+      <div class="ptc" id="p-inv"></div>
+      <div class="ptc" id="p-log"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MOBILE DRAWER -->
+<div class="drawer-ov" id="drawer-ov" onclick="closeDrawer()"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-hrow" onclick="toggleDrawer()">
+    <div class="drawer-handle"></div>
+    <div class="drawer-peek">
+      <span class="drawer-lbl">✦ 星辰面板</span>
+      <span class="drawer-gold" id="drawer-gold">🪙 銀8・銅135</span>
+    </div>
+  </div>
+  <div class="drawer-tabs">
+    <button class="dtab ac" onclick="switchTab(this,'d','party')">同伴</button>
+    <button class="dtab" onclick="switchTab(this,'d','stars')">星辰</button>
+    <button class="dtab" onclick="switchTab(this,'d','inv')">道具</button>
+    <button class="dtab" onclick="switchTab(this,'d','log')">劇誌</button>
+  </div>
+  <div class="drawer-body">
+    <div class="dtc ac" id="d-party"></div>
+    <div class="dtc" id="d-stars"></div>
+    <div class="dtc" id="d-inv"></div>
+    <div class="dtc" id="d-log"></div>
+  </div>
+</div>
+
+<script>
+// ═══ CONFIG ═══
+const CFG={
+  get key(){return localStorage.getItem('fate_key')||'';},
+  set key(v){localStorage.setItem('fate_key',v);},
+  get model(){return localStorage.getItem('fate_model')||'claude-sonnet-4-20250514';},
+  set model(v){localStorage.setItem('fate_model',v);},
+  get tokens(){return parseInt(localStorage.getItem('fate_tokens')||'1200');},
+  set tokens(v){localStorage.setItem('fate_tokens',String(v));},
+};
+
+// ═══ STATE ═══
+const MAX_PARTY=6;
+const G={
+  gold:{gold:0,silver:8,copper:135},
+  panelOpen:true,drawerOpen:false,starFilter:'all',
+  history:[],log:[],thinking:false,
+  storyData:[],
+  currentChoices:[],
+  sceneTitle:'序章・Day 1　傍晚',
+  sceneLoc:'📍 鐵霧城・碼頭',
+  partyIds:['alfar','orange'],  // 當前隊伍 ID 列表（最多6）
+  extraParty:[],   // 動態招募的新成員資料
+  extraPcfg:{},    // 新成員頭像 prompt
+};
+
+// ═══ SAVE / LOAD ═══
+const SAVE_KEY='fate_save_v2';
+function saveGame(){
+  try{
+    const starOv={}; // 記錄被改動的星位狀態
+    [...TIANGANG,...DISHAT].forEach(s=>{if(s.status==='recruited'&&s.id&&!['alfar','orange'].includes(s.id))starOv[s.type+'_'+s.num]={status:s.status,name:s.name,id:s.id};});
+    const data={
+      gold:G.gold,history:G.history,log:G.log,
+      storyData:G.storyData,currentChoices:G.currentChoices,
+      sceneTitle:G.sceneTitle,sceneLoc:G.sceneLoc,
+      extraParty:G.extraParty,extraPcfg:G.extraPcfg,
+      partyIds:G.partyIds,
+      starOv,savedAt:Date.now(),
+    };
+    localStorage.setItem(SAVE_KEY,JSON.stringify(data));
+    showSaveIndicator();
+  }catch(e){console.warn('存檔失敗:',e);}
+}
+function loadGame(){
+  try{
+    const raw=localStorage.getItem(SAVE_KEY);
+    if(!raw)return false;
+    const data=JSON.parse(raw);
+    if(!data.storyData||!data.history)return false;
+    G.gold=data.gold||{gold:0,silver:8,copper:135};
+    G.history=data.history||[];
+    G.log=data.log||[];
+    G.storyData=data.storyData||[];
+    G.currentChoices=data.currentChoices||[];
+    G.sceneTitle=data.sceneTitle||'序章・Day 1　傍晚';
+    G.sceneLoc=data.sceneLoc||'📍 鐵霧城・碼頭';
+    G.extraParty=data.extraParty||[];
+    G.extraPcfg=data.extraPcfg||{};
+    G.partyIds=data.partyIds||['alfar','orange'];
+    // 恢復星辰狀態
+    if(data.starOv){
+      Object.entries(data.starOv).forEach(([k,v])=>{
+        const [type,num]=k.split('_');
+        const arr=type==='天罡'?TIANGANG:DISHAT;
+        const s=arr.find(x=>x.num===parseInt(num));
+        if(s){s.status=v.status;s.name=v.name;s.id=v.id;}
+      });
+    }
+    return true;
+  }catch(e){console.warn('讀取存檔失敗:',e);return false;}
+}
+function renderStoryFromData(){
+  const c=document.getElementById('story-content');c.innerHTML='';
+  document.getElementById('scene-title').textContent=G.sceneTitle;
+  document.getElementById('scene-loc').textContent=G.sceneLoc;
+  G.storyData.forEach(e=>appendEntryToDOM(e,false));
+  if(G.currentChoices.length)renderChoices(G.currentChoices,false);
+  else renderFallback();
+  scrollD();
+}
+function appendEntryToDOM(e,save=true){
+  const w=mk('div','sentry');
+  if(e.type==='sec'){const el=mk('div','s-sec');el.textContent=e.v;w.appendChild(el);}
+  else if(e.type==='narr'){const el=mk('div','s-narr');el.textContent=e.v;w.appendChild(el);}
+  else if(e.type==='dial'){const el=mk('div','s-dial');el.innerHTML=`<span class="sp">${e.sp}：</span><span class="wd">「${e.ln}」</span>`;w.appendChild(el);}
+  else if(e.type==='sys'){const el=mk('div','s-sys');el.textContent=e.v;w.appendChild(el);}
+  else if(e.type==='action'){const el=mk('div','s-action');el.textContent='▶ '+e.v;w.appendChild(el);}
+  else if(e.type==='err'){const el=mk('div','s-err');el.textContent='⚠ '+e.v;w.appendChild(el);}
+  document.getElementById('story-content').appendChild(w);
+  if(save){G.storyData.push(e);}
+}
+let saveTimer;
+function showSaveIndicator(){
+  clearTimeout(saveTimer);
+  const el=document.getElementById('save-indicator');
+  if(el){el.classList.add('show');saveTimer=setTimeout(()=>el.classList.remove('show'),1800);}
+}
+
+// ═══ DATA ═══
+const PARTY=[
+  {id:'alfar',star:'天魁星',type:'天罡',num:1,name:'艾爾法',title:'遊俠（無所屬）',emoji:'😒',
+   desc:'鐵霧城前城衛，因擅自釋放被扣押的糧食而遭解僱。出身平凡，語少，銀色長髮，面無表情卻行事有原則。某種古老的星力在她體內沉眠。',
+   stats:{武力:41,知力:69,統率:22,魅力:34,幸運:51},sn:{},
+   tl:[{n:'潛星之光',s:true,d:'封印中。條件未達。'},{n:'平靜之眼',s:false,d:'不受恐懼、魅惑、幻術影響。'},{n:'讀心微表情',s:false,d:'可察覺對方說謊（成功率依知力浮動）。'}],
+   eq:{武器:'舊制式短劍（磨損三級）',防具:'城衛布甲（補丁×7）',飾品:'——'}},
+  {id:'orange',star:'地魁星',type:'地煞',num:1,name:'橘子',title:'布偶貓・雌性（身份不明）',emoji:'🐈😒',
+   desc:'以五枚銅幣購入的布偶貓，雌性。雙色毛、藍眼，面癱，聽懂人話，只會喵叫。知力數值異常，來歷不明。對翻肚子持強烈反對立場。',
+   stats:{武力:3,知力:99,統率:null,魅力:null,幸運:null},sn:{統率:'顯示拒絕',魅力:'數值異常',幸運:'???'},
+   tl:[{n:'看穿本質',s:false,d:'對一切虛偽免疫。'},{n:'翻肚禁止',s:false,d:'被強制翻肚時觸發・空踢反擊。'},{n:'命運之錨',s:true,d:'未知。'}],
+   eq:{武器:'——',防具:'——（拒絕配戴）',飾品:'——'}},
+];
+const TGS=['天罡星','天機星','天閒星','天勇星','天雄星','天猛星','天威星','天英星','天貴星','天富星','天滿星','天孤星','天傷星','天立星','天捷星','天暗星','天佑星','天空星','天速星','天異星','天殺星','天微星','天究星','天退星','天壽星','天劍星','天平星','天罪星','天損星','天敗星','天牢星','天慧星','天暴星','天哭星','天巧星'];
+const DSS=['地煞星','地勇星','地傑星','地雄星','地威星','地英星','地奇星','地猛星','地文星','地正星','地闊星','地闔星','地強星','地暗星','地輔星','地會星','地佐星','地祐星','地靈星','地獸星','地微星','地慧星','地暴星','地然星','地猖星','地狂星','地飛星','地走星','地巧星','地明星','地進星','地退星','地滿星','地遂星','地周星','地隱星','地異星','地理星','地俊星','地樂星','地捷星','地速星','地鎮星','地禽星','地刑星','地壯星','地劣星','地健星','地耗星','地賊星','地囚星','地孤星','地角星','地短星','地魔星','地妖星','地幽星','地伏星','地僻星','地空星','地全星','地缺星','地殺星','地哭星','地損星','地破星','地平星','地奴星','地察星'];
+const TIANGANG=[{num:1,star:'天魁星',name:'艾爾法',status:'recruited',id:'alfar'},...TGS.map((s,i)=>({num:i+2,star:s,name:'?',status:'unknown'}))];
+const DISHAT=[{num:1,star:'地魁星',name:'橘子',status:'recruited',id:'orange'},{num:2,star:'地煞星',name:'?',status:'contact',cN:'紅髮女',hint:'霧刃幫相關・左臂有傷・缺口彎刀'},...DSS.slice(1).map((s,i)=>({num:i+3,star:s,name:'?',status:'unknown'}))];
+const INV={
+  equip:[{n:'舊制式短劍',t:'磨損三級・攻擊力較低',q:'裝備中',w:'艾爾法'},{n:'城衛布甲',t:'補丁×7',q:'裝備中',w:'艾爾法'}],
+  items:[{n:'乾糧',t:'回復道具',q:'×2'},{n:'破舊地圖（鐵霧城）',t:'殘缺',q:'×1'},{n:'解僱通知書',t:'留著或許有用',q:'×1'}],
+  key:[{n:'霧刃幫懸賞（記憶）',t:'線索50銀・首領5金',q:'—'}]
+};
+
+// ═══ API ═══
+const SYS=`你是西方奇幻版水滸傳文字RPG故事引擎，輸出劇情與選項。
+世界：艾爾薩大陸，帝國崩裂，十二王國割據。108顆命運之星降世，聚旗終結輪迴。
+主角艾爾法（天魁星）：前城衛，平民，銀色長髮，面無表情，原則至上，知力高武力中等。
+同伴橘子（地魁星）：布偶貓・雌性，藍眼雙色毛，面癱，只會喵叫，智力異常。
+當前：鐵霧城碼頭，紅髮女（地煞第2星候選，左臂傷，霧刃幫相關）剛開口搭話。
+規則：
+1. 只輸出純JSON，無任何Markdown或多餘文字。
+2. 格式：{"st":"場景標題","sl":"📍 地點","nv":["敘述段落"],"dl":[{"sp":"角色","ln":"台詞"}],"sm":null,"gd":{"g":0,"s":0,"c":0},"ch":[{"t":"選項","h":""}],"nm":null}
+3. nv每段60-80字，1-3段。橘子喵叫sp「橘子🐈😒」ln「喵——」，再加{sp:"系統翻譯",ln:"…"}。
+4. ch提供3-4個選項，策略各異。sm記錄金錢道具變動。
+5. 簡潔乾燥文風，偶有乾式幽默。
+6. nm欄位：當角色正式確認加入同伴時填寫，否則為null。格式：
+{"id":"英文小寫id","name":"姓名","star":"星名如地煞星","type":"天罡或地煞","num":星位數字,"title":"職業/稱號","emoji":"適合的emoji","desc":"人物說明100字以內","portrait":"角色外貌英文描述供AI繪圖用，例如：young woman with red hair wearing leather armor，不要加anime style等風格詞","stats":{"武力":0,"知力":0,"統率":0,"魅力":0,"幸運":0},"tl":[{"n":"天賦名","s":false,"d":"說明"}],"eq":{"武器":"","防具":"","飾品":""}}`;
+
+
+// 偵測是否為 CORS / 網路錯誤
+function isCorsErr(e){
+  const m=e.message||'';
+  return m.includes('Failed to fetch')||m.includes('NetworkError')||m.includes('CORS')||m.includes('Load failed')||e.name==='TypeError';
+}
+
+async function callAPI(action){
+  if(!CFG.key){document.getElementById('api-modal').classList.add('open');throw new Error('請先設定 API 金鑰');}
+  G.history.push({role:'user',content:action});
+  let res;
+  try{
+    res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'x-api-key':CFG.key,
+        'anthropic-version':'2023-06-01',
+        'anthropic-dangerous-direct-browser-access':'true',
+      },
+      body:JSON.stringify({model:CFG.model,max_tokens:CFG.tokens,system:SYS,messages:G.history})
+    });
+  }catch(e){
+    G.history.pop();
+    if(isCorsErr(e)){document.getElementById('cors-modal').classList.add('open');}
+    throw new Error(isCorsErr(e)?'網路/CORS 錯誤（請用本地伺服器）':('網路錯誤：'+e.message));
+  }
+  if(!res.ok){
+    G.history.pop();
+    let em=`HTTP ${res.status}`;
+    try{const ej=await res.json();em=ej.error?.message||em;}catch(_){}
+    const map={401:'API 金鑰無效或已過期',403:'API 金鑰無此權限',429:'請求過於頻繁，稍後再試',500:'Anthropic 伺服器錯誤，稍後重試'};
+    throw new Error(map[res.status]||em);
+  }
+  const data=await res.json();
+  const raw=data.content?.find(b=>b.type==='text')?.text||'';
+  G.history.push({role:'assistant',content:raw});
+  try{return JSON.parse(raw.replace(/```json|```/g,'').trim());}
+  catch(e){throw new Error('回應解析失敗（非有效 JSON）');}
+}
+
+// ═══ STORY ENGINE ═══
+function mk(tag,cls){const e=document.createElement(tag);if(cls)e.className=cls;return e;}
+function scrollD(){const s=document.getElementById('story-scroll');setTimeout(()=>s.scrollTop=s.scrollHeight,60);}
+
+async function sendChoice(txt){
+  if(G.thinking)return;
+  G.thinking=true;setDis(true);
+  addAction(txt);
+  const th=addThink();
+  try{
+    const d=await callAPI(txt);
+    th.remove();renderResp(d);
+  }catch(e){
+    th.remove();addErr(e.message,isCorsErr(e));showToast(e.message,'err');renderFallback();
+  }
+  G.thinking=false;setDis(false);
+}
+
+// ═══ PARTY MANAGEMENT ═══
+function getCharData(id){return PARTY.find(c=>c.id===id)||G.extraParty.find(c=>c.id===id);}
+function allParty(){return G.partyIds.map(id=>getCharData(id)).filter(Boolean);}
+function isInParty(id){return G.partyIds.includes(id);}
+
+function joinParty(id){
+  if(isInParty(id))return;
+  const c=getCharData(id);if(!c)return;
+  if(G.partyIds.length<MAX_PARTY){
+    G.partyIds.push(id);
+    renderBoth('party');renderBoth('stars');saveGame();
+    showToast(`✦ ${c.name} 加入同伴`,'ok');
+    appendEntryToDOM({type:'sys',v:`✦ ${c.name} 正式加入同伴！`});
+  }else{
+    showSwapModal(id);
+  }
+}
+
+function leaveParty(id,ev){
+  if(ev)ev.stopPropagation();
+  if(G.partyIds.length<=1){showToast('至少保留一名同伴','err');return;}
+  const c=getCharData(id);
+  G.partyIds=G.partyIds.filter(x=>x!==id);
+  renderBoth('party');renderBoth('stars');saveGame();
+  showToast(`${c?.name||id} 離開同伴`,'inf');
+}
+
+function showSwapModal(newId){
+  const nc=getCharData(newId);
+  document.getElementById('swap-inner').innerHTML=`
+    <div style="font-size:.85rem;font-weight:700;color:var(--gold);letter-spacing:.1em;margin-bottom:.3rem;">隊伍已滿 ${MAX_PARTY}/${MAX_PARTY}</div>
+    <div style="font-size:.72rem;color:var(--sil);margin-bottom:.85rem;">
+      <span style="color:var(--goldl)">${nc?.name||newId}</span> 希望加入，請選擇退出的同伴：
+    </div>
+    <div style="display:flex;flex-direction:column;gap:.38rem;margin-bottom:.85rem;">
+      ${G.partyIds.map(id=>{
+        const c=getCharData(id);
+        return `<button onclick="doSwap('${newId}','${id}')" style="display:flex;align-items:center;gap:.7rem;background:var(--bg3);border:1px solid var(--brd);border-radius:3px;padding:.5rem .75rem;cursor:pointer;text-align:left;transition:all .2s;font-family:'Noto Serif TC',serif;"
+          onmouseover="this.style.borderColor='var(--red)';this.style.background='rgba(204,68,68,.08)'"
+          onmouseout="this.style.borderColor='var(--brd)';this.style.background='var(--bg3)'">
+          <span style="font-size:1rem">${c?.emoji||'⚔️'}</span>
+          <div><div style="font-size:.8rem;color:var(--sil)">${c?.name||id}</div>
+          <div style="font-size:.6rem;color:var(--sild)">${c?.star||''} ・ ${c?.title||''}</div></div>
+        </button>`;
+      }).join('')}
+    </div>
+    <button onclick="document.getElementById('swap-modal').classList.remove('open')"
+      style="width:100%;padding:.45rem;background:transparent;border:1px solid var(--brd);border-radius:3px;color:var(--sild);font-family:'Noto Serif TC',serif;font-size:.75rem;cursor:pointer;">取消</button>
+  `;
+  document.getElementById('swap-modal').classList.add('open');
+}
+
+function doSwap(newId,outId){
+  document.getElementById('swap-modal').classList.remove('open');
+  const idx=G.partyIds.indexOf(outId);
+  if(idx!==-1)G.partyIds[idx]=newId;
+  else G.partyIds.push(newId);
+  renderBoth('party');renderBoth('stars');saveGame();
+  const nc=getCharData(newId),oc=getCharData(outId);
+  showToast(`${nc?.name} 加入 ／ ${oc?.name} 離隊`,'ok');
+  appendEntryToDOM({type:'sys',v:`✦ ${nc?.name} 加入同伴，${oc?.name} 暫別。`});
+}
+
+// 新成員加入（從劇情觸發）
+function addNewMember(m){
+  if(!m||!m.id||!m.name)return;
+  if(getCharData(m.id)){joinParty(m.id);return;} // 已有資料直接入隊
+  const entry={
+    id:m.id,star:m.star||'',type:m.type||'地煞',num:m.num||0,
+    name:m.name,title:m.title||'未知',emoji:m.emoji||'⚔️',
+    desc:m.desc||m.name+'，新加入的同伴。',
+    stats:{武力:m.stats?.武力||50,知力:m.stats?.知力||50,統率:m.stats?.統率||35,魅力:m.stats?.魅力||40,幸運:m.stats?.幸運||50},
+    sn:{},
+    tl:(m.tl||[]).map(t=>({n:t.n||t.name,s:t.s||false,d:t.d||t.desc||''})),
+    eq:{武器:m.eq?.武器||'——',防具:m.eq?.防具||'——',飾品:m.eq?.飾品||'——'}
+  };
+  G.extraParty.push(entry);
+  const seed=Math.floor(Math.random()*9000)+1000;
+  G.extraPcfg[m.id]={prompt:`2d japanese anime character, ${m.portrait||m.name}, bust portrait, dark fantasy background, clean cel shading, anime style`,seed};
+  const arr=m.type==='天罡'?TIANGANG:DISHAT;
+  const star=arr.find(s=>s.num===m.num);
+  if(star){star.status='recruited';star.name=m.name;star.id=m.id;}
+  joinParty(m.id);
+}
+
+function renderResp(d){
+  if(d.st){document.getElementById('scene-title').textContent=d.st;G.sceneTitle=d.st;}
+  if(d.sl){document.getElementById('scene-loc').textContent=d.sl;G.sceneLoc=d.sl;}
+  (d.nv||[]).forEach(p=>appendEntryToDOM({type:'narr',v:p}));
+  (d.dl||[]).forEach(dl=>appendEntryToDOM({type:'dial',sp:dl.sp,ln:dl.ln}));
+  if(d.sm){appendEntryToDOM({type:'sys',v:d.sm});if(d.gd)applyGold(d.gd);}
+  if(d.nm)addNewMember(d.nm); // 新成員自動觸發
+  scrollD();
+  G.log.push({sec:d.st||'',loc:(d.sl||'').replace('📍 ',''),lines:[...(d.nv||[]).map(v=>({t:'txt',v})),...(d.dl||[]).map(dl=>({t:'txt',v:`${dl.sp}：「${dl.ln}」`})),...(d.sm?[{t:'sys',v:d.sm}]:[]) ]});
+  renderBoth('log');
+  if(d.ch?.length)renderChoices(d.ch);
+  saveGame();
+}
+
+function addAction(txt){appendEntryToDOM({type:'action',v:txt});scrollD();}
+function addThink(){const w=mk('div','sentry think-row');w.innerHTML='<div class="dot"></div><div class="dot"></div><div class="dot"></div>';document.getElementById('story-content').appendChild(w);scrollD();return w;}
+function addErr(msg,isCors){
+  const w=mk('div','sentry'),e=mk('div','s-err');
+  e.textContent='⚠ '+msg+(isCors?' — 點此查看解決方法':'');
+  if(isCors)e.onclick=()=>document.getElementById('cors-modal').classList.add('open');
+  w.appendChild(e);document.getElementById('story-content').appendChild(w);scrollD();
+  G.storyData.push({type:'err',v:msg});
+}
+
+function renderChoices(arr,doSave=true){
+  if(doSave)G.currentChoices=arr;
+  const g=document.getElementById('ch-grid');g.innerHTML='';
+  arr.forEach((c,i)=>{
+    const b=mk('button','ch-btn');
+    b.innerHTML=`<span class="ch-num">${i+1}.</span><span class="ch-txt">${c.t}</span>${c.h?`<span class="ch-hint">${c.h}</span>`:''}`;
+    b.onclick=()=>sendChoice(c.t);g.appendChild(b);
+  });
+  const fb=mk('button','ch-btn ch-free');
+  fb.innerHTML='<span class="ch-num">✎</span><span class="ch-txt" style="color:var(--sild)">自由行動…</span>';
+  fb.onclick=()=>{const r=document.getElementById('free-row');r.classList.toggle('open');if(r.classList.contains('open'))document.getElementById('free-inp').focus();};
+  g.appendChild(fb);
+}
+function renderFallback(){renderChoices([{t:'繼續聆聽對方說明',h:''},{t:'詢問傷勢和來歷',h:'（讀心）'},{t:'提議調查霧刃幫',h:''}]);}
+function sendFree(){const v=document.getElementById('free-inp').value.trim();if(!v)return;document.getElementById('free-inp').value='';document.getElementById('free-row').classList.remove('open');sendChoice(v);}
+function setDis(b){document.querySelectorAll('.ch-btn').forEach(btn=>btn.disabled=b);}
+
+// ═══ GOLD ═══
+function applyGold(d){
+  G.gold.gold+=(d.g||0);G.gold.silver+=(d.s||0);G.gold.copper+=(d.c||0);
+  if(G.gold.copper>=100){G.gold.silver+=Math.floor(G.gold.copper/100);G.gold.copper%=100;}
+  if(G.gold.silver>=100){G.gold.gold+=Math.floor(G.gold.silver/100);G.gold.silver%=100;}
+  if(G.gold.copper<0){G.gold.silver--;G.gold.copper+=100;}
+  updateGold();
+}
+function goldS(){const g=G.gold;return `金${g.gold}・銀${g.silver}・銅${g.copper}`;}
+function goldFull(){const g=G.gold;return `金幣 ${g.gold}　銀幣 ${g.silver}　銅幣 ${g.copper}`;}
+function updateGold(){
+  document.getElementById('gold-hdr').textContent=goldS();
+  document.getElementById('drawer-gold').textContent='🪙 '+goldS();
+  const el=document.getElementById('inv-gold-amt');if(el)el.textContent=goldFull();
+}
+
+// ═══ PANEL ═══
+
+// ═══ PORTRAIT ═══
+// 預設：Dicebear 動漫風格頭像（即時載入，無 CORS 問題）
+// 用戶可在設定中貼上自訂圖片 URL 覆蓋
+
+const PC={};
+const PCFG={
+  alfar:{
+    prompt:'2d japanese anime girl, long straight silver white hair, pale skin, deadpan face heavy lidded grey eyes, dark fantasy armor collar, bust portrait, clean cel shading, anime style',
+    seed:3614,
+    default:'https://api.dicebear.com/9.x/adventurer/svg?seed=alfar3614&backgroundColor=0d1220&hair=long01,long02,long03,long04,long05,long06&hairColor=b0c4de,c0d0e8&eyes=variant01,variant06,variant12&skinColor=f5d0b5,ffd5c2',
+    label:'艾爾法',color:'#a8b5cc',emoji:'😒',
+  },
+  orange:{
+    prompt:'cute cat sitting portrait, ragdoll cat breed, blue eyes, white and cream bicolor fur with dark seal points on face and ears, fluffy round face, whiskers, cat animal not human, anime illustration cat art, dark background',
+    seed:1155,
+    default:'https://api.dicebear.com/9.x/croodles/svg?seed=orange1155&backgroundColor=0d1220',
+    label:'橘子',color:'#c9a84c',emoji:'🐈',
+  },
+};
+
+function portCustomKey(id){return `portrait_custom_${id}`;}
+function getCustomPortrait(id){try{return localStorage.getItem(portCustomKey(id));}catch{return null;}}
+function setCustomPortrait(id,url){try{localStorage.setItem(portCustomKey(id),url);PC[id]=url;}catch(e){console.warn(e);}}
+function clearPortraitCache(id){
+  if(id){delete PC[id];try{localStorage.removeItem(portCustomKey(id));}catch{}}
+  else{Object.keys(PC).forEach(k=>delete PC[k]);Object.keys(localStorage).filter(k=>k.startsWith('portrait_')).forEach(k=>{try{localStorage.removeItem(k);}catch{}});}
+}
+
+function getPortraitSrc(id){
+  // 優先：用戶自訂 URL（存在 localStorage）
+  const custom=getCustomPortrait(id);
+  if(custom)return custom;
+  // 其次：記憶體快取
+  if(PC[id])return PC[id];
+  // 預設：Dicebear（即時，不需要等待）
+  const cfg=PCFG[id]||(G.extraPcfg&&G.extraPcfg[id]);
+  return cfg?.default||null;
+}
+
+function getPortrait(id){
+  const src=getPortraitSrc(id);
+  if(src){
+    // 有圖直接顯示，無需等待
+    return `<div style="width:100%;height:100%;position:relative;background:var(--bg3);">
+      <img src="${src}" style="width:100%;height:100%;object-fit:cover;object-position:center top;display:block;" alt="${id}"
+        onerror="this.parentNode.innerHTML=getFallbackPortrait('${id}')"/>
+      <div style="position:absolute;inset:0;background:linear-gradient(to bottom,transparent 55%,var(--bg3) 100%);pointer-events:none;"></div>
+    </div>`;
+  }
+  return getFallbackPortrait(id);
+}
+
+function getFallbackPortrait(id){
+  const cfg=PCFG[id];
+  const color=cfg?.color||'#c9a84c';
+  const emoji=cfg?.emoji||'⚔';
+  const label=cfg?.label||id;
+  return `<div style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;background:var(--bg3);border-bottom:1px solid var(--brd);">
+    <div style="font-size:2.2rem;">${emoji}</div>
+    <div style="font-size:.7rem;color:${color};letter-spacing:.1em;">${label}</div>
+  </div>`;
+}
+
+function applyPortrait(el,src){
+  el.innerHTML=`<img src="${src}" style="width:100%;height:100%;object-fit:cover;object-position:center top;display:block;" alt="portrait"
+    onerror="this.parentNode.innerHTML=getFallbackPortrait(this.dataset.id||'')"/>
+    <div style="position:absolute;inset:0;background:linear-gradient(to bottom,transparent 55%,var(--bg3) 100%);pointer-events:none;"></div>`;
+  el.style.cssText='width:100%;height:100%;position:relative;';
+}
+
+// loadPortraits / loadOnePortrait: 保留介面相容，但現在是即時的
+function loadPortraits(){
+  // Dicebear 是即時的，buildParty 裡 getPortrait() 已直接產生 img，不需要額外載入
+}
+function retryP(id,el){
+  if(!el)return;
+  const src=getPortraitSrc(id);
+  if(src&&document.body.contains(el))applyPortrait(el,src);
+}
+
+
+function smini(s,sn){return['武力','知力','統率','魅力','幸運'].map(l=>{const v=s[l],n=sn[l],lk=v===null,p=lk?20:Math.min(v,100);return`<div class="smr"><div class="sml">${l}</div><div class="smb"><div class="smf ${lk?'lk':''}" style="width:${p}%"></div></div><div class="smv">${lk?(n||'??'):v}</div></div>`;}).join('');}
+function buildParty(){
+  const members=allParty();
+  const countHtml=`<div style="font-size:.6rem;color:var(--sild);text-align:right;margin-bottom:.55rem;letter-spacing:.06em;">同伴 <span style="color:var(--gold)">${members.length}</span> / ${MAX_PARTY}</div>`;
+  const cards=members.map(c=>`<div class="pcard" onclick="openChar('${c.id}')">
+    <div class="pcard-portrait">${getPortrait(c.id)}</div>
+    <div class="pcard-hdr">
+      <div class="pbadge"><div>${c.type}</div><div>第${c.num}星</div><div class="bst">${c.star}</div></div>
+      <div class="pi"><div class="pname">${c.name}</div><div class="psub">${c.title}</div></div>
+      <div class="pemoji">${c.emoji}</div>
+    </div>
+    <div class="sminis">${smini(c.stats,c.sn)}</div>
+    <div class="tgrow">${c.tl.map(t=>`<span class="tg ${t.s?'sl':''}">${t.s?'【封】':''}${t.n}</span>`).join('')}</div>
+    <div style="padding:.35rem .62rem;border-top:1px solid var(--brd);text-align:right;">
+      <button onclick="leaveParty('${c.id}',event)" style="font-size:.6rem;padding:.15rem .5rem;background:transparent;border:1px solid rgba(204,68,68,.35);border-radius:2px;color:rgba(204,68,68,.7);font-family:'Noto Serif TC',serif;cursor:pointer;transition:all .2s;"
+        onmouseover="this.style.background='rgba(204,68,68,.1)';this.style.borderColor='var(--red)';this.style.color='var(--red)'"
+        onmouseout="this.style.background='transparent';this.style.borderColor='rgba(204,68,68,.35)';this.style.color='rgba(204,68,68,.7)'">
+        退出同伴
+      </button>
+    </div>
+  </div>`).join('');
+  return countHtml+cards;
+}
+function buildStars(){
+  const f=G.starFilter,ft=s=>f==='recruited'?s.status==='recruited':f==='unknown'?s.status==='unknown':true;
+  const sT=f==='all'||f==='天罡'||f==='recruited'||f==='unknown';
+  const sD=f==='all'||f==='地煞'||f==='recruited'||f==='unknown';
+  const tot=[...TIANGANG,...DISHAT].filter(s=>s.status==='recruited').length;
+  let h=`<div class="sfrow">${[['all','全部'],['天罡','天罡36'],['地煞','地煞72'],['recruited','已招募'],['unknown','未現身']].map(([k,l])=>`<button class="sfb ${f===k?'ac':''}" onclick="G.starFilter='${k}';renderBoth('stars')">${l}</button>`).join('')}</div><div class="rcnt">招募 <span>${tot}</span> / 108</div>`;
+  if(sT){const it=TIANGANG.filter(ft);if(it.length){if(f==='all'||f==='天罡')h+=`<div class="sdiv">✦ 天罡三十六星 ✦</div>`;h+=`<div class="sgrid">${it.map(s=>scell(s,'天罡')).join('')}</div>`;}}
+  if(sD){const it=DISHAT.filter(ft);if(it.length){if(f==='all'||f==='地煞')h+=`<div class="sdiv">✦ 地煞七十二星 ✦</div>`;h+=`<div class="sgrid">${it.map(s=>scell(s,'地煞')).join('')}</div>`;}}
+  return h;
+}
+function scell(s,t){
+  const inParty=s.id&&isInParty(s.id);
+  const recruited=s.status==='recruited';
+  const contact=s.status==='contact';
+  const unk=s.status==='unknown';
+  const nm=unk?'？？':s.name;
+  let statusHtml='';
+  if(inParty){
+    statusHtml=`<div style="font-size:.44rem;color:var(--grn);margin-top:.1rem;">✦ 隊中</div>`;
+  } else if(recruited&&s.id){
+    statusHtml=`<button onclick="event.stopPropagation();joinParty('${s.id}')" style="font-size:.46rem;padding:.1rem .32rem;margin-top:.12rem;background:rgba(201,168,76,.1);border:1px solid var(--goldd);border-radius:2px;color:var(--gold);cursor:pointer;font-family:'Noto Serif TC',serif;line-height:1.2;">＋ 加入</button>`;
+  } else if(contact){
+    statusHtml=`<div style="font-size:.44rem;color:var(--goldd);margin-top:.1rem;">◈ 接觸中</div>`;
+  }
+  const cls=inParty?'rec':recruited?'rec':contact?'con':unk?'unk':'';
+  return `<div class="sc ${cls}" onclick="openStar('${t}',${s.num})" style="${inParty?'border-color:rgba(76,175,122,.6)':''}">
+    <div class="stp">${t}</div>
+    <div class="snm">第${s.num}星</div>
+    <div class="sst">${s.star}</div>
+    <div class="snm2">${nm}</div>
+    ${statusHtml}
+  </div>`;
+}
+function buildInv(){return`<div class="gold-box"><div><div class="gl">所持金</div><div class="ga" id="inv-gold-amt">${goldFull()}</div></div><span style="font-size:1.35rem">🪙</span></div><div class="isec"><div class="ittl">裝備欄</div>${INV.equip.map(i=>`<div class="irow"><div><div class="inm">${i.n}</div><div class="int">${i.t}・${i.w}</div></div><div class="iqt">${i.q}</div></div>`).join('')}</div><div class="isec"><div class="ittl">道具欄</div>${INV.items.map(i=>`<div class="irow"><div><div class="inm">${i.n}</div><div class="int">${i.t}</div></div><div class="iqt">${i.q}</div></div>`).join('')}</div><div class="isec"><div class="ittl">重要情報</div>${INV.key.map(i=>`<div class="irow"><div><div class="inm">${i.n}</div><div class="int">${i.t}</div></div><div class="iqt">${i.q}</div></div>`).join('')}</div>`;}
+function buildLog(){return G.log.map(s=>`<div class="log-entry"><div class="log-sec">${s.sec}</div><div class="log-loc">📍 ${s.loc}</div>${s.lines.map(l=>l.t==='sys'?`<div class="log-sys2">${l.v}</div>`:`<div class="log-txt">${l.v}</div>`).join('')}</div>`).join('');}
+function renderBoth(tab){let h='';if(tab==='party')h=buildParty();else if(tab==='stars')h=buildStars();else if(tab==='inv')h=buildInv();else if(tab==='log')h=buildLog();['p','d'].forEach(p=>{const el=document.getElementById(p+'-'+tab);if(el)el.innerHTML=h;});if(tab==='party')setTimeout(loadPortraits,50);}
+function switchTab(el,pf,name){
+  const pn=pf==='p'?'ptab':'dtab',pc=pf==='p'?'ptc':'dtc';
+  const c=pf==='p'?document.getElementById('panel-side'):document.getElementById('drawer');
+  c.querySelectorAll('.'+pn).forEach(b=>b.classList.remove('ac'));c.querySelectorAll('.'+pc).forEach(c=>c.classList.remove('ac'));
+  el.classList.add('ac');document.getElementById(pf+'-'+name).classList.add('ac');renderBoth(name);
+}
+
+// ═══ DETAIL MODALS ═══
+function openChar(id){
+  const c=allParty().find(x=>x.id===id);if(!c)return;
+  document.getElementById('modal-inner').innerHTML=`<div class="mtop"><div class="mscol"><div class="mtp">${c.type}</div><div class="mnm">第${c.num}星</div><div class="mst">${c.star}</div></div><div class="micol"><div class="mname">${c.name} <span style="font-size:.8rem">${c.emoji}</span></div><div class="msub2">${c.title}</div><div class="mstat r">✦ 已加入</div></div></div><div class="mbody"><div class="msec"><div class="msect">人物說明</div><div class="mdesc">${c.desc}</div></div><div class="msec"><div class="msect">素質數值</div><div style="padding-top:.18rem">${smini(c.stats,c.sn)}</div></div><div class="msec"><div class="msect">天賦技能</div>${c.tl.map(t=>`<div class="tarow"><span class="ta2 ${t.s?'sl':''}">${t.s?'【封印】':''}${t.n}</span><div class="tadesc">${t.d}</div></div>`).join('')}</div><div class="msec"><div class="msect">裝備</div>${Object.entries(c.eq).map(([k,v])=>`<div class="tr2"><span class="ts">${k}</span><span class="ti">${v}</span></div>`).join('')}</div></div>`;
+  document.getElementById('detail-modal').classList.add('open');
+}
+function openStar(type,num){
+  const arr=type==='天罡'?TIANGANG:DISHAT,s=arr.find(x=>x.num===num);if(!s)return;
+  const iR=s.status==='recruited',iC=s.status==='contact',iU=s.status==='unknown';
+  const sc=iR?'r':iC?'c':'u',st=iR?'✦ 已招募':iC?'◈ 接觸中':'● 未現身';
+  let body='';
+  if(iR&&s.id){const c=PARTY.find(x=>x.id===s.id);body=`<div class="msec"><div class="msect">人物說明</div><div class="mdesc">${c.desc}</div></div><div class="msec"><div class="msect">素質數值</div><div style="padding-top:.18rem">${smini(c.stats,c.sn)}</div></div><div class="mnote2">→ 點擊「同伴」標籤查看完整資料</div>`;}
+  else if(iC){body=`<div class="msec"><div class="msect">目擊情報</div><div class="mdesc">遭遇：${s.cN||'身份不明'}</div><div class="mnote2">${s.hint||'尚無情報'}</div></div><div class="msec"><div class="msect">素質數值</div><div class="mdesc" style="color:var(--sild);font-size:.68rem">尚未加入——數值未解鎖</div></div>`;}
+  else{body=`<div class="msec"><div class="msect">星辰情報</div><div class="mdesc" style="color:var(--sild)">此星辰尚未降世，或尚未與主星相遇。</div><div class="mnote2">世界的某個角落，這顆星正在等待。</div></div>`;}
+  document.getElementById('modal-inner').innerHTML=`<div class="mtop"><div class="mscol"><div class="mtp">${type}</div><div class="mnm">第${num}星</div><div class="mst">${s.star}</div></div><div class="micol"><div class="mname">${iU?'？？':s.name}</div><div class="msub2">${type}・第${num}星・${s.star}</div><div class="mstat ${sc}">${st}</div></div></div><div class="mbody">${body}</div>`;
+  document.getElementById('detail-modal').classList.add('open');
+}
+function closeDOut(e){if(e.target===document.getElementById('detail-modal'))closeD();}
+function closeD(){document.getElementById('detail-modal').classList.remove('open');}
+
+// ═══ SETTINGS ═══
+function saveKey(){
+  const k=document.getElementById('api-inp').value.trim(),w=document.getElementById('api-warn');
+  if(!k){w.textContent='請輸入 API 金鑰';w.classList.add('show');return;}
+  if(!k.startsWith('sk-ant-')){w.textContent='格式不正確，應以 sk-ant- 開頭';w.classList.add('show');return;}
+  CFG.key=k;document.getElementById('api-modal').classList.remove('open');showToast('✦ API 金鑰已設定','ok');
+}
+function openSettings(){
+  const k=CFG.key;
+  document.getElementById('key-disp').textContent=k?k.slice(0,14)+'…'+k.slice(-4):'—';
+  document.getElementById('s-dot').className='s-dot '+(k?'ok':'no');
+  document.getElementById('s-stxt').textContent=k?'已設定':'未設定';
+  document.getElementById('s-model').value=CFG.model;
+  document.getElementById('s-tok').value=String(CFG.tokens);
+  document.getElementById('test-res').textContent='';
+  // 頭像自訂輸入框（動態產生）
+  const pi=document.getElementById('portrait-inputs');
+  if(pi){
+    pi.innerHTML=Object.keys(PCFG).map(id=>`
+      <div style="margin-bottom:.6rem;">
+        <div style="font-size:.6rem;color:var(--goldd);margin-bottom:.22rem;">${PCFG[id].label}</div>
+        <div style="display:flex;gap:.4rem;margin-bottom:.28rem;">
+          <input id="port-url-${id}" class="s-inp" style="flex:1;font-size:.65rem;" placeholder="貼上圖片網址（留空=預設）"/>
+          <button onclick="applyCustomPortrait('${id}')" class="sbn p" style="flex-shrink:0;padding:.32rem .55rem;font-size:.63rem;">套用</button>
+        </div>
+        <button onclick="generateAIPortrait('${id}')" id="gen-btn-${id}" class="sbn c" style="width:100%;font-size:.62rem;padding:.3rem;">✦ 重新生成 AI 頭像（Pollinations）</button>
+        <div id="gen-status-${id}" style="font-size:.58rem;color:var(--sild);margin-top:.18rem;min-height:1rem;"></div>
+      </div>`).join('');
+    Object.keys(PCFG).forEach(id=>{
+      const inp=document.getElementById(`port-url-${id}`);
+      if(inp)inp.value=getCustomPortrait(id)||'';
+    });
+  }
+  // 顯示對話歷史狀態
+  const turns=Math.floor(G.history.length/2);
+  const chars=G.history.reduce((a,m)=>a+(m.content?.length||0),0);
+  const pct=Math.min(100,Math.round(chars/1000));
+  const stat=document.getElementById('history-stat');
+  if(stat) stat.textContent=`目前 ${turns} 輪對話 · 約 ${Math.round(chars/100)/10}K 字元 ${chars>60000?'⚠ 建議整理':''}`;
+  if(stat) stat.style.color=chars>60000?'var(--orange)':'var(--sild)';
+  document.getElementById('settings-modal').classList.add('open');
+}
+
+async function generateAIPortrait(id){
+  const cfg=PCFG[id];if(!cfg?.prompt)return;
+  const btn=document.getElementById(`gen-btn-${id}`);
+  const status=document.getElementById(`gen-status-${id}`);
+  if(btn)btn.disabled=true;
+  if(status)status.textContent='生成中，約 15~30 秒…';
+  const url=`https://image.pollinations.ai/prompt/${encodeURIComponent(cfg.prompt)}?width=260&height=148&seed=${cfg.seed}&model=flux`;
+  const img=new Image();
+  img.onload=()=>{
+    setCustomPortrait(id,url);
+    renderBoth('party');
+    if(status)status.textContent='✓ 頭像已更新';
+    if(status)status.style.color='var(--grn)';
+    const inp=document.getElementById(`port-url-${id}`);
+    if(inp)inp.value=url;
+    if(btn)btn.disabled=false;
+  };
+  img.onerror=()=>{
+    if(status)status.textContent='⚠ 生成失敗，請重試';
+    if(status)status.style.color='#f99';
+    if(btn)btn.disabled=false;
+  };
+  img.src=url;
+}
+
+async function compressHistory(){
+  if(!CFG.key){showToast('請先設定 API 金鑰','err');return;}
+  if(G.history.length<6){showToast('對話尚短，不需要整理','inf');return;}
+  if(!confirm('將舊有劇情壓縮為摘要，釋放記憶空間。\n近期的對話與選項不受影響。\n\n確定繼續？'))return;
+
+  const btn=document.getElementById('compress-btn');
+  btn.disabled=true;btn.textContent='整理中…';
+  closeSettings();
+  appendEntryToDOM({type:'sys',v:'✦ 正在整理故事記憶，請稍候…'});
+
+  // 保留最近 6 則（3輪），壓縮其餘
+  const keepN=6;
+  const toCompress=G.history.slice(0,-keepN);
+  const toKeep=G.history.slice(-keepN);
+
+  const compressPrompt=`以下是一段奇幻 RPG 故事的對話記錄。請用繁體中文，以 400 字以內的「故事摘要」形式整理：已發生的重要事件、人物關係、地點、取得的情報與道具、當前局勢。摘要將作為後續故事的背景記憶。\n\n${toCompress.map(m=>`[${m.role}]: ${typeof m.content==='string'?m.content.slice(0,500):''}`).join('\n')}`;
+
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':CFG.key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:CFG.model,max_tokens:600,messages:[{role:'user',content:compressPrompt}]})
+    });
+    if(!res.ok)throw new Error(`HTTP ${res.status}`);
+    const data=await res.json();
+    const summary=data.content?.find(b=>b.type==='text')?.text||'（摘要生成失敗）';
+
+    // 用摘要取代舊歷史
+    G.history=[
+      {role:'user',content:`【故事背景摘要】\n${summary}\n\n以上是目前為止的故事摘要，請以此為基礎繼續故事。`},
+      {role:'assistant',content:'已理解故事背景，將繼續推進劇情。'},
+      ...toKeep
+    ];
+
+    appendEntryToDOM({type:'sys',v:'✦ 故事記憶已整理完成，可繼續遊玩。'});
+    saveGame();
+    showToast('✦ 記憶整理完成','ok');
+  }catch(e){
+    appendEntryToDOM({type:'err',v:'記憶整理失敗：'+e.message});
+    showToast('整理失敗：'+e.message,'err');
+  }
+  btn.disabled=false;btn.textContent='✦ 整理記憶（壓縮故事歷史）';
+}
+function exportSave(){
+  const raw=localStorage.getItem(SAVE_KEY);
+  if(!raw){showToast('沒有存檔可以匯出','err');return;}
+  const encoded=btoa(unescape(encodeURIComponent(raw)));
+  const el=document.getElementById('save-io');
+  if(el){el.value=encoded;el.select();el.focus();}
+  navigator.clipboard.writeText(encoded).then(()=>showToast('✦ 存檔已複製到剪貼簿','ok')).catch(()=>showToast('請手動複製文字框內容','inf'));
+}
+
+function importSave(){
+  const el=document.getElementById('save-io');
+  const encoded=(el?.value||'').trim();
+  if(!encoded){showToast('請先貼上存檔文字','err');return;}
+  try{
+    const raw=decodeURIComponent(escape(atob(encoded)));
+    const data=JSON.parse(raw);
+    if(!data.storyData&&!data.history)throw new Error('格式不符');
+    if(!confirm('確定匯入？目前進度將被覆蓋。'))return;
+    localStorage.setItem(SAVE_KEY,raw);
+    closeSettings();
+    // 重新載入存檔
+    if(loadGame()){
+      updateGold();
+      document.getElementById('story-content').innerHTML='';
+      renderStoryFromData();
+      renderBoth('party');renderBoth('stars');renderBoth('log');
+      showToast('✦ 存檔匯入成功','ok');
+    }
+  }catch(e){
+    showToast('匯入失敗：文字格式錯誤','err');
+  }
+}
+
+function closeSettings(){document.getElementById('settings-modal').classList.remove('open');}
+function applyCustomPortrait(id){
+  const inp=document.getElementById(`port-url-${id}`);
+  if(!inp)return;
+  const url=inp.value.trim();
+  if(url){setCustomPortrait(id,url);showToast(`${PCFG[id]?.label||id} 頭像已更新`,'ok');}
+  else{clearPortraitCache(id);showToast(`${PCFG[id]?.label||id} 已重設為預設`,'inf');}
+  renderBoth('party');
+}
+function applySettings(){
+  const nk=document.getElementById('s-key').value.trim();
+  if(nk){if(!nk.startsWith('sk-ant-')){showToast('金鑰格式不正確','err');return;}CFG.key=nk;document.getElementById('s-key').value='';}
+  CFG.model=document.getElementById('s-model').value;
+  CFG.tokens=parseInt(document.getElementById('s-tok').value);
+  closeSettings();showToast('設定已儲存','ok');
+}
+async function testConn(){
+  const btn=document.getElementById('test-btn'),res=document.getElementById('test-res');
+  if(!CFG.key){res.textContent='請先設定金鑰';res.style.color='#f99';return;}
+  btn.disabled=true;res.textContent='測試中…';res.style.color='var(--sild)';
+  try{
+    const r=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':CFG.key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:CFG.model,max_tokens:5,messages:[{role:'user',content:'hi'}]})
+    });
+    if(r.ok){res.textContent='✓ 連接成功';res.style.color='var(--grn)';}
+    else{const ej=await r.json().catch(()=>({}));res.textContent='✗ '+(ej.error?.message||`HTTP ${r.status}`);res.style.color='#f99';}
+  }catch(e){
+    if(isCorsErr(e)){res.textContent='✗ CORS 錯誤';res.style.color='#f5b96a';}
+    else{res.textContent='✗ 網路錯誤';res.style.color='#f99';}
+  }
+  btn.disabled=false;
+}
+function clearEl(id){
+  const el=document.getElementById(id);
+  if(!el)return;
+  while(el.firstChild)el.removeChild(el.firstChild);
+}
+
+function resetGame(){
+  if(!confirm('確定重置？故事進度將全部清除。'))return;
+  try{
+    // 1. 清除存檔
+    localStorage.removeItem(SAVE_KEY);
+    localStorage.removeItem('fate_save_v1');
+
+    // 2. 重設所有狀態
+    G.history=[];
+    G.storyData=[];
+    G.currentChoices=[];
+    G.gold={gold:0,silver:8,copper:135};
+    G.sceneTitle='序章・Day 1　傍晚';
+    G.sceneLoc='📍 鐵霧城・碼頭';
+    G.extraParty=[];
+    G.extraPcfg={};
+    G.partyIds=['alfar','orange'];
+    G.thinking=false;
+    G.log=initLog();
+
+    // 3. 重設星辰
+    TIANGANG.slice(1).forEach(s=>{s.status='unknown';s.name='?';delete s.id;});
+    DISHAT.slice(1).forEach((s,i)=>{
+      if(i===0){s.status='contact';s.name='?';delete s.id;}
+      else{s.status='unknown';s.name='?';delete s.id;}
+    });
+
+    // 4. 強制清除 DOM（逐子移除，比 innerHTML='' 更可靠）
+    clearEl('story-content');
+    clearEl('ch-grid');
+    const ss=document.getElementById('story-scroll');
+    if(ss)ss.scrollTop=0;
+    const fr=document.getElementById('free-row');
+    if(fr)fr.classList.remove('open');
+
+    // 5. 更新場景與面板
+    document.getElementById('scene-title').textContent=G.sceneTitle;
+    document.getElementById('scene-loc').textContent=G.sceneLoc;
+    updateGold();
+    closeSettings();
+    renderBoth('party');
+    renderBoth('stars');
+    renderBoth('log');
+
+    // 6. 重新渲染初始故事
+    initStory();
+
+    // 7. 金色閃光確認重置
+    const fl=document.createElement('div');
+    fl.style.cssText='position:fixed;inset:0;z-index:9999;pointer-events:none;background:rgba(201,168,76,.2);opacity:1;transition:opacity .7s;';
+    document.body.appendChild(fl);
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      fl.style.opacity='0';
+      setTimeout(()=>fl.remove(),750);
+    }));
+
+    showToast('✦ 遊戲已重置','ok');
+  }catch(e){
+    showToast('重置錯誤：'+e.message,'err');
+    console.error('resetGame error:',e);
+  }
+}
+function doCopy(id,btnId){
+  const t=document.getElementById(id).textContent;
+  const btn=document.getElementById(btnId);
+  navigator.clipboard.writeText(t).then(()=>{btn.textContent='已複製';btn.classList.add('copied');setTimeout(()=>{btn.textContent='複製';btn.classList.remove('copied');},2000);}).catch(()=>showToast('請手動複製','inf'));
+}
+
+// ═══ LAYOUT ═══
+function togglePanel(){G.panelOpen=!G.panelOpen;document.getElementById('panel-side').classList.toggle('hidden',!G.panelOpen);document.getElementById('panel-btn').classList.toggle('ac',G.panelOpen);}
+function toggleDrawer(){G.drawerOpen=!G.drawerOpen;document.getElementById('drawer').classList.toggle('open',G.drawerOpen);document.getElementById('drawer-ov').classList.toggle('open',G.drawerOpen);}
+function closeDrawer(){G.drawerOpen=false;document.getElementById('drawer').classList.remove('open');document.getElementById('drawer-ov').classList.remove('open');}
+function applyResp(){const m=window.innerWidth<768;document.getElementById('drawer-btn').style.display=m?'':'none';document.getElementById('panel-btn').style.display=m?'none':'';}
+window.addEventListener('resize',applyResp);
+
+// ═══ TOAST ═══
+let toastT;
+function showToast(msg,type='ok'){const t=document.getElementById('toast');t.textContent=msg;t.className=`toast ${type} show`;clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),3200);}
+
+// ═══ INIT ═══
+function initLog(){
+  return[
+    {sec:'序章・Day1',loc:'城衛隊宿舍前',lines:[{t:'txt',v:'艾爾法收到解僱通知。擅自釋放被扣押糧食。'},{t:'sys',v:'獲得：解僱通知書×1'}]},
+    {sec:'序章・Day1',loc:'中央廣場',lines:[{t:'txt',v:'霧刃幫懸賞令：線索50銀、首領5金。'},{t:'sys',v:'代理城主：恩佐·卡羅'}]},
+    {sec:'序章・Day1',loc:'港口區・倉庫',lines:[{t:'txt',v:'在葛林倉庫擔任搬運工。'},{t:'sys',v:'獲得：銅幣×80'}]},
+  ];
+}
+
+function initStory(){
+  const c=document.getElementById('story-content');
+  c.innerHTML='';
+  document.getElementById('story-scroll').scrollTop=0;
+  G.storyData=[];
+
+  const opening=[
+    {type:'sec',v:'序章・Day 1　早晨'},
+    {type:'narr',v:'鐵霧城的早晨聞起來像銹。這座城市靠近山口，終年霧不散，鐵礦場的煙塵混進霧裡，每一口呼吸都帶著金屬的鈍味。'},
+    {type:'narr',v:'艾爾法站在城衛隊宿舍門口，手裡捏著那張解僱通知書，讀了第三遍。'},
+    {type:'sys',v:'「茲通知：城衛三等雇兵艾爾法，因擅自釋放扣押貨物、干涉稅務官執務，即日起解除雇傭關係，押金沒收，勿再登門。」'},
+    {type:'dial',sp:'艾爾法😒',ln:'那批貨是糧食。那個老人的家裡有五個孩子。'},
+    {type:'narr',v:'沒有人回應她。宿舍的門在她身後關上了。'},
+    {type:'narr',v:'橘子坐在她腳邊，仰頭看她。'},
+    {type:'dial',sp:'橘子🐈😒',ln:'喵——'},
+    {type:'sys',v:'〔系統翻譯：接下來怎麼辦。〕'},
+    {type:'dial',sp:'艾爾法😒',ln:'找工作。'},
+    {type:'sec',v:'序章・Day 1　上午'},
+    {type:'narr',v:'中央廣場的告示欄前圍了一群人。艾爾法擠進去，瞇眼看公告。'},
+    {type:'sys',v:'【懸賞令】山口出沒劫匪「霧刃幫」，已劫奪三支商隊。凡能提供線索者賞銀幣50，凡能緝拿首領者賞金幣5。——鐵霧城代理城主　恩佐·卡羅'},
+    {type:'narr',v:'艾爾法把懸賞令的內容默記在腦子裡，轉身往港口走。'},
+    {type:'sec',v:'序章・Day 1　中午'},
+    {type:'narr',v:'倉庫裡的男人叫葛林，五十多歲，獨眼，手上繭厚得像樹皮。他打量艾爾法一眼。'},
+    {type:'dial',sp:'葛林',ln:'你做過粗活嗎？'},
+    {type:'dial',sp:'艾爾法😒',ln:'沒有。但我學很快。'},
+    {type:'dial',sp:'葛林',ln:'城衛出來的？'},
+    {type:'dial',sp:'艾爾法😒',ln:'被解僱的。'},
+    {type:'dial',sp:'葛林',ln:'誠實。我喜歡。幹活。'},
+    {type:'sys',v:'✦ 獲得搬運工資：銅幣 ×80　→　所持金：金0・銀8・銅135'},
+    {type:'sec',v:'序章・Day 1　傍晚'},
+    {type:'narr',v:'碼頭的霧在夕陽裡染成暗橙色。艾爾法坐在木樁上啃乾糧，一手捏著那張解僱通知書，讀完了第三遍。'},
+    {type:'narr',v:'橘子盤在她腳邊，仰頭看著山口方向一縷不散的炊煙。'},
+    {type:'dial',sp:'橘子🐈😒',ln:'喵——'},
+    {type:'sys',v:'〔系統翻譯：山上有人，而且不止一個。〕'},
+    {type:'narr',v:'背後響起腳步聲，戒備而輕快。'},
+    {type:'dial',sp:'紅髮女人',ln:'哎，你是今天幫葛林卸貨的人嗎？'},
+    {type:'narr',v:'她站在三步之外：紅髮，左臂繃帶纏到手肘，腰間掛著一把缺口的彎刀。眼神很亮，是被人追過的那種警覺。'},
+    {type:'dial',sp:'紅髮女人',ln:'我聽說你以前是城衛。你認識這一帶的山路嗎？'},
+    {type:'dial',sp:'艾爾法😒',ln:'坐下來說。'},
+  ];
+
+  opening.forEach(e=>appendEntryToDOM(e));
+  G.history=[{role:'user',content:'故事開始。場景：鐵霧城碼頭傍晚，艾爾法今天被解僱、到廣場看了霧刃幫懸賞、在葛林倉庫打工，現在一名神秘紅髮女人開口搭話。請繼續並給出行動選項。'}];
+  const initChoices=[{t:'詢問她的傷勢與來歷',h:'（讀心）'},{t:'直接問霧刃幫的事',h:''},{t:'說明自己的處境，試探合作意願',h:''},{t:'保持沉默，讓她繼續說',h:''}];
+  renderChoices(initChoices);
+  saveGame();
+}
+
+// ═══ BOOT ═══
+applyResp();
+renderBoth('party');renderBoth('stars');
+updateGold();
+
+// no-store meta 確保 reload 不走 bfcache，所以這裡直接讀存檔
+// 重置後 localStorage 已清空，loadGame 回傳 false，走 initStory
+const hasSave=loadGame();
+if(hasSave){
+  updateGold();
+  renderStoryFromData();
+  renderBoth('log');
+  showToast('✦ 讀取存檔成功','ok');
+}else{
+  G.log=initLog();
+  renderBoth('log');
+  initStory();
+}
+scrollD();
+if(!CFG.key)document.getElementById('api-modal').classList.add('open');
+document.getElementById('free-inp').addEventListener('keydown',e=>{if(e.key==='Enter')sendFree();});
+document.getElementById('api-inp').addEventListener('keydown',e=>{if(e.key==='Enter')saveKey();});
+document.getElementById('s-key').addEventListener('keydown',e=>{if(e.key==='Enter')applySettings();});
+</script>
+</body>
+</html>
