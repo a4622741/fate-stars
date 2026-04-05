@@ -499,6 +499,23 @@ body::before{content:'';position:fixed;inset:0;background-image:
 <div class="save-ind" id="save-indicator">✦ 已自動存檔</div>
 <div class="toast" id="toast"></div>
 
+<!-- MAP MODAL -->
+<div class="mlay" id="map-modal" onclick="if(event.target===this)closeMap()">
+  <div class="mbox" style="max-width:680px;width:100%;padding:0;overflow:hidden;border-radius:6px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:.65rem 1rem;background:linear-gradient(135deg,rgba(201,168,76,.1),transparent);border-bottom:1px solid var(--brd);">
+      <div style="display:flex;align-items:center;gap:.6rem;">
+        <span id="map-breadcrumb" style="font-size:.75rem;color:var(--gold);letter-spacing:.08em;">艾爾薩大陸</span>
+      </div>
+      <button class="mclose" style="padding:.4rem .8rem;" onclick="closeMap()">✕</button>
+    </div>
+    <div id="map-container" style="position:relative;overflow:hidden;background:#060d14;">
+      <!-- map renders here -->
+    </div>
+    <div id="map-info" style="display:none;padding:.6rem 1rem;border-top:1px solid var(--brd);background:var(--bg2);">
+    </div>
+  </div>
+</div>
+
 <!-- HEADER -->
 <div class="hdr">
   <div>
@@ -507,6 +524,9 @@ body::before{content:'';position:fixed;inset:0;background-image:
   </div>
   <div class="hdr-r">
     <div class="hdr-g">🪙 <b id="gold-hdr">銀8・銅135</b></div>
+    <button class="ib" onclick="openMap()" title="地圖">
+      <svg viewBox="0 0 16 16"><path d="M1 3l4 1.5 6-2 4 1.5v9l-4-1.5-6 2-4-1.5V3z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><line x1="5" y1="4.5" x2="5" y2="13" stroke="currentColor" stroke-width="1"/><line x1="11" y1="2.5" x2="11" y2="11" stroke="currentColor" stroke-width="1"/></svg>
+    </button>
     <button class="ib" id="drawer-btn" onclick="toggleDrawer()" style="display:none">
       <svg viewBox="0 0 16 16"><rect x="1" y="2" width="14" height="2.5" rx="1"/><rect x="1" y="6.75" width="14" height="2.5" rx="1"/><rect x="1" y="11.5" width="14" height="2.5" rx="1"/></svg>
     </button>
@@ -713,7 +733,10 @@ const SYS=`你是西方奇幻版水滸傳文字RPG故事引擎，輸出劇情與
 3. nv每段60-80字，1-3段。橘子喵叫sp「橘子🐈😒」ln「喵——」，再加{sp:"系統翻譯",ln:"…"}。
 4. ch提供3-4個選項，策略各異。sm記錄金錢道具變動。
 5. 簡潔乾燥文風，偶有乾式幽默。
-6. 玩家輸入的行動必須被尊重並如實反映在劇情中，不可忽略或替換成其他行動。玩家選擇什麼，故事就從那個方向發展。
+6. 每個登場角色都必須有專屬表情符號，緊接在名字後面，例如：葛林🪵、紅髮女🗡️、守衛甲🛡️。同一角色在整個故事中始終使用同一個 emoji，不可更換。
+7. 玩家輸入的行動必須被尊重並如實反映在劇情中，不可忽略或替換成其他行動。玩家選擇什麼，故事就從那個方向發展。
+8. st（場景標題）必須是故事內的時間地點描述，例如「序章・Day1 傍晚」「第二章・翌日清晨」，絕對不可以把玩家輸入的文字當成場景標題。
+9. 地點（sl）移動需有合理的劇情銜接，不可無故跨越大距離。若玩家沒有明確說要移動，故事就留在當前地點繼續推進。
 7. nm欄位：當角色正式確認加入同伴時填寫，否則為null。格式：
 {"id":"英文小寫id","name":"姓名","star":"星名如地煞星","type":"天罡或地煞","num":星位數字,"title":"職業/稱號","emoji":"適合的emoji","desc":"人物說明100字以內","portrait":"角色外貌英文描述供AI繪圖用，例如：young woman with red hair wearing leather armor，不要加anime style等風格詞","stats":{"武力":0,"知力":0,"統率":0,"魅力":0,"幸運":0},"tl":[{"n":"天賦名","s":false,"d":"說明"}],"eq":{"武器":"","防具":"","飾品":""}}`;
 
@@ -1414,7 +1437,353 @@ function initStory(){
   saveGame();
 }
 
-// ═══ BOOT ═══
+// ═══ MAP SYSTEM ═══
+// 王國/領地
+const KINGDOMS=[
+  {id:'fog_mt',name:'霧山聯邦',color:'rgba(80,100,140,.18)',stroke:'rgba(100,130,180,.3)',path:'M60 80 Q100 40 200 60 Q240 55 260 90 Q240 150 220 200 Q200 240 180 260 Q150 280 110 260 Q80 240 65 210 Q45 170 55 130 Z'},
+  {id:'central',name:'中央王國',color:'rgba(140,120,60,.15)',stroke:'rgba(180,160,80,.25)',path:'M260 60 Q340 40 420 65 Q460 80 470 120 Q480 160 460 200 Q440 240 400 270 Q360 290 310 285 Q260 278 240 250 Q220 220 225 180 Q230 140 245 110 Z'},
+  {id:'east_sea',name:'東海王國',color:'rgba(40,100,120,.18)',stroke:'rgba(60,140,160,.3)',path:'M460 80 Q510 55 560 70 Q590 90 595 140 Q600 190 585 240 Q570 280 545 300 Q510 320 480 300 Q455 275 448 240 Q440 200 445 160 Q448 120 455 95 Z'},
+  {id:'forest',name:'翠林域',color:'rgba(30,100,50,.2)',stroke:'rgba(40,130,60,.3)',path:'M240 40 Q280 20 340 30 Q380 35 390 65 Q370 90 330 100 Q290 108 260 95 Q240 80 238 60 Z'},
+  {id:'wasteland',name:'南荒',color:'rgba(100,60,40,.15)',stroke:'rgba(130,80,50,.25)',path:'M280 290 Q340 280 410 290 Q450 300 460 330 Q445 365 400 375 Q350 385 300 370 Q265 355 268 325 Z'},
+];
+
+// 城市資料
+const MAP_CITIES={
+  iron_fog:{
+    name:'鐵霧城',cx:175,cy:215,size:7,kingdom:'fog_mt',
+    desc:'霧山聯邦工業重城，終年霧不散。代理城主：恩佐·卡羅。',
+    keywords:['鐵霧城'],
+    pois:[
+      {name:'港口區・倉庫',icon:'⚓',type:'port',x:110,y:265,desc:'葛林🪵的倉庫，可接搬運工作。',waystation:false},
+      {name:'中央廣場',icon:'📋',type:'plaza',x:200,y:178,desc:'公告欄，懸賞令張貼處，情報集散地。',waystation:false},
+      {name:'城衛隊本部',icon:'🛡️',type:'guard',x:295,y:148,desc:'艾爾法前雇主，代理城主恩佐駐守。',waystation:false},
+      {name:'鐵鎚旅館',icon:'🍺',type:'inn',x:158,y:150,desc:'可休息・打聽情報・補給。',waystation:false},
+      {name:'武器修繕鋪',icon:'⚒️',type:'shop',x:255,y:245,desc:'裝備維修・輕型武器販賣。',waystation:false},
+      {name:'雜貨商行',icon:'🎒',type:'shop',x:328,y:218,desc:'乾糧・繃帶・基本補給品。',waystation:false},
+      {name:'霧山驛站',icon:'🐎',type:'waystation',x:225,y:310,desc:'可購買驛馬前往其他城市。出發條件：持有驛站令牌或銀幣10枚以上。',waystation:true},
+      {name:'霧刃幫據點',icon:'⚠️',type:'danger',x:385,y:290,desc:'位置不確定，山口附近活動。',waystation:false},
+    ]
+  },
+  iron_crown:{
+    name:'鐵冠城',cx:120,cy:120,size:5,kingdom:'fog_mt',
+    desc:'霧山聯邦北方要塞，守備嚴密，礦脈豐富。',
+    keywords:['鐵冠城'],
+    pois:[
+      {name:'要塞城門',icon:'🏰',type:'guard',x:200,y:160,desc:'戒備森嚴，入城需通關令。',waystation:false},
+      {name:'礦工聚落',icon:'⛏️',type:'district',x:300,y:240,desc:'採礦工人居住區，情報豐富。',waystation:false},
+      {name:'北驛',icon:'🐎',type:'waystation',x:370,y:170,desc:'可前往鐵霧城或銀月城方向。',waystation:true},
+    ]
+  },
+  silver_moon:{
+    name:'銀月城',cx:315,cy:148,size:8,kingdom:'central',
+    desc:'中央王國最大商業都市，各路英雄匯聚，情報市場繁盛。',
+    keywords:['銀月城'],
+    pois:[
+      {name:'月橋商街',icon:'🏪',type:'shop',x:160,y:170,desc:'各類商品・稀有道具・情報買賣。',waystation:false},
+      {name:'英雄公會',icon:'⚔️',type:'guild',x:250,y:230,desc:'接任務・懸賞・傭兵招募。',waystation:false},
+      {name:'銀月旅館',icon:'🍺',type:'inn',x:340,y:155,desc:'高級旅館，可打聽重要情報。',waystation:false},
+      {name:'中央驛站',icon:'🐎',type:'waystation',x:430,y:195,desc:'四通八達，可前往全大陸各城市。',waystation:true},
+      {name:'星象館',icon:'🔭',type:'special',x:310,y:290,desc:'古老星象機構，與108星辰有關聯？',waystation:false},
+    ]
+  },
+  rust_city:{
+    name:'鏽城',cx:340,cy:285,size:6,kingdom:'central',
+    desc:'前帝都廢墟，帝國崩裂後百廢待興，地下遺跡尚未探明。',
+    keywords:['鏽城','廢都'],
+    pois:[
+      {name:'廢墟廣場',icon:'🏚️',type:'ruins',x:200,y:165,desc:'帝都昔日中心，現滿目瘡痍。',waystation:false},
+      {name:'殘黨據點',icon:'⚠️',type:'danger',x:350,y:220,desc:'帝國殘黨盤據，危險。',waystation:false},
+      {name:'地下遺跡入口',icon:'🕳️',type:'special',x:290,y:295,desc:'深處有古代機關，未知寶藏。',waystation:false},
+      {name:'廢都驛',icon:'🐎',type:'waystation',x:150,y:250,desc:'破舊但仍運作，可低價前往南北各城。',waystation:true},
+    ]
+  },
+  east_port:{
+    name:'東港城',cx:510,cy:162,size:7,kingdom:'east_sea',
+    desc:'東海王國大港，海貿繁盛，各國船隻停泊，情報人員眾多。',
+    keywords:['東港城'],
+    pois:[
+      {name:'東港碼頭',icon:'⚓',type:'port',x:420,y:275,desc:'大型商港，可搭船前往海外。',waystation:false},
+      {name:'商人公會',icon:'💰',type:'guild',x:215,y:175,desc:'情報買賣・任務委託・走私線索。',waystation:false},
+      {name:'海鷗旅館',icon:'🍺',type:'inn',x:175,y:240,desc:'港口最大旅館，各路人馬聚集。',waystation:false},
+      {name:'武器鋪・波浪',icon:'⚔️',type:'shop',x:305,y:205,desc:'海軍規格武器・防具。',waystation:false},
+      {name:'東港驛站',icon:'🐎',type:'waystation',x:385,y:155,desc:'可前往銀月城或霧海關。',waystation:true},
+      {name:'情報屋',icon:'🕵️',type:'special',x:290,y:290,desc:'地下情報網，消息靈通。',waystation:false},
+    ]
+  },
+  fog_sea_pass:{
+    name:'霧海關',cx:538,cy:258,size:5,kingdom:'east_sea',
+    desc:'東海王國南端要塞，控制海上航路，走私活動猖獗。',
+    keywords:['霧海關'],
+    pois:[
+      {name:'關卡城門',icon:'🚧',type:'guard',x:200,y:155,desc:'嚴格盤查，需通行證。',waystation:false},
+      {name:'走私商人',icon:'🤫',type:'special',x:310,y:245,desc:'黑市交易，危險但有奇貨。',waystation:false},
+      {name:'南海驛',icon:'🐎',type:'waystation',x:380,y:195,desc:'可前往東港城或更南方。',waystation:true},
+    ]
+  },
+  jade_forest:{
+    name:'翠林城',cx:268,cy:80,size:5,kingdom:'forest',
+    desc:'翠林域精靈聚居地，外人不易進入，古老魔法力量瀰漫。',
+    keywords:['翠林城','翠林'],
+    pois:[
+      {name:'世界樹廣場',icon:'🌳',type:'special',x:250,y:180,desc:'翠林域中心，古老精靈議會所在。',waystation:false},
+      {name:'藥草市集',icon:'🌿',type:'shop',x:350,y:245,desc:'稀有藥草・解毒劑・精靈特產。',waystation:false},
+      {name:'林間驛',icon:'🐎',type:'waystation',x:160,y:210,desc:'精靈特供驛站，需取得通行許可。',waystation:true},
+    ]
+  },
+  dragon_valley:{
+    name:'龍牙砦',cx:415,cy:328,size:5,kingdom:'wasteland',
+    desc:'南荒廢棄要塞，傳說有古龍盤據，尋寶者與亡命之徒聚集。',
+    keywords:['龍牙砦','龍谷'],
+    pois:[
+      {name:'亡命者營地',icon:'🔥',type:'danger',x:215,y:180,desc:'各路強者聚集，強者為王。',waystation:false},
+      {name:'古龍遺跡',icon:'🐉',type:'special',x:320,y:250,desc:'傳說有古代龍族的寶庫，危機四伏。',waystation:false},
+      {name:'廢砦驛',icon:'🐎',type:'waystation',x:380,y:155,desc:'破舊驛站，仍可出發，但無保障。',waystation:true},
+    ]
+  },
+};
+
+// 驛站連線（城市間可通行的路線）
+const CITY_ROUTES=[
+  ['iron_fog','iron_crown'],
+  ['iron_fog','silver_moon'],
+  ['iron_crown','silver_moon'],
+  ['silver_moon','east_port'],
+  ['silver_moon','rust_city'],
+  ['silver_moon','jade_forest'],
+  ['east_port','fog_sea_pass'],
+  ['rust_city','dragon_valley'],
+  ['iron_fog','rust_city'],
+];
+
+// 偵測當前所在城市
+function detectCity(){
+  const loc=(G.sceneLoc||'').replace('📍 ','');
+  const title=G.sceneTitle||'';
+  for(const [id,city] of Object.entries(MAP_CITIES)){
+    if(city.keywords.some(k=>loc.includes(k)||title.includes(k)))return id;
+  }
+  return 'iron_fog';
+}
+
+// 判斷是否可以長途移動
+function canTravel(){
+  const transports=['馬匹','驛馬','馬車','船票','通行令','驛站令牌'];
+  if(INV&&INV.items&&INV.items.some(i=>transports.some(t=>i.n.includes(t))))
+    return{can:true,reason:'持有交通工具'};
+  if(G.atWayStation)return{can:true,reason:'位於驛站'};
+  return{can:false,reason:'需前往驛站或取得交通工具（馬匹・驛站令牌等）'};
+}
+
+// 執行移動
+function doTravel(cityId){
+  const city=MAP_CITIES[cityId];
+  if(!city)return;
+  const travel=canTravel();
+  if(!travel.can){showToast(travel.reason,'err');return;}
+  closeMap();
+  G.sceneLoc='📍 '+city.name;
+  G.sceneTitle=G.sceneTitle.replace(/・.*/,'')+' 途中';
+  G.atWayStation=false;
+  document.getElementById('scene-title').textContent=G.sceneTitle;
+  document.getElementById('scene-loc').textContent=G.sceneLoc;
+  appendEntryToDOM({type:'sys',v:`✦ 出發前往 ${city.name}…（抵達後繼續行動）`});
+  G.history.push({role:'user',content:`【玩家移動】艾爾法決定前往${city.name}。請描述抵達${city.name}的情形並給出行動選項。`});
+  scrollD();
+  saveGame();
+  sendChoice('【抵達'+city.name+'】');
+}
+
+// 地圖開啟/關閉
+function openMap(){
+  renderContinentMap();
+  document.getElementById('map-modal').classList.add('open');
+}
+function closeMap(){
+  document.getElementById('map-modal').classList.remove('open');
+}
+
+// 大陸地圖
+function renderContinentMap(){
+  const curId=detectCity();
+  const cur=MAP_CITIES[curId];
+  document.getElementById('map-breadcrumb').textContent='艾爾薩大陸';
+  document.getElementById('map-info').style.display='none';
+  const container=document.getElementById('map-container');
+  container.style.height='400px';
+
+  const cityCircles=Object.entries(MAP_CITIES).map(([id,c])=>{
+    const isCur=id===curId;
+    const col=isCur?'#c9a84c':'#707060';
+    const strokeCol=isCur?'#e8cc7a':'#907060';
+    return`<g class="city-dot" onclick="showCityPanel('${id}')" style="cursor:pointer">
+      ${isCur?`<circle cx="${c.cx}" cy="${c.cy}" r="${c.size+8}" fill="rgba(201,168,76,.12)" stroke="rgba(201,168,76,.35)" stroke-width="1"/>`:``}
+      <circle cx="${c.cx}" cy="${c.cy}" r="${c.size}" fill="${col}" stroke="${strokeCol}" stroke-width="${isCur?2:1.5}"/>
+      <text x="${c.cx}" y="${c.cy+c.size+12}" text-anchor="middle" font-size="${isCur?10:8.5}" fill="${col}" font-family="serif" font-weight="${isCur?'600':'400'}">${c.name}</text>
+      ${isCur?`<text x="${c.cx}" y="${c.cy+c.size+22}" text-anchor="middle" font-size="7.5" fill="rgba(201,168,76,.55)" font-family="sans-serif">◉ 當前</text>`:''}
+    </g>`;
+  }).join('');
+
+  const routes=CITY_ROUTES.map(([a,b])=>{
+    const ca=MAP_CITIES[a],cb=MAP_CITIES[b];
+    if(!ca||!cb)return'';
+    return`<line x1="${ca.cx}" y1="${ca.cy}" x2="${cb.cx}" y2="${cb.cy}" stroke="rgba(201,168,76,.18)" stroke-width="1.2" stroke-dasharray="5,4"/>`;
+  }).join('');
+
+  const kingdomShapes=KINGDOMS.map(k=>`
+    <path d="${k.path}" fill="${k.color}" stroke="${k.stroke}" stroke-width="1"/>
+    `).join('');
+
+  container.innerHTML=`<svg viewBox="0 0 640 400" width="100%" height="400" xmlns="http://www.w3.org/2000/svg" style="display:block">
+  <defs>
+    <radialGradient id="sg" cx="50%" cy="50%" r="70%"><stop offset="0%" stop-color="#0a1828"/><stop offset="100%" stop-color="#040a12"/></radialGradient>
+    <pattern id="wv" width="60" height="30" patternUnits="userSpaceOnUse"><path d="M0 15 Q15 8 30 15 Q45 22 60 15" fill="none" stroke="rgba(30,80,140,.1)" stroke-width="0.7"/></pattern>
+  </defs>
+  <rect width="640" height="400" fill="url(#sg)"/>
+  <rect width="640" height="400" fill="url(#wv)"/>
+  ${kingdomShapes}
+  <!-- 山脈 -->
+  <g opacity=".55">
+    <path d="M80 170 L102 130 L124 170Z" fill="#1c1c0e" stroke="#2a2a14" stroke-width=".5"/>
+    <path d="M105 175 L130 132 L155 175Z" fill="#1c1c0e" stroke="#2a2a14" stroke-width=".5"/>
+    <path d="M132 172 L152 136 L172 172Z" fill="#181808" stroke="#2a2a14" stroke-width=".5"/>
+    <path d="M92 168 L108 138 L118 160Z" fill="#222210" opacity=".6"/>
+  </g>
+  <!-- 森林 -->
+  <g opacity=".5">
+    ${Array.from({length:10},(_,i)=>{const x=240+Math.cos(i*.9)*28,y=75+Math.sin(i*1.2)*16;return`<circle cx="${x.toFixed(0)}" cy="${y.toFixed(0)}" r="11" fill="#091a0c" stroke="#0e2512" stroke-width=".5"/>`;}).join('')}
+  </g>
+  <!-- 河流 -->
+  <path d="M220 110 Q250 145 270 175 Q295 210 315 250 Q330 275 355 295" stroke="rgba(40,100,180,.3)" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <!-- 道路 -->
+  ${routes}
+  <!-- 城市 -->
+  ${cityCircles}
+  <!-- 王國名稱 -->
+  <text x="125" y="265" text-anchor="middle" font-size="8" fill="rgba(120,140,180,.35)" font-family="serif">霧山聯邦</text>
+  <text x="305" y="240" text-anchor="middle" font-size="8" fill="rgba(180,160,80,.3)" font-family="serif">中央王國</text>
+  <text x="530" y="215" text-anchor="middle" font-size="8" fill="rgba(60,140,160,.3)" font-family="serif">東海王國</text>
+  <text x="270" y="58" text-anchor="middle" font-size="7.5" fill="rgba(40,130,60,.35)" font-family="serif">翠林域</text>
+  <text x="390" y="365" text-anchor="middle" font-size="8" fill="rgba(130,80,50,.3)" font-family="serif">南荒</text>
+  <!-- 標題 -->
+  <text x="320" y="24" text-anchor="middle" font-size="13" fill="rgba(201,168,76,.45)" font-family="serif" letter-spacing="3">艾爾薩大陸</text>
+  <text x="320" y="390" text-anchor="middle" font-size="8.5" fill="rgba(100,100,80,.35)" font-family="sans-serif">點擊城市查看區域 · 黃色為當前位置</text>
+  <!-- 羅盤 -->
+  <g transform="translate(610,38)">
+    <circle cx="0" cy="0" r="16" fill="rgba(0,0,0,.45)" stroke="rgba(201,168,76,.28)" stroke-width="1"/>
+    <text x="0" y="-5" text-anchor="middle" font-size="8" fill="rgba(201,168,76,.65)" font-family="serif">北</text>
+    <text x="0" y="12" text-anchor="middle" font-size="8" fill="rgba(201,168,76,.45)" font-family="serif">南</text>
+    <text x="-11" y="4" text-anchor="middle" font-size="8" fill="rgba(201,168,76,.45)" font-family="serif">西</text>
+    <text x="11" y="4" text-anchor="middle" font-size="8" fill="rgba(201,168,76,.45)" font-family="serif">東</text>
+    <path d="M0 -12 L2.5 0 L0 4 L-2.5 0Z" fill="rgba(201,168,76,.75)"/>
+  </g>
+</svg>`;
+}
+
+// 大陸地圖：點城市後顯示資訊面板
+function showCityPanel(cityId){
+  const city=MAP_CITIES[cityId];
+  if(!city)return;
+  const curId=detectCity();
+  const travel=canTravel();
+  const isCur=cityId===curId;
+  const info=document.getElementById('map-info');
+  info.style.display='block';
+  info.innerHTML=`<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:.8rem;">
+    <div style="flex:1">
+      <div style="font-size:.82rem;color:var(--gold);font-weight:600;margin-bottom:.2rem">${city.name}
+        ${isCur?'<span style="font-size:.65rem;color:rgba(201,168,76,.55);margin-left:.4rem">◉ 當前位置</span>':''}
+      </div>
+      <div style="font-size:.68rem;color:var(--sild);line-height:1.5;margin-bottom:.35rem">${city.desc}</div>
+      ${isCur?`<button onclick="renderRegionMap('${cityId}')" style="font-size:.68rem;padding:.25rem .6rem;background:rgba(201,168,76,.12);border:1px solid rgba(201,168,76,.4);border-radius:3px;color:var(--gold);cursor:pointer;font-family:'Noto Serif TC',serif;">🗺 查看區域地圖</button>`:
+      `<button onclick="doTravel('${cityId}')" style="font-size:.68rem;padding:.25rem .7rem;background:${travel.can?'rgba(201,168,76,.15)':'rgba(80,80,80,.15)'};border:1px solid ${travel.can?'rgba(201,168,76,.5)':'rgba(100,100,100,.3)'};border-radius:3px;color:${travel.can?'var(--gold)':'var(--sild)'};cursor:${travel.can?'pointer':'not-allowed'};font-family:'Noto Serif TC',serif;"
+        ${!travel.can?`title="${travel.reason}"`:''}
+      >${travel.can?'🐎 移動前往此地':'🚫 無法移動'}</button>
+      ${!travel.can?`<div style="font-size:.6rem;color:rgba(150,100,80,.8);margin-top:.22rem">⚠ ${travel.reason}</div>`:''}`}
+    </div>
+  </div>`;
+}
+
+// 區域地圖
+function renderRegionMap(cityId){
+  const city=MAP_CITIES[cityId];
+  if(!city)return;
+  document.getElementById('map-breadcrumb').innerHTML=`<span onclick="renderContinentMap()" style="cursor:pointer;opacity:.6">艾爾薩大陸</span> <span style="opacity:.4"> ＞ </span>${city.name}`;
+  document.getElementById('map-info').style.display='none';
+  const container=document.getElementById('map-container');
+  container.style.height='420px';
+
+  const iconColors={port:'#4488cc',plaza:'#c9a84c',guard:'#cc8844',inn:'#44aa66',shop:'#aa6644',guild:'#8844aa',danger:'#cc4444',waystation:'#c9a84c',special:'#88aacc',ruins:'#887755',district:'#778899'};
+
+  container.innerHTML=`<svg viewBox="0 0 540 420" width="100%" height="420" xmlns="http://www.w3.org/2000/svg" style="display:block">
+  <defs><pattern id="rg" width="36" height="36" patternUnits="userSpaceOnUse"><path d="M 36 0 L 0 0 0 36" fill="none" stroke="rgba(201,168,76,.05)" stroke-width=".5"/></pattern></defs>
+  <rect width="540" height="420" fill="#07100a"/>
+  <rect width="540" height="420" fill="url(#rg)"/>
+  <!-- 城市範圍 -->
+  <ellipse cx="270" cy="210" rx="195" ry="150" fill="rgba(12,25,14,.85)" stroke="rgba(201,168,76,.12)" stroke-width="1"/>
+  <!-- 城牆 -->
+  <rect x="115" y="95" width="310" height="230" rx="10" fill="none" stroke="rgba(201,168,76,.2)" stroke-width="1.8" stroke-dasharray="7,4"/>
+  <!-- 道路 -->
+  <line x1="270" y1="95" x2="270" y2="325" stroke="rgba(201,168,76,.1)" stroke-width="10"/>
+  <line x1="120" y1="210" x2="420" y2="210" stroke="rgba(201,168,76,.1)" stroke-width="10"/>
+  <!-- POIs -->
+  ${city.pois.map((poi,i)=>{
+    const col=iconColors[poi.type]||'#888';
+    const isWS=poi.waystation;
+    return`<g onclick="showPoiInfo('${cityId}',${i})" style="cursor:pointer">
+      <circle cx="${poi.x}" cy="${poi.y}" r="20" fill="rgba(0,0,0,.55)" stroke="${col}" stroke-width="${isWS?2:1.5}" ${isWS?'stroke-dasharray="0"':''}/>
+      ${isWS?`<circle cx="${poi.x}" cy="${poi.y}" r="24" fill="none" stroke="rgba(201,168,76,.25)" stroke-width="1"/>`:``}
+      <text x="${poi.x}" y="${poi.y+1}" text-anchor="middle" dominant-baseline="middle" font-size="15">${poi.icon}</text>
+      <text x="${poi.x}" y="${poi.y+28}" text-anchor="middle" font-size="8.5" fill="${col}" font-family="sans-serif">${poi.name.length>5?poi.name.slice(0,5)+'…':poi.name}</text>
+    </g>`;
+  }).join('')}
+  <!-- 城市名 -->
+  <text x="270" y="26" text-anchor="middle" font-size="14" fill="rgba(201,168,76,.6)" font-family="serif" letter-spacing="2">${city.name}</text>
+  <text x="270" y="408" text-anchor="middle" font-size="8" fill="rgba(100,100,80,.3)" font-family="sans-serif">點擊地點查看說明</text>
+  <!-- 返回 -->
+  <g onclick="renderContinentMap()" style="cursor:pointer">
+    <rect x="12" y="12" width="62" height="20" rx="3" fill="rgba(0,0,0,.5)" stroke="rgba(201,168,76,.28)" stroke-width="1"/>
+    <text x="43" y="25" text-anchor="middle" font-size="9" fill="rgba(201,168,76,.6)" font-family="sans-serif">◀ 大陸圖</text>
+  </g>
+</svg>`;
+}
+
+// POI點擊說明＋行動按鈕
+function showPoiInfo(cityId,poiIdx){
+  const poi=MAP_CITIES[cityId]?.pois[poiIdx];
+  if(!poi)return;
+  const iconColors={port:'#4488cc',plaza:'#c9a84c',guard:'#cc8844',inn:'#44aa66',shop:'#aa6644',guild:'#8844aa',danger:'#cc4444',waystation:'#c9a84c',special:'#88aacc',ruins:'#887755',district:'#778899'};
+  const col=iconColors[poi.type]||'#888';
+  const info=document.getElementById('map-info');
+  info.style.display='block';
+  info.innerHTML=`<div style="display:flex;align-items:flex-start;gap:.6rem;">
+    <span style="font-size:1.3rem;flex-shrink:0">${poi.icon}</span>
+    <div style="flex:1">
+      <div style="font-size:.8rem;color:${col};font-weight:600;margin-bottom:.15rem">${poi.name}</div>
+      <div style="font-size:.68rem;color:var(--sild);margin-bottom:.35rem;line-height:1.5">${poi.desc}</div>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+        <button onclick="doGoToPoi('${cityId}','${poi.name}')" style="font-size:.68rem;padding:.22rem .6rem;background:rgba(201,168,76,.12);border:1px solid rgba(201,168,76,.4);border-radius:3px;color:var(--gold);cursor:pointer;font-family:'Noto Serif TC',serif;">→ 前往此地</button>
+        ${poi.waystation?`<button onclick="doSetWaystation()" style="font-size:.68rem;padding:.22rem .6rem;background:rgba(201,168,76,.18);border:1px solid rgba(201,168,76,.6);border-radius:3px;color:var(--gold);cursor:pointer;font-family:'Noto Serif TC',serif;">🐎 使用驛站</button>`:''}
+      </div>
+    </div>
+  </div>`;
+}
+
+function doGoToPoi(cityId,poiName){
+  closeMap();
+  const city=MAP_CITIES[cityId];
+  G.sceneLoc='📍 '+city.name+'・'+poiName.replace('・','');
+  document.getElementById('scene-loc').textContent=G.sceneLoc;
+  sendChoice('【玩家移動至】'+poiName);
+}
+
+function doSetWaystation(){
+  G.atWayStation=true;
+  showToast('已抵達驛站，可前往其他城市','ok');
+  closeMap();
+  saveGame();
+}
+
+
 applyResp();
 renderBoth('party');renderBoth('stars');
 updateGold();
@@ -1434,7 +1803,10 @@ if(hasSave){
 }
 scrollD();
 if(!CFG.key)document.getElementById('api-modal').classList.add('open');
-document.getElementById('free-inp').addEventListener('keydown',e=>{if(e.key==='Enter')sendFree();});
+document.getElementById('free-inp').addEventListener('keydown',e=>{
+  // isComposing=true 代表輸入法正在選字，此時 Enter 只是確認選字，不發送
+  if(e.key==='Enter'&&!e.isComposing)sendFree();
+});
 document.getElementById('api-inp').addEventListener('keydown',e=>{if(e.key==='Enter')saveKey();});
 document.getElementById('s-key').addEventListener('keydown',e=>{if(e.key==='Enter')applySettings();});
 </script>
