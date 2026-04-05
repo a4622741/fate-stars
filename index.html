@@ -95,6 +95,7 @@ body::before{content:'';position:fixed;inset:0;background-image:
 .ch-free{border-style:dashed;border-color:var(--sild);}
 .ch-free:hover{border-color:var(--goldd);}
 .free-row{display:none;gap:.45rem;margin-top:.38rem;}
+@keyframes pulse{from{box-shadow:0 0 0 0 rgba(201,168,76,.4)}to{box-shadow:0 0 0 5px rgba(201,168,76,0)}}
 .free-row.open{display:flex;}
 .free-inp{flex:1;background:var(--bg3);border:1px solid var(--brd);border-radius:3px;
   padding:.36rem .6rem;color:var(--sil);font-family:'Noto Serif TC',serif;font-size:.77rem;outline:none;}
@@ -554,6 +555,9 @@ body::before{content:'';position:fixed;inset:0;background-image:
   <div class="hdr-r">
     <div class="hdr-g">🪙 <b id="gold-hdr">銀8・銅135</b></div>
     <div id="time-hdr" style="font-size:.58rem;color:var(--sild);letter-spacing:.05em;"></div>
+    <button class="ib" onclick="syncAll()" title="同步所有狀態">
+      <svg viewBox="0 0 16 16"><path d="M13.5 8A5.5 5.5 0 012.5 8" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M11 5.5l2.5 2.5 2.5-2.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.5 8A5.5 5.5 0 0113.5 8" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M5 10.5L2.5 8 0 10.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
     <button class="ib" onclick="openMap()" title="地圖">
       <svg viewBox="0 0 16 16"><path d="M1 3l4 1.5 6-2 4 1.5v9l-4-1.5-6 2-4-1.5V3z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><line x1="5" y1="4.5" x2="5" y2="13" stroke="currentColor" stroke-width="1"/><line x1="11" y1="2.5" x2="11" y2="11" stroke="currentColor" stroke-width="1"/></svg>
     </button>
@@ -584,9 +588,9 @@ body::before{content:'';position:fixed;inset:0;background-image:
       <div class="ch-label">＊ 行動選擇 ＊</div>
       <div class="ch-grid" id="ch-grid"></div>
       <div class="free-row" id="free-row">
-        <button onclick="openDiceModal()" title="素質判定" style="padding:.4rem .55rem;background:transparent;border:1px solid var(--brd);border-radius:3px;color:var(--sild);cursor:pointer;font-size:.85rem;flex-shrink:0;transition:all .2s;"
-          onmouseover="this.style.borderColor='var(--goldd)';this.style.color='var(--gold)'"
-          onmouseout="this.style.borderColor='var(--brd)';this.style.color='var(--sild)'">🎲</button>
+        <button id="dice-btn" onclick="openDiceModal()" title="素質判定" style="display:none;padding:.4rem .55rem;background:rgba(201,168,76,.12);border:1px solid var(--goldd);border-radius:3px;color:var(--gold);cursor:pointer;font-size:.85rem;flex-shrink:0;transition:all .2s;animation:pulse .9s infinite alternate;"
+          onmouseover="this.style.background='rgba(201,168,76,.25)'"
+          onmouseout="this.style.background='rgba(201,168,76,.12)'">🎲</button>
         <input class="free-inp" id="free-inp" placeholder="輸入自由行動… （密技：@錢）"/>
         <button class="free-send" onclick="sendFree()">送出</button>
       </div>
@@ -837,38 +841,39 @@ const SYS=`你是西方奇幻版水滸傳文字RPG故事引擎，輸出劇情與
 2. 格式：{"st":"場景標題","sl":"📍 地點","nv":["敘述段落"],"dl":[{"sp":"角色","ln":"台詞"}],"sm":null,"gd":{"g":0,"s":0,"c":0},"ch":[{"t":"選項","h":""}],"nm":null,"cb":null,"iv":null,"sp":null,"shop":null,"fa":null,"hp":null,"qt":null,"tm":null,"rp":null,"info":null,"relic":null,"clue":null,"or":null,"job":null}
 3. nv每段60-80字，1-3段。橘子喵叫sp「橘子🐈😒」ln「喵——」，再加{sp:"系統翻譯",ln:"…"}。
 4. ch提供3-4個選項，策略各異。sm記錄金錢道具變動。
-5. 簡潔乾燥文風，偶有乾式幽默。
+5. 簡潔乾燥文風，偶有乾式幽默。允許偶發的荒誕、破格或意外情況——玩家的自由行動可能帶來不合常理的結果，接受並推進即可，不必強行補充邏輯解釋。
 6. 每個登場角色都必須有專屬表情符號，緊接在名字後面。同一角色始終使用同一個emoji。
-7. 玩家輸入的行動必須被尊重並如實反映，不可忽略或替換。
-8. st必須是故事內時間地點描述，不可使用玩家輸入文字。
-9. 地點移動需有合理銜接，玩家未明確移動則留在當前地點。
-10. cb欄位（戰鬥判定）：劇情需要戰鬥或重要技能判定時填寫cb並將ch設為空陣列，等待骰子結果：
+7. 【最高優先】玩家輸入的行動必須被尊重並如實反映，不可忽略、替換或繞過。玩家說「我做X」就必須先執行X，再給出選項。絕對不可以在玩家未指定對話的情況下，強行安排隊伍成員或NPC主動開口說話、發起互動或打斷行動。隊伍成員只在玩家主動與其互動時才登場發言。
+8. 【重要】隊伍同伴（橘子等）的發言和反應，只在以下情況出現：(a)玩家明確與其互動；(b)劇情危機需要；(c)玩家選項的直接後果。禁止在玩家執行一般行動時，插入同伴的旁白、對話或反應，除非玩家明確要求。
+9. st必須是故事內時間地點描述，不可使用玩家輸入文字。
+10. 地點移動需有合理銜接，玩家未明確移動則留在當前地點。
+11. cb欄位（戰鬥判定）：劇情需要戰鬥或重要技能判定時填寫cb並將ch設為空陣列，等待骰子結果：
 cb格式：{"stat":"武力","difficulty":12,"enemy":"對手名稱","desc":"判定說明"}
 可用stat：武力（物理）、知力（魔法謀略）、統率（指揮威嚇）、魅力（說服欺騙）、幸運（機率閃避）
 difficulty：8簡單，12普通，16困難，18極難，20幾乎不可能。
 收到【骰子判定結果】後根據成功/失敗繼續劇情，cb設null。
-11. iv欄位（道具/裝備變動）：劇情中角色獲得或失去道具、更換裝備時填寫，否則null。格式：
+12. iv欄位（道具/裝備變動）：劇情中角色獲得或失去道具、更換裝備時填寫，否則null。格式：
 {"add":[{"n":"道具名","t":"描述","q":"×1"}],"remove":["道具名"],"key":[{"n":"情報名","t":"說明"}],"equip":[{"who":"艾爾法","slot":"武器","item":"精良短劍","t":"攻擊力+12"}]}
-12. hp欄位（HP變動）：角色受傷或治療時填寫，格式：[{"id":"alfar","delta":-15,"reason":"被劍擊中手臂"},{"id":"orange","delta":5,"reason":"舔了舔傷口"}]。delta負=受傷，正=回復。橘子血量上限30，其他角色約80-100。
-13. qt欄位（任務更新）：新增/更新任務時填寫。格式陣列：[{"id":"quest_001","title":"追蹤紅髮女","type":"支線","status":"new","desc":"她的左臂傷勢和霧刃幫有關。","objectives":[{"text":"找到紅髮女的下落","done":false},{"text":"查明她和霧刃幫的關係","done":false}],"rewards":"情報+線索","loc":"鐵霧城"}]
+13. hp欄位（HP變動）：角色受傷或治療時填寫，格式：[{"id":"alfar","delta":-15,"reason":"被劍擊中手臂"},{"id":"orange","delta":5,"reason":"舔了舔傷口"}]。delta負=受傷，正=回復。橘子血量上限30，其他角色約80-100。
+14. qt欄位（任務更新）：新增/更新任務時填寫。格式陣列：[{"id":"quest_001","title":"追蹤紅髮女","type":"支線","status":"new","desc":"她的左臂傷勢和霧刃幫有關。","objectives":[{"text":"找到紅髮女的下落","done":false},{"text":"查明她和霧刃幫的關係","done":false}],"rewards":"情報+線索","loc":"鐵霧城"}]
 status="new"新增，status="completed"完成，可只傳id+objectives更新進度。
-14. tm欄位（時間推進）：劇情中時間流逝時填寫，格式：{"advance":2}（推進2小時）或{"setWeather":"暴雨"}（強制換天氣）或{"setHour":6}（設定為6時）。一般對話+1小時，戰鬥+1-2小時，長途移動+3-6小時，休息由系統自動處理。
-15. rp欄位（聲望變動）：與勢力互動後填寫，格式：[{"id":"ironmist","delta":5,"reason":"幫助居民"},{"id":"mistblade","delta":-8,"reason":"阻止其行動"}]
+15. tm欄位（時間推進）：劇情中時間流逝時填寫，格式：{"advance":2}（推進2小時）或{"setWeather":"暴雨"}（強制換天氣）或{"setHour":6}（設定為6時）。一般對話+1小時，戰鬥+1-2小時，長途移動+3-6小時，休息由系統自動處理。
+16. rp欄位（聲望變動）：與勢力互動後填寫，格式：[{"id":"ironmist","delta":5,"reason":"幫助居民"},{"id":"mistblade","delta":-8,"reason":"阻止其行動"}]
 可用ID：ironmist（鐵霧城居民）、mistblade（霧刃幫）、merchant（商人公會）、hero（英雄公會）、imperial（帝國殘軍）、shadow（幕後勢力）
-16. info欄位（情報/謠言）：角色聽到情報、NPC透露消息、探索發現線索時填寫。格式：[{"id":"info_001","title":"霧刃幫的秘密據點","content":"碼頭倉庫B區深處似乎有隱藏入口，每逢深夜有人出入。","src":"碼頭老工人","rel":3,"cat":"地點","related":"霧刃幫任務"}]
+17. info欄位（情報/謠言）：角色聽到情報、NPC透露消息、探索發現線索時填寫。格式：[{"id":"info_001","title":"霧刃幫的秘密據點","content":"碼頭倉庫B區深處似乎有隱藏入口，每逢深夜有人出入。","src":"碼頭老工人","rel":3,"cat":"地點","related":"霧刃幫任務"}]
 cat可用：地點/人物/勢力/謠言。rel=1-5可靠度。橘子的感知情報加"orange":true。
-17. relic欄位（命運寶器發現）：角色找到或獲得寶器時填寫。格式：{"id":"relic_t02","name":"天罡御風旗","starName":"第2星","starNum":"天2","type":"法器","icon":"🏴","rarity":"稀有","desc":"傳說中能召喚風暴的旗幟","effect":"統率+12・戰鬥開始時使敵人判定難度+2","lore":"天機星降世之器"}
+18. relic欄位（命運寶器發現）：角色找到或獲得寶器時填寫。格式：{"id":"relic_t02","name":"天罡御風旗","starName":"第2星","starNum":"天2","type":"法器","icon":"🏴","rarity":"稀有","desc":"傳說中能召喚風暴的旗幟","effect":"統率+12・戰鬥開始時使敵人判定難度+2","lore":"天機星降世之器"}
 rarity可用：普通/精良/稀有/傳說/神器。id建議格式：relic_t{num}或relic_d{num}。
-18. clue欄位（天父星線索）：發現關於先行者（天父星）的線索時填寫。格式：[{"id":"clue_001","title":"被撕裂的地圖","content":"碼頭倉庫角落發現一張被撕裂的地圖碎片，標注了八個城市——正是艾爾薩大陸的主要城市。邊角有人用舊式帝國文字寫著：'先聚火，後聚人'。","src":"廢棄倉庫","rel":4,"cat":"蹤跡"}]
+19. clue欄位（天父星線索）：發現關於先行者（天父星）的線索時填寫。格式：[{"id":"clue_001","title":"被撕裂的地圖","content":"碼頭倉庫角落發現一張被撕裂的地圖碎片，標注了八個城市——正是艾爾薩大陸的主要城市。邊角有人用舊式帝國文字寫著：'先聚火，後聚人'。","src":"廢棄倉庫","rel":4,"cat":"蹤跡"}]
 cat可用：身份/蹤跡/目的/命運/橘子感知。積累到3/6/9/12條時自動觸發門檻事件。
-19. or欄位（橘子秘密觸發）：在故事中出現特別適合揭露橘子秘密的場景時填寫，格式：{"stage":1}（觸發第N層揭露，最高5層）。此欄位請謹慎使用，只在劇情高峰或橘子有異常反應時觸發。
-20. job欄位（職業變更）：角色職業改變時填寫（如修行、拜師、特殊事件）。格式：[{"id":"alfar","job":"劍客"}]。可用職業：城衛/劍客/鬥士/術士/謀士/遊俠/密探/醫師/商賈。
-21. fa欄位（好感度變動）：劇情中與角色互動後填寫，格式：[{"id":"orange","delta":5,"reason":"橘子得到了魚乾"}]，delta正=增加，負=減少，艾爾法不參與好感系統。
-21. shop欄位（交易介面）：劇情進入商店、市集、攤販時填寫，讓玩家可以購買道具或裝備。格式：{"name":"商店名稱","items":[{"n":"物品名","t":"描述","slot":"武器/防具/飾品/道具","price":{"g":0,"s":10,"c":0},"desc":"說明","bonus":{"武力":0,"知力":0,"統率":0,"魅力":0,"幸運":0}}]}
+20. or欄位（橘子秘密觸發）：在故事中出現特別適合揭露橘子秘密的場景時填寫，格式：{"stage":1}（觸發第N層揭露，最高5層）。此欄位請謹慎使用，只在劇情高峰或橘子有異常反應時觸發。
+21. job欄位（職業變更）：角色職業改變時填寫（如修行、拜師、特殊事件）。格式：[{"id":"alfar","job":"劍客"}]。可用職業：城衛/劍客/鬥士/術士/謀士/遊俠/密探/醫師/商賈。
+22. fa欄位（好感度變動）：劇情中與角色互動後填寫，格式：[{"id":"orange","delta":5,"reason":"橘子得到了魚乾"}]，delta正=增加，負=減少，艾爾法不參與好感系統。
+23. shop欄位（交易介面）：劇情進入商店、市集、攤販時填寫，讓玩家可以購買道具或裝備。格式：{"name":"商店名稱","items":[{"n":"物品名","t":"描述","slot":"武器/防具/飾品/道具","price":{"g":0,"s":10,"c":0},"desc":"說明","bonus":{"武力":0,"知力":0,"統率":0,"魅力":0,"幸運":0}}]}
 持有裝備時用iv.purchase欄位：[{"n":"道具名","t":"描述","slot":"武器","bonus":{"武力":10,"知力":0,"統率":0,"魅力":0,"幸運":0}}]（加入持有欄，等玩家手動裝備）
 商品也應在price後加bonus，若未提供系統會自動依品質隨機生成。
-22. sp欄位（星辰感知）：當任何108星辰的人物登場（不論是否加入）時填寫，橘子會有反應。格式：{"num":2,"type":"地煞","star":"地煞星","name":"人物稱呼","hint":"橘子感知描述，例如：此人氣息異常，似有命運之星降臨"}
-23. nm欄位：角色確認加入時填寫，否則null。格式：{"id":"英文id","name":"姓名","star":"星名","type":"天罡或地煞","num":數字,"title":"稱號","emoji":"emoji","desc":"說明","portrait":"英文外貌描述","stats":{"武力":0,"知力":0,"統率":0,"魅力":0,"幸運":0},"tl":[{"n":"天賦名","s":false,"d":"說明"}],"eq":{"武器":"","防具":"","飾品":""},"baseLv":起始等級}`;
+24. sp欄位（星辰感知）：當任何108星辰的人物登場（不論是否加入）時填寫，橘子會有反應。格式：{"num":2,"type":"地煞","star":"地煞星","name":"人物稱呼","hint":"橘子感知描述，例如：此人氣息異常，似有命運之星降臨"}
+25. nm欄位：角色確認加入時填寫，否則null。格式：{"id":"英文id","name":"姓名","star":"星名","type":"天罡或地煞","num":數字,"title":"稱號","emoji":"emoji","desc":"說明","portrait":"英文外貌描述","stats":{"武力":0,"知力":0,"統率":0,"魅力":0,"幸運":0},"tl":[{"n":"天賦名","s":false,"d":"說明"}],"eq":{"武器":"","防具":"","飾品":""},"baseLv":起始等級}`;
 
 
 // 偵測是否為 CORS / 網路錯誤
@@ -879,7 +884,21 @@ function isCorsErr(e){
 
 async function callAPI(action){
   if(!CFG.key){document.getElementById('api-modal').classList.add('open');throw new Error('請先設定 API 金鑰');}
-  G.history.push({role:'user',content:`【當前時間】${getTimeContext()}\n${action}`});
+  // 每次呼叫附上當前遊戲狀態快照，確保 AI 知道真實數值（不依賴文字推算）
+  const inv=getInv();
+  const partySnap=allParty().map(c=>{
+    const hp=getHP(c.id);
+    const job=getJob(c.id);
+    const fav=getFavor(c.id);
+    return `${c.name}【${job||'無職業'}・HP${hp.cur}/${hp.max}${fav!==null?'・好感'+fav:''}】`;
+  }).join('、');
+  const goldSnap=`金${G.gold.gold}・銀${G.gold.silver}・銅${G.gold.copper}`;
+  const questSnap=(G.quests||[]).filter(q=>q.status==='active').map(q=>q.title).join('、')||'無';
+  // 只在數值與行動相關時才附上金幣（避免 AI 在不相關劇情中提及金額）
+  const actionLower=action.toLowerCase();
+  const goldRelevant=actionLower.includes('買')||actionLower.includes('購')||actionLower.includes('錢')||actionLower.includes('金')||actionLower.includes('銀')||actionLower.includes('交易')||actionLower.includes('shop')||actionLower.includes('密技');
+  const stateNote=`【背景數值・僅供參考】時間:${getTimeContext()} | ${goldRelevant?'持有金幣:'+goldSnap+' | ':''}隊員狀態:${partySnap} | 進行中任務:${questSnap}`;
+  G.history.push({role:'user',content:`${stateNote}\n${action}`});
   let res;
   try{
     res=await fetch('https://api.anthropic.com/v1/messages',{
@@ -1311,10 +1330,17 @@ function sendFree(){
   const vn=v.replace(/＠/g,'@');
   if(vn==='@錢'){
     applyGold({g:5000000,s:0,c:0});
-    appendEntryToDOM({type:'sys',v:'💰 密技：獲得 500萬金幣。（你贏了。）'});
-    scrollD();saveGame();return;
+    appendEntryToDOM({type:'sys',v:'💰 密技：獲得 500萬金幣。'});
+    scrollD();saveGame();
+    // 觸發 AI 融入故事
+    sendChoice('【密技介入・無需邏輯】艾爾法的錢袋不知為何突然沉重非常——命運或許在開玩笑。請以任何你覺得有趣的方式（荒誕、命運眷顧、神秘遺產、莫名其妙的好運均可）把這件事輕描淡寫地帶過，不必解釋，然後繼續當前劇情。');
+    return;
   }
-  if(vn==='@骰子'){openDiceModal();return;}
+  if(vn==='@骰子'){
+    const db=document.getElementById('dice-btn');
+    if(db)db.style.display='';
+    openDiceModal();return;
+  }
   sendChoice('【玩家自由行動】'+v);
 }
 function setDis(b){document.querySelectorAll('.ch-btn').forEach(btn=>btn.disabled=b);}
@@ -3307,6 +3333,21 @@ function togglePanel(){G.panelOpen=!G.panelOpen;document.getElementById('panel-s
 function toggleDrawer(){G.drawerOpen=!G.drawerOpen;document.getElementById('drawer').classList.toggle('open',G.drawerOpen);document.getElementById('drawer-ov').classList.toggle('open',G.drawerOpen);}
 function closeDrawer(){G.drawerOpen=false;document.getElementById('drawer').classList.remove('open');document.getElementById('drawer-ov').classList.remove('open');}
 function applyResp(){const m=window.innerWidth<768;document.getElementById('drawer-btn').style.display=m?'':'none';document.getElementById('panel-btn').style.display=m?'none':'';}
+
+function syncAll(){
+  // 重新渲染全部面板、金幣、時間、圖示
+  updateGold();
+  updateTimeDisplay();
+  ['party','stars','inv','quest','intel','log'].forEach(tab=>renderBoth(tab));
+  // 重新渲染故事選項（如果有）
+  if(G.currentChoices?.length) renderChoices(G.currentChoices);
+  // 存檔
+  saveGame();
+  // 轉動同步按鈕動畫提示
+  const btn=document.querySelector('button.ib[onclick="syncAll()"]');
+  if(btn){btn.style.transition='transform .4s';btn.style.transform='rotate(360deg)';setTimeout(()=>{btn.style.transform='';},400);}
+  showToast('✦ 狀態已同步','ok');
+}
 window.addEventListener('resize',applyResp);
 
 // ═══ TOAST ═══
@@ -3373,6 +3414,12 @@ function initStory(){
 // 自動戰鬥判定（由 AI cb 欄位觸發）
 function autoCombat(cb){
   if(!cb)return;
+  // 顯示骰子按鈕
+  const db=document.getElementById('dice-btn');
+  if(db)db.style.display='';
+  // 展開自由行動列（讓玩家看到骰子）
+  const fr=document.getElementById('free-row');
+  if(fr)fr.classList.add('open');
   const char=getCharData('alfar');
   const statVal=char?.stats[cb.stat]||0;
   const bondBonus=G.rep['_bond_dice_bonus']||0;
