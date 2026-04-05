@@ -165,6 +165,10 @@ body::before{content:'';position:fixed;inset:0;background-image:
 .smf{height:100%;background:linear-gradient(90deg,var(--goldd),var(--gold));border-radius:1px;}
 .smf.lk{background:linear-gradient(90deg,#1a2540,#2a3550);}
 .smv{font-size:.56rem;color:var(--sil);width:1.7rem;text-align:right;flex-shrink:0;}
+.stat-plus{font-size:.65rem;width:15px;height:15px;background:rgba(201,168,76,.15);border:1px solid rgba(201,168,76,.45);border-radius:2px;color:var(--gold);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;padding:0;line-height:1;transition:background .15s;}
+.stat-plus:hover{background:rgba(201,168,76,.35);}
+.stat-plus-ph{width:15px;flex-shrink:0;}
+.lv-badge{font-size:.52rem;padding:.08rem .3rem;background:rgba(201,168,76,.12);border:1px solid rgba(201,168,76,.35);border-radius:2px;color:var(--goldd);letter-spacing:.04em;white-space:nowrap;}
 .tgrow{padding:0 .62rem .48rem;display:flex;flex-wrap:wrap;gap:.16rem;}
 .tg{font-size:.53rem;padding:.08rem .3rem;border:1px solid var(--goldd);border-radius:2px;color:var(--goldd);background:rgba(201,168,76,.04);}
 .tg.sl{border-color:var(--sild);color:var(--sild);}
@@ -496,6 +500,21 @@ body::before{content:'';position:fixed;inset:0;background-image:
   </div>
 </div>
 
+<!-- DICE MODAL -->
+<div class="mlay" id="dice-modal" onclick="if(event.target===this)closeDiceModal()">
+  <div class="mbox" style="max-width:420px;padding:1.2rem 1.4rem;">
+    <div style="font-size:.85rem;color:var(--gold);letter-spacing:.1em;margin-bottom:.8rem;font-weight:700;">🎲 素質判定</div>
+    <div id="dice-char-select" style="margin-bottom:.7rem;"></div>
+    <div id="dice-stat-select" style="margin-bottom:.9rem;"></div>
+    <div id="dice-result" style="min-height:80px;display:flex;align-items:center;justify-content:center;"></div>
+    <div style="display:flex;gap:.5rem;margin-top:.85rem;">
+      <button onclick="rollDice()" id="roll-btn" style="flex:1;padding:.5rem;background:rgba(201,168,76,.15);border:1px solid rgba(201,168,76,.5);border-radius:3px;color:var(--gold);font-family:'Noto Serif TC',serif;font-size:.8rem;cursor:pointer;">投擲！</button>
+      <button onclick="confirmDiceResult()" id="confirm-dice-btn" style="display:none;flex:1;padding:.5rem;background:rgba(80,160,80,.15);border:1px solid rgba(80,160,80,.5);border-radius:3px;color:#6ab46a;font-family:'Noto Serif TC',serif;font-size:.8rem;cursor:pointer;">帶入故事</button>
+      <button onclick="closeDiceModal()" style="padding:.5rem .8rem;background:transparent;border:1px solid var(--brd);border-radius:3px;color:var(--sild);font-family:'Noto Serif TC',serif;font-size:.8rem;cursor:pointer;">取消</button>
+    </div>
+  </div>
+</div>
+
 <div class="save-ind" id="save-indicator">✦ 已自動存檔</div>
 <div class="toast" id="toast"></div>
 
@@ -554,7 +573,10 @@ body::before{content:'';position:fixed;inset:0;background-image:
       <div class="ch-label">＊ 行動選擇 ＊</div>
       <div class="ch-grid" id="ch-grid"></div>
       <div class="free-row" id="free-row">
-        <input class="free-inp" id="free-inp" placeholder="輸入自由行動…"/>
+        <button onclick="openDiceModal()" title="素質判定" style="padding:.4rem .55rem;background:transparent;border:1px solid var(--brd);border-radius:3px;color:var(--sild);cursor:pointer;font-size:.85rem;flex-shrink:0;transition:all .2s;"
+          onmouseover="this.style.borderColor='var(--goldd)';this.style.color='var(--gold)'"
+          onmouseout="this.style.borderColor='var(--brd)';this.style.color='var(--sild)'">🎲</button>
+        <input class="free-inp" id="free-inp" placeholder="輸入自由行動… （密技：@錢）"/>
         <button class="free-send" onclick="sendFree()">送出</button>
       </div>
     </div>
@@ -622,6 +644,7 @@ const G={
   sceneTitle:'序章・Day 1　傍晚',
   sceneLoc:'📍 鐵霧城・碼頭',
   partyIds:['alfar','orange'],  // 當前隊伍 ID 列表（最多6）
+  upgrade:{},   // { id: { lv, pts } } 各角色等級與升級點數
   extraParty:[],   // 動態招募的新成員資料
   extraPcfg:{},    // 新成員頭像 prompt
 };
@@ -637,7 +660,7 @@ function saveGame(){
       storyData:G.storyData,currentChoices:G.currentChoices,
       sceneTitle:G.sceneTitle,sceneLoc:G.sceneLoc,
       extraParty:G.extraParty,extraPcfg:G.extraPcfg,
-      partyIds:G.partyIds,
+      partyIds:G.partyIds,upgrade:G.upgrade,
       starOv,savedAt:Date.now(),
     };
     localStorage.setItem(SAVE_KEY,JSON.stringify(data));
@@ -660,6 +683,7 @@ function loadGame(){
     G.extraParty=data.extraParty||[];
     G.extraPcfg=data.extraPcfg||{};
     G.partyIds=data.partyIds||['alfar','orange'];
+    G.upgrade=data.upgrade||{};
     // 恢復星辰狀態
     if(data.starOv){
       Object.entries(data.starOv).forEach(([k,v])=>{
@@ -701,12 +725,12 @@ function showSaveIndicator(){
 
 // ═══ DATA ═══
 const PARTY=[
-  {id:'alfar',star:'天魁星',type:'天罡',num:1,name:'艾爾法',title:'遊俠（無所屬）',emoji:'😒',
+  {id:'alfar',star:'天魁星',type:'天罡',num:1,name:'艾爾法',title:'遊俠（無所屬）',emoji:'😒',baseLv:1,
    desc:'鐵霧城前城衛，因擅自釋放被扣押的糧食而遭解僱。出身平凡，語少，銀色長髮，面無表情卻行事有原則。某種古老的星力在她體內沉眠。',
    stats:{武力:41,知力:69,統率:22,魅力:34,幸運:51},sn:{},
    tl:[{n:'潛星之光',s:true,d:'封印中。條件未達。'},{n:'平靜之眼',s:false,d:'不受恐懼、魅惑、幻術影響。'},{n:'讀心微表情',s:false,d:'可察覺對方說謊（成功率依知力浮動）。'}],
    eq:{武器:'舊制式短劍（磨損三級）',防具:'城衛布甲（補丁×7）',飾品:'——'}},
-  {id:'orange',star:'地魁星',type:'地煞',num:1,name:'橘子',title:'布偶貓・雌性（身份不明）',emoji:'🐈😒',
+  {id:'orange',star:'地魁星',type:'地煞',num:1,name:'橘子',title:'布偶貓・雌性（身份不明）',emoji:'🐈😒',baseLv:null,
    desc:'以五枚銅幣購入的布偶貓，雌性。雙色毛、藍眼，面癱，聽懂人話，只會喵叫。知力數值異常，來歷不明。對翻肚子持強烈反對立場。',
    stats:{武力:3,知力:99,統率:null,魅力:null,幸運:null},sn:{統率:'顯示拒絕',魅力:'數值異常',幸運:'???'},
    tl:[{n:'看穿本質',s:false,d:'對一切虛偽免疫。'},{n:'翻肚禁止',s:false,d:'被強制翻肚時觸發・空踢反擊。'},{n:'命運之錨',s:true,d:'未知。'}],
@@ -726,19 +750,23 @@ const INV={
 const SYS=`你是西方奇幻版水滸傳文字RPG故事引擎，輸出劇情與選項。
 世界：艾爾薩大陸，帝國崩裂，十二王國割據。108顆命運之星降世，聚旗終結輪迴。
 主角艾爾法（天魁星）：前城衛，平民，銀色長髮，面無表情，原則至上，知力高武力中等。
-同伴橘子（地魁星）：布偶貓・雌性，藍眼雙色毛，面癱，只會喵叫，智力異常。
+同伴橘子（地魁星）：布偶貓・雌性，藍眼雙色毛，面癱，只會喵叫，智力異常，不參與戰鬥。
 規則：
 1. 只輸出純JSON，無任何Markdown或多餘文字。
-2. 格式：{"st":"場景標題","sl":"📍 地點","nv":["敘述段落"],"dl":[{"sp":"角色","ln":"台詞"}],"sm":null,"gd":{"g":0,"s":0,"c":0},"ch":[{"t":"選項","h":""}],"nm":null}
+2. 格式：{"st":"場景標題","sl":"📍 地點","nv":["敘述段落"],"dl":[{"sp":"角色","ln":"台詞"}],"sm":null,"gd":{"g":0,"s":0,"c":0},"ch":[{"t":"選項","h":""}],"nm":null,"cb":null}
 3. nv每段60-80字，1-3段。橘子喵叫sp「橘子🐈😒」ln「喵——」，再加{sp:"系統翻譯",ln:"…"}。
 4. ch提供3-4個選項，策略各異。sm記錄金錢道具變動。
 5. 簡潔乾燥文風，偶有乾式幽默。
-6. 每個登場角色都必須有專屬表情符號，緊接在名字後面，例如：葛林🪵、紅髮女🗡️、守衛甲🛡️。同一角色在整個故事中始終使用同一個 emoji，不可更換。
-7. 玩家輸入的行動必須被尊重並如實反映在劇情中，不可忽略或替換成其他行動。玩家選擇什麼，故事就從那個方向發展。
-8. st（場景標題）必須是故事內的時間地點描述，例如「序章・Day1 傍晚」「第二章・翌日清晨」，絕對不可以把玩家輸入的文字當成場景標題。
-9. 地點（sl）移動需有合理的劇情銜接，不可無故跨越大距離。若玩家沒有明確說要移動，故事就留在當前地點繼續推進。
-7. nm欄位：當角色正式確認加入同伴時填寫，否則為null。格式：
-{"id":"英文小寫id","name":"姓名","star":"星名如地煞星","type":"天罡或地煞","num":星位數字,"title":"職業/稱號","emoji":"適合的emoji","desc":"人物說明100字以內","portrait":"角色外貌英文描述供AI繪圖用，例如：young woman with red hair wearing leather armor，不要加anime style等風格詞","stats":{"武力":0,"知力":0,"統率":0,"魅力":0,"幸運":0},"tl":[{"n":"天賦名","s":false,"d":"說明"}],"eq":{"武器":"","防具":"","飾品":""}}`;
+6. 每個登場角色都必須有專屬表情符號，緊接在名字後面。同一角色始終使用同一個emoji。
+7. 玩家輸入的行動必須被尊重並如實反映，不可忽略或替換。
+8. st必須是故事內時間地點描述，不可使用玩家輸入文字。
+9. 地點移動需有合理銜接，玩家未明確移動則留在當前地點。
+10. cb欄位（戰鬥判定）：劇情需要戰鬥或重要技能判定時填寫cb並將ch設為空陣列，等待骰子結果：
+cb格式：{"stat":"武力","difficulty":12,"enemy":"對手名稱","desc":"判定說明"}
+可用stat：武力（物理）、知力（魔法謀略）、統率（指揮威嚇）、魅力（說服欺騙）、幸運（機率閃避）
+difficulty：8簡單，12普通，16困難，18極難，20幾乎不可能。
+收到【骰子判定結果】後根據成功/失敗繼續劇情，cb設null。
+11. nm欄位：角色確認加入時填寫，否則null。格式：{"id":"英文id","name":"姓名","star":"星名","type":"天罡或地煞","num":數字,"title":"稱號","emoji":"emoji","desc":"說明","portrait":"英文外貌描述","stats":{"武力":0,"知力":0,"統率":0,"魅力":0,"幸運":0},"tl":[{"n":"天賦名","s":false,"d":"說明"}],"eq":{"武器":"","防具":"","飾品":""},"baseLv":起始等級}`;
 
 
 // 偵測是否為 CORS / 網路錯誤
@@ -890,14 +918,18 @@ function renderResp(d){
   (d.nv||[]).forEach(p=>appendEntryToDOM({type:'narr',v:p}));
   (d.dl||[]).forEach(dl=>appendEntryToDOM({type:'dial',sp:dl.sp,ln:dl.ln}));
   if(d.sm){appendEntryToDOM({type:'sys',v:d.sm});if(d.gd)applyGold(d.gd);}
-  if(d.nm)addNewMember(d.nm); // 新成員自動觸發
+  if(d.nm)addNewMember(d.nm);
   scrollD();
   G.log.push({sec:d.st||'',loc:(d.sl||'').replace('📍 ',''),lines:[...(d.nv||[]).map(v=>({t:'txt',v})),...(d.dl||[]).map(dl=>({t:'txt',v:`${dl.sp}：「${dl.ln}」`})),...(d.sm?[{t:'sys',v:d.sm}]:[]) ]});
   renderBoth('log');
-  if(d.ch?.length)renderChoices(d.ch);
-  saveGame();
+  if(d.cb){
+    saveGame();
+    setTimeout(()=>autoCombat(d.cb),800);
+  }else{
+    if(d.ch?.length)renderChoices(d.ch);
+    saveGame();
+  }
 }
-
 function addAction(txt){appendEntryToDOM({type:'action',v:txt});scrollD();}
 function addThink(){const w=mk('div','sentry think-row');w.innerHTML='<div class="dot"></div><div class="dot"></div><div class="dot"></div>';document.getElementById('story-content').appendChild(w);scrollD();return w;}
 function addErr(msg,isCors){
@@ -927,17 +959,24 @@ function sendFree(){
   if(!v)return;
   document.getElementById('free-inp').value='';
   document.getElementById('free-row').classList.remove('open');
-  // 自由行動加上前綴，讓 AI 明確知道這是玩家自訂指令
+  // ── 密技判斷 ──
+  if(v==='@錢'){
+    applyGold({g:5000000,s:0,c:0});
+    appendEntryToDOM({type:'sys',v:'💰 密技：獲得 500萬金幣。（你贏了。）'});
+    scrollD();saveGame();return;
+  }
+  if(v==='@骰子'){openDiceModal();return;}
   sendChoice('【玩家自由行動】'+v);
 }
 function setDis(b){document.querySelectorAll('.ch-btn').forEach(btn=>btn.disabled=b);}
 
-// ═══ GOLD ═══
+// ═══ GOLD（1金=100銀=1000銅，即1銀=10銅）═══
 function applyGold(d){
   G.gold.gold+=(d.g||0);G.gold.silver+=(d.s||0);G.gold.copper+=(d.c||0);
-  if(G.gold.copper>=100){G.gold.silver+=Math.floor(G.gold.copper/100);G.gold.copper%=100;}
+  if(G.gold.copper>=10){G.gold.silver+=Math.floor(G.gold.copper/10);G.gold.copper%=10;}
   if(G.gold.silver>=100){G.gold.gold+=Math.floor(G.gold.silver/100);G.gold.silver%=100;}
-  if(G.gold.copper<0){G.gold.silver--;G.gold.copper+=100;}
+  if(G.gold.copper<0){G.gold.silver--;G.gold.copper+=10;}
+  if(G.gold.silver<0){G.gold.gold--;G.gold.silver+=100;}
   updateGold();
 }
 function goldS(){const g=G.gold;return `金${g.gold}・銀${g.silver}・銅${g.copper}`;}
@@ -1031,28 +1070,144 @@ function retryP(id,el){
 }
 
 
-function smini(s,sn){return['武力','知力','統率','魅力','幸運'].map(l=>{const v=s[l],n=sn[l],lk=v===null,p=lk?20:Math.min(v,100);return`<div class="smr"><div class="sml">${l}</div><div class="smb"><div class="smf ${lk?'lk':''}" style="width:${p}%"></div></div><div class="smv">${lk?(n||'??'):v}</div></div>`;}).join('');}
+// ═══ UPGRADE SYSTEM ═══
+function getUpgrade(id){
+  if(!G.upgrade)G.upgrade={};
+  if(!G.upgrade[id]){
+    const c=getCharData(id);
+    const lv=c?.baseLv||1;
+    G.upgrade[id]={lv,pts:0};
+  }
+  return G.upgrade[id];
+}
+function upgradeStat(id,stat){
+  const ug=getUpgrade(id);
+  if(ug.pts<=0){showToast('沒有可用的提升點數','err');return;}
+  const c=getCharData(id);if(!c)return;
+  c.stats[stat]=(c.stats[stat]||0)+2;
+  ug.pts--;
+  // 每花費5點升一級
+  const spent=Object.values(c.stats).filter(v=>v!=null).reduce((a,b)=>a+b,0);
+  const expectedLv=Math.floor(spent/50)+1;
+  if(expectedLv>ug.lv){ug.lv=expectedLv;showToast(`${c.name} → Lv.${ug.lv}`,'ok');}
+  renderBoth('party');saveGame();
+}
+function trainChar(id,ev){
+  ev.stopPropagation();
+  const c=getCharData(id);if(!c)return;
+  const cost=5;// 5銀幣
+  if(G.gold.silver<cost&&G.gold.gold===0){showToast('銀幣不足（需5銀）','err');return;}
+  applyGold({g:0,s:-cost,c:0});
+  const ug=getUpgrade(id);
+  ug.pts+=3;
+  renderBoth('party');saveGame();
+  showToast(`${c.name} 獲得 3 點提升（消耗5銀）`,'ok');
+}
+function smini(s,sn,id){
+  const ug=id&&id!=='orange'?getUpgrade(id):null;
+  const hasPts=ug&&ug.pts>0;
+  return['武力','知力','統率','魅力','幸運'].map(l=>{
+    const v=s[l],n=sn[l],lk=v===null,p=lk?20:Math.min(v,100);
+    const plusBtn=(!lk&&hasPts)?`<button class="stat-plus" onclick="event.stopPropagation();upgradeStat('${id}','${l}')">+</button>`:'<div class="stat-plus-ph"></div>';
+    return`<div class="smr"><div class="sml">${l}</div><div class="smb"><div class="smf ${lk?'lk':''}" style="width:${p}%"></div></div><div class="smv">${lk?(n||'??'):v}</div>${plusBtn}</div>`;
+  }).join('');
+}
 function buildParty(){
   const members=allParty();
   const countHtml=`<div style="font-size:.6rem;color:var(--sild);text-align:right;margin-bottom:.55rem;letter-spacing:.06em;">同伴 <span style="color:var(--gold)">${members.length}</span> / ${MAX_PARTY}</div>`;
-  const cards=members.map(c=>`<div class="pcard" onclick="openChar('${c.id}')">
+  const hasAlfar=members.some(m=>m.id==='alfar');
+  const cards=members.map(c=>{
+    const ug=c.id!=='orange'?getUpgrade(c.id):null;
+    const pts=ug?.pts||0;
+    return`<div class="pcard" onclick="openChar('${c.id}')">
     <div class="pcard-portrait">${getPortrait(c.id)}</div>
     <div class="pcard-hdr">
       <div class="pbadge"><div>${c.type}</div><div>第${c.num}星</div><div class="bst">${c.star}</div></div>
-      <div class="pi"><div class="pname">${c.name}</div><div class="psub">${c.title}</div></div>
+      <div class="pi">
+        <div style="display:flex;align-items:center;gap:.35rem;">
+          <div class="pname">${c.name}</div>
+          ${ug?`<span class="lv-badge">Lv.${ug.lv}</span>`:''}
+          ${pts>0?`<span style="font-size:.5rem;color:var(--gold);background:rgba(201,168,76,.2);border-radius:2px;padding:.05rem .25rem;">+${pts}點</span>`:''}
+        </div>
+        <div class="psub">${c.title}</div>
+      </div>
       <div class="pemoji">${c.emoji}</div>
     </div>
-    <div class="sminis">${smini(c.stats,c.sn)}</div>
-    <div class="tgrow">${c.tl.map(t=>`<span class="tg ${t.s?'sl':''}">${t.s?'【封】':''}${t.n}</span>`).join('')}</div>
-    <div style="padding:.35rem .62rem;border-top:1px solid var(--brd);text-align:right;">
-      <button onclick="leaveParty('${c.id}',event)" style="font-size:.6rem;padding:.15rem .5rem;background:transparent;border:1px solid rgba(204,68,68,.35);border-radius:2px;color:rgba(204,68,68,.7);font-family:'Noto Serif TC',serif;cursor:pointer;transition:all .2s;"
-        onmouseover="this.style.background='rgba(204,68,68,.1)';this.style.borderColor='var(--red)';this.style.color='var(--red)'"
-        onmouseout="this.style.background='transparent';this.style.borderColor='rgba(204,68,68,.35)';this.style.color='rgba(204,68,68,.7)'">
-        退出同伴
-      </button>
+    <div class="sminis">${smini(c.stats,c.sn,c.id)}</div>
+    <div style="padding:.32rem .62rem;border-top:1px solid var(--brd);display:flex;flex-direction:column;gap:.18rem;">
+      ${[['⚔️','武器',c.eq?.武器||'——'],['🛡️','防具',c.eq?.防具||'——'],['💍','飾品',c.eq?.飾品||'——']].map(([ico,lbl,val])=>`
+      <div style="display:flex;align-items:center;gap:.4rem;font-size:.6rem;">
+        <span style="opacity:.7">${ico}</span>
+        <span style="color:var(--sild);width:1.8rem;flex-shrink:0;">${lbl}</span>
+        <span style="color:var(--sil);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${val}</span>
+        ${c.id!=='orange'?`<button onclick="event.stopPropagation();upgradeEquip('${c.id}','${lbl}')" style="font-size:.52rem;padding:.08rem .3rem;background:transparent;border:1px solid rgba(100,150,200,.3);border-radius:2px;color:rgba(100,150,200,.6);cursor:pointer;flex-shrink:0;"
+          onmouseover="this.style.borderColor='rgba(100,150,200,.7)';this.style.color='rgba(150,190,255,.9)'"
+          onmouseout="this.style.borderColor='rgba(100,150,200,.3)';this.style.color='rgba(100,150,200,.6)'">強化</button>`:''}
+      </div>`).join('')}
     </div>
-  </div>`).join('');
+    <div class="tgrow">${c.tl.map(t=>`<span class="tg ${t.s?'sl':''}">${t.s?'【封】':''}${t.n}</span>`).join('')}</div>
+    <div style="padding:.35rem .62rem;border-top:1px solid var(--brd);display:flex;justify-content:space-between;align-items:center;gap:.4rem;">
+      <div style="display:flex;gap:.4rem;align-items:center;">
+        ${c.id==='orange'&&hasAlfar?`<button onclick="forceBellyFlip(event)" style="font-size:.6rem;padding:.15rem .5rem;background:transparent;border:1px solid rgba(255,165,0,.35);border-radius:2px;color:rgba(255,165,0,.7);font-family:'Noto Serif TC',serif;cursor:pointer;"
+          onmouseover="this.style.background='rgba(255,165,0,.1)';this.style.borderColor='orange';this.style.color='orange'"
+          onmouseout="this.style.background='transparent';this.style.borderColor='rgba(255,165,0,.35)';this.style.color='rgba(255,165,0,.7)'">強制翻肚 🐾</button>`:''}
+        ${ug?`<button onclick="trainChar('${c.id}',event)" style="font-size:.6rem;padding:.15rem .5rem;background:transparent;border:1px solid rgba(100,180,100,.35);border-radius:2px;color:rgba(100,180,100,.75);font-family:'Noto Serif TC',serif;cursor:pointer;"
+          onmouseover="this.style.background='rgba(100,180,100,.1)';this.style.borderColor='#6ab46a';this.style.color='#6ab46a'"
+          onmouseout="this.style.background='transparent';this.style.borderColor='rgba(100,180,100,.35)';this.style.color='rgba(100,180,100,.75)'"
+          title="消耗5銀幣獲得3點提升點數">修煉（5銀）</button>`:'<div></div>'}
+      </div>
+      <button onclick="leaveParty('${c.id}',event)" style="font-size:.6rem;padding:.15rem .5rem;background:transparent;border:1px solid rgba(204,68,68,.35);border-radius:2px;color:rgba(204,68,68,.7);font-family:'Noto Serif TC',serif;cursor:pointer;"
+        onmouseover="this.style.background='rgba(204,68,68,.1)';this.style.borderColor='var(--red)';this.style.color='var(--red)'"
+        onmouseout="this.style.background='transparent';this.style.borderColor='rgba(204,68,68,.35)';this.style.color='rgba(204,68,68,.7)'">退出同伴</button>
+    </div>
+  </div>`;
+  }).join('');
   return countHtml+cards;
+}
+
+function forceBellyFlip(ev){
+  ev.stopPropagation();
+  const reactions=[
+    // 害怕
+    [
+      {type:'narr',v:'艾爾法😒伸出手，以迅雷不及掩耳之勢將橘子翻面朝天。'},
+      {type:'dial',sp:'橘子🐈😰',ln:'喵——！！'},
+      {type:'sys',v:'〔系統翻譯：有危險。逃跑本能啟動中。〕'},
+      {type:'narr',v:'橘子整個僵住，四腿微抖，耳朵壓平，肚子白毛完全暴露在空氣裡。兩秒後她才回過神來，瘋狂踢腿試圖翻回正面。'},
+      {type:'dial',sp:'艾爾法😒',ln:'……軟的。'},
+    ],
+    // 抱怨
+    [
+      {type:'narr',v:'橘子被翻了個底朝天，肚子白毛暴露在外。她側眼瞪向艾爾法，尾巴猛力甩了三下。'},
+      {type:'dial',sp:'橘子🐈😒',ln:'喵。'},
+      {type:'sys',v:'〔系統翻譯：你今天是故意的。〕'},
+      {type:'narr',v:'橘子慢條斯理地翻回正面，整理了一下毛，然後背對艾爾法坐定。'},
+      {type:'dial',sp:'橘子🐈😒',ln:'喵——'},
+      {type:'sys',v:'〔系統翻譯：這件事沒有完。〕'},
+    ],
+    // 生氣 + 翻肚禁止觸發
+    [
+      {type:'narr',v:'橘子的耳朵瞬間向後壓平。'},
+      {type:'dial',sp:'橘子🐈😒',ln:'喵！！——'},
+      {type:'sys',v:'〔系統翻譯：你死定了。〕'},
+      {type:'narr',v:'【翻肚禁止】天賦發動。空踢四連擊，正中艾爾法手背與手腕。爪痕清晰可見。'},
+      {type:'dial',sp:'艾爾法😒',ln:'……值得。'},
+      {type:'sys',v:'艾爾法手背 -2 HP ／ 橘子滿意度 +??? ／ 旁觀者困惑度 +50'},
+    ],
+    // 驚嚇後裝沒事
+    [
+      {type:'narr',v:'橘子被翻面的瞬間，發出了一聲從未有過的高頻短叫。'},
+      {type:'dial',sp:'橘子🐈😰',ln:'嗚——喵！'},
+      {type:'sys',v:'〔系統翻譯：（這個聲音不存在。）〕'},
+      {type:'narr',v:'橘子以飛快的速度翻回正面，隨後若無其事地開始舔爪子，彷彿剛才什麼都沒發生。'},
+      {type:'dial',sp:'橘子🐈😒',ln:'喵。'},
+      {type:'sys',v:'〔系統翻譯：你什麼也沒聽到。〕'},
+    ],
+  ];
+  const r=reactions[Math.floor(Math.random()*reactions.length)];
+  r.forEach(e=>appendEntryToDOM(e));
+  scrollD();saveGame();
+  showToast('翻肚禁止 🐾','ok');
 }
 function buildStars(){
   const f=G.starFilter,ft=s=>f==='recruited'?s.status==='recruited':f==='unknown'?s.status==='unknown':true;
@@ -1319,6 +1474,7 @@ function resetGame(){
     G.extraPcfg={};
     G.partyIds=['alfar','orange'];
     G.thinking=false;
+    G.upgrade={};
     G.log=initLog();
 
     // 3. 重設星辰
@@ -1437,7 +1593,147 @@ function initStory(){
   saveGame();
 }
 
-// ═══ MAP SYSTEM ═══
+// 自動戰鬥判定（由 AI cb 欄位觸發）
+function autoCombat(cb){
+  if(!cb)return;
+  const char=getCharData('alfar');
+  const statVal=char?.stats[cb.stat]||0;
+  const mod=Math.floor(statVal/10);
+  const enemy=cb.enemy||'敵人';
+  const diff=cb.difficulty||12;
+  appendEntryToDOM({type:'sys',v:`⚔️ 戰鬥判定：${cb.desc||cb.stat+'判定'} ／ 難度 ${diff}`});
+  scrollD();
+  const animDiv=mk('div','sentry');
+  animDiv.innerHTML=`<div class="s-sys" id="dice-anim-box" style="font-size:1.2rem;text-align:center;letter-spacing:.3em;">🎲 ？</div>`;
+  document.getElementById('story-content').appendChild(animDiv);scrollD();
+  let tick=0;
+  const anim=setInterval(()=>{
+    const fake=Math.floor(Math.random()*20)+1;
+    const box=document.getElementById('dice-anim-box');
+    if(box)box.textContent=`🎲 ${fake}`;
+    if(++tick>12){
+      clearInterval(anim);
+      const raw=Math.floor(Math.random()*20)+1;
+      const total=raw+mod;
+      const success=total>=diff;
+      const crit=raw===20,fumble=raw===1;
+      const grade=crit?'大成功！':fumble?'大失敗…':total>=diff+4?'完全成功':success?'成功':total>=diff-3?'失敗':'重大失敗';
+      const col=crit?'#f0d060':fumble?'#f06060':success?'#80d080':'#d08060';
+      const box2=document.getElementById('dice-anim-box');
+      if(box2)box2.innerHTML=`<span style="color:${col};font-size:1.6rem;font-weight:700">${raw}</span><span style="color:var(--sild);font-size:.72rem;"> +${mod}(${cb.stat}) = </span><span style="color:${col};font-weight:700">${total}</span>　<span style="color:${col}">${grade}</span>`;
+      appendEntryToDOM({type:'sys',v:`vs ${enemy}（難度${diff}）→ ${success?'✓ 通過':'✗ 失敗'}`});
+      scrollD();saveGame();
+      setTimeout(()=>{
+        const msg=`【骰子判定結果】${cb.desc||''}：投出${raw}，加值+${mod}，合計${total}（難度${diff}）。結果：${grade}。${success?'成功，請依成功後果繼續劇情。':'失敗，請依失敗後果繼續劇情。'}`;
+        sendChoice(msg);
+      },1800);
+    }
+  },70);
+}
+
+// ═══ EQUIPMENT UPGRADE ═══
+const EQ_TIERS=['破損','劣質','普通','精良','優質','稀有','傳說'];
+function upgradeEquip(id,slot){
+  const c=getCharData(id);if(!c)return;
+  const cost=10;// 10銀幣
+  if(G.gold.silver<cost&&G.gold.gold===0){showToast('銀幣不足（需10銀）','err');return;}
+  applyGold({g:0,s:-cost,c:0});
+  const cur=c.eq[slot]||'——';
+  const tierIdx=EQ_TIERS.findIndex(t=>cur.includes(t));
+  const nextTier=tierIdx>=0?EQ_TIERS[Math.min(tierIdx+1,EQ_TIERS.length-1)]:EQ_TIERS[2];
+  const base=cur.replace(/（[^）]*）/g,'').replace(/破損|劣質|普通|精良|優質|稀有|傳說/g,'').trim();
+  c.eq[slot]=base+(nextTier==='普通'?'':`（${nextTier}）`);
+  appendEntryToDOM({type:'sys',v:`✦ ${c.name} 的${slot}「${c.eq[slot]}」已強化（消耗10銀）`});
+  renderBoth('party');saveGame();scrollD();
+}
+
+// ═══ DICE SYSTEM ═══
+const STAT_MAP={武力:'物理攻擊・力量判定',知力:'魔法・謀略・察覺判定',統率:'士氣・指揮・恐嚇判定',魅力:'說服・欺騙・交涉判定',幸運:'機率・閃避・意外判定'};
+let _diceState={charId:'alfar',stat:'武力',rolled:false,result:null};
+
+function openDiceModal(){
+  _diceState={charId:'alfar',stat:'武力',rolled:false,result:null};
+  document.getElementById('dice-modal').classList.add('open');
+  document.getElementById('confirm-dice-btn').style.display='none';
+  document.getElementById('roll-btn').style.display='';
+  renderDiceModal();
+}
+function closeDiceModal(){document.getElementById('dice-modal').classList.remove('open');}
+
+function renderDiceModal(){
+  const party=allParty().filter(m=>m.id!=='orange');
+  // 角色選擇
+  document.getElementById('dice-char-select').innerHTML=`<div style="font-size:.65rem;color:var(--sild);margin-bottom:.35rem;">使用角色</div>
+    <div style="display:flex;gap:.4rem;flex-wrap:wrap;">
+    ${party.map(c=>`<button onclick="_diceState.charId='${c.id}';renderDiceModal()" style="font-size:.68rem;padding:.25rem .55rem;background:${_diceState.charId===c.id?'rgba(201,168,76,.2)':'transparent'};border:1px solid ${_diceState.charId===c.id?'rgba(201,168,76,.6)':'var(--brd)'};border-radius:3px;color:${_diceState.charId===c.id?'var(--gold)':'var(--sild)'};cursor:pointer;font-family:'Noto Serif TC',serif;">${c.emoji} ${c.name}</button>`).join('')}
+    </div>`;
+  // 素質選擇
+  const c=getCharData(_diceState.charId);
+  document.getElementById('dice-stat-select').innerHTML=`<div style="font-size:.65rem;color:var(--sild);margin-bottom:.35rem;">判定素質</div>
+    <div style="display:flex;gap:.3rem;flex-wrap:wrap;">
+    ${Object.entries(STAT_MAP).map(([s,desc])=>{
+      const v=c?.stats[s];if(v===null)return'';
+      const mod=Math.floor((v||0)/10);
+      return`<button onclick="_diceState.stat='${s}';renderDiceModal()" style="font-size:.65rem;padding:.22rem .5rem;background:${_diceState.stat===s?'rgba(201,168,76,.18)':'transparent'};border:1px solid ${_diceState.stat===s?'rgba(201,168,76,.5)':'var(--brd)'};border-radius:3px;color:${_diceState.stat===s?'var(--gold)':'var(--sild)'};cursor:pointer;font-family:'Noto Serif TC',serif;" title="${desc}">${s} ${v} (+${mod})</button>`;
+    }).join('')}
+    </div>`;
+  // 結果區域清空（若未投）
+  if(!_diceState.rolled){
+    const c2=getCharData(_diceState.charId);
+    const v=c2?.stats[_diceState.stat]||0;
+    const mod=Math.floor(v/10);
+    document.getElementById('dice-result').innerHTML=`<div style="text-align:center;color:var(--sild);font-size:.72rem;">d20 + ${_diceState.stat}(${v}) 加值 +${mod}<br><span style="font-size:.62rem;opacity:.6">${STAT_MAP[_diceState.stat]||''}</span></div>`;
+  }
+}
+
+function rollDice(){
+  const c=getCharData(_diceState.charId);if(!c)return;
+  const statVal=c.stats[_diceState.stat]||0;
+  const mod=Math.floor(statVal/10);
+  const raw=Math.floor(Math.random()*20)+1;
+  const total=raw+mod;
+  _diceState.rolled=true;
+  _diceState.result={raw,mod,total,charName:c.name,stat:_diceState.stat,statVal};
+
+  let grade,color,flavor;
+  if(raw===20){grade='大成功！';color='#f0d060';flavor='命運眷顧於你。';}
+  else if(raw===1){grade='大失敗…';color='#f06060';flavor='諸事不宜，還是回家吧。';}
+  else if(total>=18){grade='成功';color='#80d080';flavor='穩健的判斷。';}
+  else if(total>=12){grade='普通';color='#c0c080';flavor='勉強過關。';}
+  else if(total>=7){grade='失敗';color='#d08060';flavor='差了一點。';}
+  else{grade='重大失敗';color='#f06060';flavor='事態比預期糟糕。';}
+
+  // 骰子動畫
+  let count=0;
+  const r=document.getElementById('dice-result');
+  const anim=setInterval(()=>{
+    const fake=Math.floor(Math.random()*20)+1;
+    r.innerHTML=`<div style="text-align:center"><div style="font-size:2.5rem;color:var(--gold)">${fake}</div></div>`;
+    if(++count>10){
+      clearInterval(anim);
+      r.innerHTML=`<div style="text-align:center;line-height:1.7">
+        <div style="font-size:2.8rem;color:${color};font-weight:700">${raw}</div>
+        <div style="font-size:.75rem;color:var(--sild)">d20 基礎</div>
+        <div style="font-size:.8rem;color:var(--sil);margin:.2rem 0">+${mod} (${_diceState.stat} ${statVal}) = <span style="color:${color};font-weight:700">${total}</span></div>
+        <div style="font-size:.82rem;color:${color};font-weight:600">${grade}</div>
+        <div style="font-size:.65rem;color:var(--sild)">${flavor}</div>
+      </div>`;
+      document.getElementById('confirm-dice-btn').style.display='';
+    }
+  },60);
+}
+
+function confirmDiceResult(){
+  if(!_diceState.result)return;
+  const r=_diceState.result;
+  closeDiceModal();
+  const gradeTxt=r.raw===20?'大成功':r.raw===1?'大失敗':r.total>=18?'成功':r.total>=12?'普通':r.total>=7?'失敗':'重大失敗';
+  const ctx=`【素質判定】${r.charName} 進行${r.stat}判定：擲出 ${r.raw}（+${r.mod}加值）＝ ${r.total}，結果：${gradeTxt}。請依此判定結果繼續推進劇情。`;
+  appendEntryToDOM({type:'sys',v:`🎲 ${r.charName} ${r.stat}判定：${r.raw}+${r.mod}=${r.total}（${gradeTxt}）`});
+  scrollD();
+  G.history.push({role:'user',content:ctx});
+  sendChoice(ctx);
+}
 // 王國/領地
 const KINGDOMS=[
   {id:'fog_mt',name:'霧山聯邦',color:'rgba(80,100,140,.18)',stroke:'rgba(100,130,180,.3)',path:'M60 80 Q100 40 200 60 Q240 55 260 90 Q240 150 220 200 Q200 240 180 260 Q150 280 110 260 Q80 240 65 210 Q45 170 55 130 Z'},
