@@ -553,6 +553,7 @@ body::before{content:'';position:fixed;inset:0;background-image:
   </div>
   <div class="hdr-r">
     <div class="hdr-g">🪙 <b id="gold-hdr">銀8・銅135</b></div>
+    <div id="time-hdr" style="font-size:.58rem;color:var(--sild);letter-spacing:.05em;"></div>
     <button class="ib" onclick="openMap()" title="地圖">
       <svg viewBox="0 0 16 16"><path d="M1 3l4 1.5 6-2 4 1.5v9l-4-1.5-6 2-4-1.5V3z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><line x1="5" y1="4.5" x2="5" y2="13" stroke="currentColor" stroke-width="1"/><line x1="11" y1="2.5" x2="11" y2="11" stroke="currentColor" stroke-width="1"/></svg>
     </button>
@@ -597,12 +598,16 @@ body::before{content:'';position:fixed;inset:0;background-image:
       <button class="ptab ac" onclick="switchTab(this,'p','party')">同伴</button>
       <button class="ptab" onclick="switchTab(this,'p','stars')">星辰</button>
       <button class="ptab" onclick="switchTab(this,'p','inv')">道具</button>
+      <button class="ptab" onclick="switchTab(this,'p','quest')">任務</button>
+      <button class="ptab" onclick="switchTab(this,'p','intel')">情報</button>
       <button class="ptab" onclick="switchTab(this,'p','log')">劇誌</button>
     </div>
     <div class="p-body">
       <div class="ptc ac" id="p-party"></div>
       <div class="ptc" id="p-stars"></div>
       <div class="ptc" id="p-inv"></div>
+      <div class="ptc" id="p-quest"></div>
+      <div class="ptc" id="p-intel"></div>
       <div class="ptc" id="p-log"></div>
     </div>
   </div>
@@ -622,12 +627,16 @@ body::before{content:'';position:fixed;inset:0;background-image:
     <button class="dtab ac" onclick="switchTab(this,'d','party')">同伴</button>
     <button class="dtab" onclick="switchTab(this,'d','stars')">星辰</button>
     <button class="dtab" onclick="switchTab(this,'d','inv')">道具</button>
+    <button class="dtab" onclick="switchTab(this,'d','quest')">任務</button>
+    <button class="dtab" onclick="switchTab(this,'d','intel')">情報</button>
     <button class="dtab" onclick="switchTab(this,'d','log')">劇誌</button>
   </div>
   <div class="drawer-body">
     <div class="dtc ac" id="d-party"></div>
     <div class="dtc" id="d-stars"></div>
     <div class="dtc" id="d-inv"></div>
+    <div class="dtc" id="d-quest"></div>
+    <div class="dtc" id="d-intel"></div>
     <div class="dtc" id="d-log"></div>
   </div>
 </div>
@@ -647,20 +656,29 @@ const CFG={
 const MAX_PARTY=6;
 const G={
   gold:{gold:0,silver:8,copper:135},
-  panelOpen:true,drawerOpen:false,starFilter:'all',
+  panelOpen:true,drawerOpen:false,starFilter:'all',intelFilter:'全部',
   history:[],log:[],thinking:false,
   storyData:[],
   currentChoices:[],
   sceneTitle:'序章・Day 1　傍晚',
   sceneLoc:'📍 鐵霧城・碼頭',
-  partyIds:['alfar','orange'],  // 當前隊伍 ID 列表（最多6）
+  partyIds:['alfar','orange'],
   upgrade:{},
   inv:null,
   favor:{},
-  specialOv:{},   // 星外人物狀態覆蓋
-  bellyFlipCount:0, // 橘子被翻肚次數
-  extraParty:[],   // 動態招募的新成員資料
-  extraPcfg:{},    // 新成員頭像 prompt
+  specialOv:{},
+  bellyFlipCount:0,
+  // ── 新系統 ──
+  hp:{},           // {id:{cur,max}} 角色血量
+  quests:[],       // 任務列表
+  time:{day:1,hour:18,weather:'霧'},  // 時間
+  rep:{},          // {faction:value} 聲望
+  relics:{},       // {starNum:{name,found,effect}} 寶器
+  founderClues:[], // 天父星線索碎片
+  orangeStage:0,
+  intel:[],        // 情報條目 [{id,title,content,src,rel,tags,day}]
+  extraParty:[],
+  extraPcfg:{},
 };
 
 // ═══ SAVE / LOAD ═══
@@ -675,6 +693,7 @@ function saveGame(){
       sceneTitle:G.sceneTitle,sceneLoc:G.sceneLoc,
       extraParty:G.extraParty,extraPcfg:G.extraPcfg,
       partyIds:G.partyIds,upgrade:G.upgrade,inv:getInv(),favor:G.favor,bellyFlipCount:G.bellyFlipCount||0,specialOv:G.specialOv||{},
+      hp:G.hp,quests:G.quests,time:G.time,rep:G.rep,relics:G.relics,presetRelicOv:Object.fromEntries(Object.entries(PRESET_RELICS).filter(([k,v])=>v.status&&v.status!=='equipped').map(([k,v])=>[k,{status:v.status,effect:v.effect}])),founderClues:G.founderClues,orangeStage:G.orangeStage||0,intel:G.intel||[],
       starOv,savedAt:Date.now(),
     };
     localStorage.setItem(SAVE_KEY,JSON.stringify(data));
@@ -702,6 +721,15 @@ function loadGame(){
     G.favor=data.favor||{};
     G.bellyFlipCount=data.bellyFlipCount||0;
     G.specialOv=data.specialOv||{};
+    G.hp=data.hp||{};
+    G.quests=data.quests||[];
+    G.time=data.time||{day:1,hour:18,weather:'霧'};
+    G.rep=data.rep||{};
+    G.relics=data.relics||{};
+    if(data.presetRelicOv){Object.entries(data.presetRelicOv).forEach(([k,v])=>{if(PRESET_RELICS[k]){PRESET_RELICS[k].status=v.status;PRESET_RELICS[k].effect=v.effect;}});}
+    G.founderClues=data.founderClues||[];
+    G.orangeStage=data.orangeStage||0;
+    G.intel=data.intel||[];
     // 恢復星辰狀態
     if(data.starOv){
       Object.entries(data.starOv).forEach(([k,v])=>{
@@ -716,7 +744,7 @@ function loadGame(){
     const lastAst=G.history.filter(m=>m.role==='assistant').pop();
     if(lastAst&&!lastAst.content.trim().startsWith('{')){
       G.history.push({role:'user',content:'請以JSON格式繼續故事。'});
-      G.history.push({role:'assistant',content:'{"st":"繼續中","sl":"'+G.sceneLoc+'","nv":[],"dl":[],"sm":null,"gd":{"g":0,"s":0,"c":0},"ch":[],"nm":null,"cb":null,"iv":null,"sp":null,"shop":null,"fa":null}'});
+      G.history.push({role:'assistant',content:'{"st":"繼續中","sl":"'+G.sceneLoc+'","nv":[],"dl":[],"sm":null,"gd":{"g":0,"s":0,"c":0},"ch":[],"nm":null,"cb":null,"iv":null,"sp":null,"shop":null,"fa":null,"hp":null,"qt":null,"tm":null,"rp":null,"info":null,"relic":null,"clue":null,"or":null,"job":null}'});
     }
     return true;
   }catch(e){console.warn('讀取存檔失敗:',e);return false;}
@@ -750,12 +778,12 @@ function showSaveIndicator(){
 
 // ═══ DATA ═══
 const PARTY=[
-  {id:'alfar',star:'天魁星',type:'天罡',num:1,name:'艾爾法',title:'遊俠（無所屬）',emoji:'😒',baseLv:1,
+  {id:'alfar',star:'天魁星',type:'天罡',num:1,name:'艾爾法',title:'遊俠（無所屬）',emoji:'😒',baseLv:1,job:'城衛',
    desc:'鐵霧城前城衛，因擅自釋放被扣押的糧食而遭解僱。出身平凡，語少，銀色長髮，面無表情卻行事有原則。某種古老的星力在她體內沉眠。',
    stats:{武力:41,知力:69,統率:22,魅力:34,幸運:51},sn:{},
    tl:[{n:'潛星之光',s:true,d:'封印中。條件未達。'},{n:'平靜之眼',s:false,d:'不受恐懼、魅惑、幻術影響。'},{n:'讀心微表情',s:false,d:'可察覺對方說謊（成功率依知力浮動）。'}],
    eq:{武器:'舊制式短劍（磨損三級）',防具:'城衛布甲（補丁×7）',飾品:'——'}},
-  {id:'orange',star:'地魁星',type:'地煞',num:1,name:'橘子',title:'布偶貓・雌性（身份不明）',emoji:'🐈😒',baseLv:null,
+  {id:'orange',star:'地魁星',type:'地煞',num:1,name:'橘子',title:'布偶貓・雌性（身份不明）',emoji:'🐈😒',baseLv:null,job:'命運之錨',
    desc:'以五枚銅幣購入的布偶貓，雌性。雙色毛、藍眼，面癱，聽懂人話，只會喵叫。知力數值異常，來歷不明。對翻肚子持強烈反對立場。',
    stats:{武力:3,知力:99,統率:null,魅力:null,幸運:null},sn:{統率:'顯示拒絕',魅力:'數值異常',幸運:'???'},
    tl:[{n:'看穿本質',s:false,d:'對一切虛偽免疫。'},{n:'翻肚禁止',s:false,d:'被強制翻肚時觸發・空踢反擊。'},{n:'命運之錨',s:true,d:'未知。'}],
@@ -806,7 +834,7 @@ const SYS=`你是西方奇幻版水滸傳文字RPG故事引擎，輸出劇情與
 同伴橘子（地魁星）：布偶貓・雌性，藍眼雙色毛，面癱，只會喵叫，智力異常，不參與戰鬥。
 規則：
 1. 只輸出純JSON，無任何Markdown或多餘文字。
-2. 格式：{"st":"場景標題","sl":"📍 地點","nv":["敘述段落"],"dl":[{"sp":"角色","ln":"台詞"}],"sm":null,"gd":{"g":0,"s":0,"c":0},"ch":[{"t":"選項","h":""}],"nm":null,"cb":null,"iv":null,"sp":null,"shop":null,"fa":null}
+2. 格式：{"st":"場景標題","sl":"📍 地點","nv":["敘述段落"],"dl":[{"sp":"角色","ln":"台詞"}],"sm":null,"gd":{"g":0,"s":0,"c":0},"ch":[{"t":"選項","h":""}],"nm":null,"cb":null,"iv":null,"sp":null,"shop":null,"fa":null,"hp":null,"qt":null,"tm":null,"rp":null,"info":null,"relic":null,"clue":null,"or":null,"job":null}
 3. nv每段60-80字，1-3段。橘子喵叫sp「橘子🐈😒」ln「喵——」，再加{sp:"系統翻譯",ln:"…"}。
 4. ch提供3-4個選項，策略各異。sm記錄金錢道具變動。
 5. 簡潔乾燥文風，偶有乾式幽默。
@@ -821,12 +849,26 @@ difficulty：8簡單，12普通，16困難，18極難，20幾乎不可能。
 收到【骰子判定結果】後根據成功/失敗繼續劇情，cb設null。
 11. iv欄位（道具/裝備變動）：劇情中角色獲得或失去道具、更換裝備時填寫，否則null。格式：
 {"add":[{"n":"道具名","t":"描述","q":"×1"}],"remove":["道具名"],"key":[{"n":"情報名","t":"說明"}],"equip":[{"who":"艾爾法","slot":"武器","item":"精良短劍","t":"攻擊力+12"}]}
-12. fa欄位（好感度變動）：劇情中與角色互動後填寫，格式：[{"id":"orange","delta":5,"reason":"橘子得到了魚乾"}]，delta正=增加，負=減少，艾爾法不參與好感系統。
-13. shop欄位（交易介面）：劇情進入商店、市集、攤販時填寫，讓玩家可以購買道具或裝備。格式：{"name":"商店名稱","items":[{"n":"物品名","t":"描述","slot":"武器/防具/飾品/道具","price":{"g":0,"s":10,"c":0},"desc":"說明","bonus":{"武力":0,"知力":0,"統率":0,"魅力":0,"幸運":0}}]}
+12. hp欄位（HP變動）：角色受傷或治療時填寫，格式：[{"id":"alfar","delta":-15,"reason":"被劍擊中手臂"},{"id":"orange","delta":5,"reason":"舔了舔傷口"}]。delta負=受傷，正=回復。橘子血量上限30，其他角色約80-100。
+13. qt欄位（任務更新）：新增/更新任務時填寫。格式陣列：[{"id":"quest_001","title":"追蹤紅髮女","type":"支線","status":"new","desc":"她的左臂傷勢和霧刃幫有關。","objectives":[{"text":"找到紅髮女的下落","done":false},{"text":"查明她和霧刃幫的關係","done":false}],"rewards":"情報+線索","loc":"鐵霧城"}]
+status="new"新增，status="completed"完成，可只傳id+objectives更新進度。
+14. tm欄位（時間推進）：劇情中時間流逝時填寫，格式：{"advance":2}（推進2小時）或{"setWeather":"暴雨"}（強制換天氣）或{"setHour":6}（設定為6時）。一般對話+1小時，戰鬥+1-2小時，長途移動+3-6小時，休息由系統自動處理。
+15. rp欄位（聲望變動）：與勢力互動後填寫，格式：[{"id":"ironmist","delta":5,"reason":"幫助居民"},{"id":"mistblade","delta":-8,"reason":"阻止其行動"}]
+可用ID：ironmist（鐵霧城居民）、mistblade（霧刃幫）、merchant（商人公會）、hero（英雄公會）、imperial（帝國殘軍）、shadow（幕後勢力）
+16. info欄位（情報/謠言）：角色聽到情報、NPC透露消息、探索發現線索時填寫。格式：[{"id":"info_001","title":"霧刃幫的秘密據點","content":"碼頭倉庫B區深處似乎有隱藏入口，每逢深夜有人出入。","src":"碼頭老工人","rel":3,"cat":"地點","related":"霧刃幫任務"}]
+cat可用：地點/人物/勢力/謠言。rel=1-5可靠度。橘子的感知情報加"orange":true。
+17. relic欄位（命運寶器發現）：角色找到或獲得寶器時填寫。格式：{"id":"relic_t02","name":"天罡御風旗","starName":"第2星","starNum":"天2","type":"法器","icon":"🏴","rarity":"稀有","desc":"傳說中能召喚風暴的旗幟","effect":"統率+12・戰鬥開始時使敵人判定難度+2","lore":"天機星降世之器"}
+rarity可用：普通/精良/稀有/傳說/神器。id建議格式：relic_t{num}或relic_d{num}。
+18. clue欄位（天父星線索）：發現關於先行者（天父星）的線索時填寫。格式：[{"id":"clue_001","title":"被撕裂的地圖","content":"碼頭倉庫角落發現一張被撕裂的地圖碎片，標注了八個城市——正是艾爾薩大陸的主要城市。邊角有人用舊式帝國文字寫著：'先聚火，後聚人'。","src":"廢棄倉庫","rel":4,"cat":"蹤跡"}]
+cat可用：身份/蹤跡/目的/命運/橘子感知。積累到3/6/9/12條時自動觸發門檻事件。
+19. or欄位（橘子秘密觸發）：在故事中出現特別適合揭露橘子秘密的場景時填寫，格式：{"stage":1}（觸發第N層揭露，最高5層）。此欄位請謹慎使用，只在劇情高峰或橘子有異常反應時觸發。
+20. job欄位（職業變更）：角色職業改變時填寫（如修行、拜師、特殊事件）。格式：[{"id":"alfar","job":"劍客"}]。可用職業：城衛/劍客/鬥士/術士/謀士/遊俠/密探/醫師/商賈。
+21. fa欄位（好感度變動）：劇情中與角色互動後填寫，格式：[{"id":"orange","delta":5,"reason":"橘子得到了魚乾"}]，delta正=增加，負=減少，艾爾法不參與好感系統。
+21. shop欄位（交易介面）：劇情進入商店、市集、攤販時填寫，讓玩家可以購買道具或裝備。格式：{"name":"商店名稱","items":[{"n":"物品名","t":"描述","slot":"武器/防具/飾品/道具","price":{"g":0,"s":10,"c":0},"desc":"說明","bonus":{"武力":0,"知力":0,"統率":0,"魅力":0,"幸運":0}}]}
 持有裝備時用iv.purchase欄位：[{"n":"道具名","t":"描述","slot":"武器","bonus":{"武力":10,"知力":0,"統率":0,"魅力":0,"幸運":0}}]（加入持有欄，等玩家手動裝備）
 商品也應在price後加bonus，若未提供系統會自動依品質隨機生成。
-13. sp欄位（星辰感知）：當任何108星辰的人物登場（不論是否加入）時填寫，橘子會有反應。格式：{"num":2,"type":"地煞","star":"地煞星","name":"人物稱呼","hint":"橘子感知描述，例如：此人氣息異常，似有命運之星降臨"}
-13. nm欄位：角色確認加入時填寫，否則null。格式：{"id":"英文id","name":"姓名","star":"星名","type":"天罡或地煞","num":數字,"title":"稱號","emoji":"emoji","desc":"說明","portrait":"英文外貌描述","stats":{"武力":0,"知力":0,"統率":0,"魅力":0,"幸運":0},"tl":[{"n":"天賦名","s":false,"d":"說明"}],"eq":{"武器":"","防具":"","飾品":""},"baseLv":起始等級}`;
+22. sp欄位（星辰感知）：當任何108星辰的人物登場（不論是否加入）時填寫，橘子會有反應。格式：{"num":2,"type":"地煞","star":"地煞星","name":"人物稱呼","hint":"橘子感知描述，例如：此人氣息異常，似有命運之星降臨"}
+23. nm欄位：角色確認加入時填寫，否則null。格式：{"id":"英文id","name":"姓名","star":"星名","type":"天罡或地煞","num":數字,"title":"稱號","emoji":"emoji","desc":"說明","portrait":"英文外貌描述","stats":{"武力":0,"知力":0,"統率":0,"魅力":0,"幸運":0},"tl":[{"n":"天賦名","s":false,"d":"說明"}],"eq":{"武器":"","防具":"","飾品":""},"baseLv":起始等級}`;
 
 
 // 偵測是否為 CORS / 網路錯誤
@@ -837,7 +879,7 @@ function isCorsErr(e){
 
 async function callAPI(action){
   if(!CFG.key){document.getElementById('api-modal').classList.add('open');throw new Error('請先設定 API 金鑰');}
-  G.history.push({role:'user',content:action});
+  G.history.push({role:'user',content:`【當前時間】${getTimeContext()}\n${action}`});
   let res;
   try{
     res=await fetch('https://api.anthropic.com/v1/messages',{
@@ -872,7 +914,7 @@ async function callAPI(action){
 
   // 解析失敗：自動重試，附上格式提醒
   console.warn('JSON parse failed, retrying with format reminder. Raw:', raw.slice(0,200));
-  const retryMsg='你上一次的回應不是合法 JSON，請重新輸出，必須是純 JSON 格式，不得有任何 Markdown 或額外文字。格式：{"st":"...","sl":"...","nv":[...],"dl":[...],"sm":null,"gd":{"g":0,"s":0,"c":0},"ch":[...],"nm":null,"cb":null,"iv":null,"sp":null,"shop":null,"fa":null}';
+  const retryMsg='你上一次的回應不是合法 JSON，請重新輸出，必須是純 JSON 格式，不得有任何 Markdown 或額外文字。格式：{"st":"...","sl":"...","nv":[...],"dl":[...],"sm":null,"gd":{"g":0,"s":0,"c":0},"ch":[...],"nm":null,"cb":null,"iv":null,"sp":null,"shop":null,"fa":null,"hp":null,"qt":null,"tm":null,"rp":null,"info":null,"relic":null,"clue":null,"or":null,"job":null}';
   G.history.push({role:'user',content:retryMsg});
   let res2;
   try{
@@ -957,6 +999,8 @@ function handleStarPresence(sp){
       renderBoth('stars');saveGame();
     }
     showToast(`橘子感知：${starInfo}`,'ok');
+    // 自動加入情報板
+    addIntel({id:'orange_star_'+sp.num,title:`第${sp.num}星・${sp.name||'?'}`,content:sp.hint||`橘子感知到此人身上有${starInfo}的氣息。`,src:'橘子感知',rel:4,cat:'人物',orange:true,related:`${sp.type}第${sp.num}星`});
   }
 }
 
@@ -1212,6 +1256,16 @@ function renderResp(d){
   if(d.sp)handleStarPresence(d.sp);
   if(d.iv){applyInv(d.iv);}
   if(d.shop)handleShop(d.shop);
+  if(d.hp)applyHPChange(d.hp);
+  if(d.qt)applyQuestUpdate(d.qt);
+  if(d.tm)applyTimeUpdate(d.tm);
+  if(d.rp)applyRep(d.rp);
+  if(d.info)applyIntelUpdate(d.info);
+  if(d.relic)applyRelic(d.relic);
+  if(d.clue)applyFounderClue(d.clue);
+  if(d.or&&d.or.stage)revealOrangeSecret(d.or.stage);
+  if(d.job)applyJobUpdate(d.job);
+  tickBondCooldowns();
   if(d.fa){(d.fa||[]).forEach(f=>{if(f.id&&f.delta){setFavor(f.id,f.delta);if(f.delta>0)showToast(`${getCharData(f.id)?.name||f.id} 好感 +${f.delta}`,'ok');else showToast(`${getCharData(f.id)?.name||f.id} 好感 ${f.delta}`,'inf');}});renderBoth('party');}
   scrollD();
   G.log.push({sec:d.st||'',loc:(d.sl||'').replace('📍 ',''),lines:[...(d.nv||[]).map(v=>({t:'txt',v})),...(d.dl||[]).map(dl=>({t:'txt',v:`${dl.sp}：「${dl.ln}」`})),...(d.sm?[{t:'sys',v:d.sm}]:[]) ]});
@@ -1270,8 +1324,12 @@ function applyGold(d){
   G.gold.gold+=(d.g||0);G.gold.silver+=(d.s||0);G.gold.copper+=(d.c||0);
   if(G.gold.copper>=10){G.gold.silver+=Math.floor(G.gold.copper/10);G.gold.copper%=10;}
   if(G.gold.silver>=100){G.gold.gold+=Math.floor(G.gold.silver/100);G.gold.silver%=100;}
-  if(G.gold.copper<0){G.gold.silver--;G.gold.copper+=10;}
-  if(G.gold.silver<0){G.gold.gold--;G.gold.silver+=100;}
+  if(G.gold.copper<0){const b=Math.ceil(-G.gold.copper/10);G.gold.silver-=b;G.gold.copper+=b*10;}
+  if(G.gold.silver<0){const b=Math.ceil(-G.gold.silver/100);G.gold.gold-=b;G.gold.silver+=b*100;}
+  // 不允許負值
+  G.gold.gold=Math.max(0,G.gold.gold);
+  G.gold.silver=Math.max(0,G.gold.silver);
+  G.gold.copper=Math.max(0,G.gold.copper);
   updateGold();
 }
 function goldS(){const g=G.gold;return `金${g.gold}・銀${g.silver}・銅${g.copper}`;}
@@ -1370,13 +1428,19 @@ function getEffectiveStats(id){
   const c=getCharData(id);if(!c)return c?.stats||{};
   const stats={...c.stats};
   const inv=getInv();
+  // 裝備加成
   inv.equip.filter(e=>e.status==='equipped'&&e.w===c.name)
     .forEach(e=>{
-      const b=getEnhancedBonus(e); // 使用強化後加成
+      const b=getEnhancedBonus(e);
       if(b)Object.entries(b).forEach(([s,v])=>{
         if(stats[s]!==null&&v)stats[s]=(stats[s]||0)+v;
       });
     });
+  // 職業加成
+  const jb=getJobBonus(id);
+  Object.entries(jb).forEach(([s,v])=>{
+    if(stats[s]!==null&&v)stats[s]=(stats[s]||0)+v;
+  });
   return stats;
 }
 
@@ -1434,6 +1498,323 @@ function trainChar(id,ev){
   renderBoth('party');saveGame();
   showToast(`${c.name} 獲得 3 點提升（消耗5銀）`,'ok');
 }
+// ═══ JOB / CLASS SYSTEM（職業系統）═══
+// 每個角色都有一個職業，影響素質加成、天賦偏向和特殊能力
+// 職業可在故事中透過 AI 的 job 欄位改變（升職、轉職、特殊事件）
+
+const JOBS={
+  // 戰鬥系
+  城衛:    {icon:'⚔️', color:'#6ab4c8', type:'戰鬥',
+    bonus:{武力:5, 統率:5}, maxHPBonus:10,
+    passive:'制式訓練：面對群體敵人時統率判定 +2',
+    desc:'帝國城防體系出身，受過紀律訓練的前線戰士。'},
+  劍客:    {icon:'🗡️', color:'#c8a46a', type:'戰鬥',
+    bonus:{武力:12, 幸運:3}, maxHPBonus:5,
+    passive:'劍道：一對一戰鬥骰子 +2',
+    desc:'以劍為道的獨行戰士，單挑能力超群。'},
+  鬥士:    {icon:'👊', color:'#d08060', type:'戰鬥',
+    bonus:{武力:8, 統率:3, 幸運:2}, maxHPBonus:20,
+    passive:'強韌：HP上限額外+20，受到致命傷後有機率以1HP存活',
+    desc:'以體魄和意志力著稱的近戰王者。'},
+  // 智謀系
+  術士:    {icon:'🔮', color:'#b48cdc', type:'智謀',
+    bonus:{知力:12, 魅力:3}, maxHPBonus:-10,
+    passive:'奧術洞察：知力判定難度降低2',
+    desc:'掌握秘法知識的施術者，智力是最強的武器。'},
+  謀士:    {icon:'📜', color:'#a8c84c', type:'智謀',
+    bonus:{知力:8, 魅力:5, 統率:3}, maxHPBonus:0,
+    passive:'推演：每場戰鬥開始前可預知敵方弱點（附加1條情報）',
+    desc:'善謀多算的軍師型人才，掌握戰局全貌。'},
+  // 輔助系
+  遊俠:    {icon:'🏹', color:'#6ab46a', type:'輔助',
+    bonus:{幸運:10, 知力:5}, maxHPBonus:0,
+    passive:'野外生存：移動時天氣懲罰減半',
+    desc:'長年在荒野與城市間穿梭的自由者。'},
+  密探:    {icon:'🕵', color:'#888', type:'輔助',
+    bonus:{魅力:10, 知力:5}, maxHPBonus:-5,
+    passive:'偽裝：與勢力初次接觸時聲望懲罰減半',
+    desc:'隱藏身份的情報專家，善於欺騙與收集情報。'},
+  醫師:    {icon:'⚕️', color:'#64c88c', type:'輔助',
+    bonus:{知力:5, 魅力:8}, maxHPBonus:0,
+    passive:'急救：休息回復HP+15%（累加至基礎40%）',
+    desc:'精通醫術的治療者，是隊伍的生命保障。'},
+  商賈:    {icon:'💰', color:'var(--gold)', type:'輔助',
+    bonus:{魅力:8, 幸運:5}, maxHPBonus:0,
+    passive:'砍價：所有商店交易九折',
+    desc:'長袖善舞的商人，擅長在各種場合獲取利益。'},
+  // 特殊
+  命運之錨: {icon:'⚓', color:'rgba(180,140,220,.9)', type:'特殊',
+    bonus:{}, maxHPBonus:0,
+    passive:'（封印中）',
+    desc:'不是職業，是命運本身。'},
+};
+
+// 職業附加的HP加成（整合進 getHP）
+function getJobHPBonus(id){
+  const c=getCharData(id);
+  const job=getJob(id);
+  if(!job||!c)return 0;
+  return JOBS[job]?.maxHPBonus||0;
+}
+
+// 取得角色職業（從 G.upgrade 或 PARTY 的 job 欄位）
+function getJob(id){
+  if(G.upgrade?.[id]?.job) return G.upgrade[id].job;
+  const c=getCharData(id);
+  return c?.job||null;
+}
+
+// 設定職業
+function setJob(id, jobName){
+  if(!JOBS[jobName]&&jobName!==null) return;
+  if(!G.upgrade)G.upgrade={};
+  if(!G.upgrade[id])G.upgrade[id]={lv:1,pts:0};
+  const prevJob=getJob(id);
+  G.upgrade[id].job=jobName;
+  // 重算HP上限
+  const hp=getHP(id);
+  const prevBonus=prevJob?JOBS[prevJob]?.maxHPBonus||0:0;
+  const newBonus=jobName?JOBS[jobName]?.maxHPBonus||0:0;
+  hp.max=Math.max(10, hp.max - prevBonus + newBonus);
+  hp.cur=Math.min(hp.cur, hp.max);
+  renderBoth('party');saveGame();
+}
+
+// 職業加成整合進 getEffectiveStats
+function getJobBonus(id){
+  const job=getJob(id);
+  if(!job||!JOBS[job])return {};
+  return JOBS[job].bonus||{};
+}
+
+// 職業選擇 modal
+function openJobModal(id){
+  const c=getCharData(id);if(!c||c.id==='orange')return;
+  const cur=getJob(id);
+  const jobTypes=[...new Set(Object.values(JOBS).map(j=>j.type))];
+  let html=`<div style="padding:.8rem 1rem;">
+    <div style="font-size:.75rem;color:var(--gold);margin-bottom:.6rem;font-weight:700">選擇職業──${c.name}</div>
+    <div style="font-size:.6rem;color:var(--sild);margin-bottom:.8rem">職業會影響素質加成、HP上限與被動能力。</div>`;
+  jobTypes.forEach(type=>{
+    const jobs=Object.entries(JOBS).filter(([,j])=>j.type===type);
+    html+=`<div style="margin-bottom:.6rem;"><div style="font-size:.55rem;color:var(--sild);letter-spacing:.08em;margin-bottom:.3rem;">${type}</div>
+    <div style="display:flex;flex-direction:column;gap:.25rem;">`;
+    jobs.forEach(([name,job])=>{
+      if(name==='命運之錨')return;
+      const isCur=cur===name;
+      const bonusStr=Object.entries(job.bonus).filter(([,v])=>v).map(([k,v])=>`${k}${v>0?'+':''}${v}`).join(' ');
+      html+=`<button onclick="confirmJobChange('${id}','${name}')"
+        style="text-align:left;padding:.4rem .6rem;background:${isCur?'rgba(201,168,76,.15)':'var(--bg3)'};border:1px solid ${isCur?'var(--goldd)':'var(--brd)'};border-radius:4px;cursor:pointer;width:100%;"
+        onmouseover="this.style.borderColor='var(--goldd)'"
+        onmouseout="this.style.borderColor='${isCur?'var(--goldd)':'var(--brd)'}'">
+        <div style="display:flex;align-items:center;gap:.5rem;">
+          <span style="font-size:.9rem">${job.icon}</span>
+          <div style="flex:1">
+            <div style="font-size:.68rem;color:${job.color};font-weight:600">${name}${isCur?' ◀ 當前':''}</div>
+            <div style="font-size:.55rem;color:var(--sild);margin-top:.05rem">${job.desc}</div>
+          </div>
+        </div>
+        ${bonusStr?`<div style="font-size:.52rem;color:#6ab46a;margin-top:.18rem">素質：${bonusStr}${job.maxHPBonus?'　HP上限'+(job.maxHPBonus>0?'+':'')+job.maxHPBonus:''}</div>`:''}
+        <div style="font-size:.52rem;color:rgba(200,180,100,.6);margin-top:.08rem">⊕ ${job.passive}</div>
+      </button>`;
+    });
+    html+=`</div></div>`;
+  });
+  html+=`</div>`;
+  document.getElementById('modal-inner').innerHTML=html;
+  document.getElementById('detail-modal').classList.add('open');
+}
+
+function confirmJobChange(id, jobName){
+  const c=getCharData(id);
+  const prev=getJob(id);
+  setJob(id,jobName);
+  appendEntryToDOM({type:'sys',v:`⚔️ ${c?.name||id} 職業${prev?'轉換':'設定'}：${prev?prev+' → ':''}${jobName}　（${JOBS[jobName]?.passive||''}）`});
+  scrollD();
+  closeD();
+  showToast(`${c?.name} 職業：${jobName}`,'ok');
+}
+
+function applyJobUpdate(jobs){
+  if(!jobs)return;
+  (Array.isArray(jobs)?jobs:[jobs]).forEach(j=>{
+    if(j.id&&j.job)setJob(j.id,j.job);
+  });
+}
+
+// 職業徽章 HTML
+function jobBadgeHtml(id){
+  const job=getJob(id);
+  if(!job)return'';
+  const jd=JOBS[job];if(!jd)return'';
+  return`<span style="font-size:.5rem;padding:.06rem .32rem;background:rgba(30,25,15,.6);border:1px solid ${jd.color};border-radius:2px;color:${jd.color};letter-spacing:.04em;cursor:pointer;" onclick="event.stopPropagation();openJobModal('${id}')" title="${jd.passive}">${jd.icon}${job}</span>`;
+}
+
+// ═══ HP SYSTEM ═══
+const HP_BASE={alfar:{max:100},orange:{max:30}};
+const INJURY_LEVELS=[
+  {name:'健康',  min:76, color:'#6ab46a', icon:'💚'},
+  {name:'輕傷',  min:51, color:'#a8c84c', icon:'💛'},
+  {name:'中傷',  min:26, color:'#e0a030', icon:'🟠'},
+  {name:'重傷',  min:1,  color:'#d05050', icon:'❤️'},
+  {name:'瀕死',  min:0,  color:'#880000', icon:'💀'},
+];
+
+function getHP(id){
+  if(!G.hp[id]){
+    const c=getCharData(id);
+    const baseMax=(HP_BASE[id]?.max)||(c?80+Math.floor((c.stats?.統率||0)*0.5):80);
+    const jobBonus=getJobHPBonus(id);
+    const finalMax=Math.max(10,baseMax+jobBonus);
+    G.hp[id]={cur:finalMax,max:finalMax};
+  }
+  return G.hp[id];
+}
+
+function injuryLevel(id){
+  const hp=getHP(id);
+  const pct=hp.max>0?Math.round(hp.cur/hp.max*100):0;
+  for(const lv of INJURY_LEVELS) if(pct>lv.min||lv.min===0) return lv;
+  return INJURY_LEVELS[4];
+}
+
+function applyHPChange(changes){
+  // changes: [{id, delta, reason}]
+  if(!changes||!changes.length) return;
+  changes.forEach(ch=>{
+    const hp=getHP(ch.id);
+    const before=hp.cur;
+    hp.cur=Math.max(0,Math.min(hp.max,hp.cur+(ch.delta||0)));
+    const diff=hp.cur-before;
+    const c=getCharData(ch.id);
+    const name=c?.name||ch.id;
+    const inj=injuryLevel(ch.id);
+    if(diff!==0){
+      const sign=diff>0?'+':'';
+      appendEntryToDOM({type:'sys',v:`${inj.icon} ${name} HP ${sign}${diff} → ${hp.cur}/${hp.max}【${inj.name}】${ch.reason?'（'+ch.reason+'）':''}`});
+    }
+  });
+  renderBoth('party');
+  saveGame();
+}
+
+function hpBarHtml(id){
+  const hp=getHP(id);
+  const pct=hp.max>0?Math.round(hp.cur/hp.max*100):0;
+  const inj=injuryLevel(id);
+  return`<div style="display:flex;align-items:center;gap:.35rem;padding:.22rem .62rem;border-top:1px solid var(--brd);">
+    <span style="font-size:.52rem;color:var(--sild);width:1.4rem;flex-shrink:0;">HP</span>
+    <div style="flex:1;height:5px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden;">
+      <div style="width:${pct}%;height:100%;background:${inj.color};border-radius:3px;transition:width .4s;"></div>
+    </div>
+    <span style="font-size:.52rem;color:${inj.color};width:3.8rem;text-align:right;flex-shrink:0;">${hp.cur}/${hp.max}【${inj.name}】</span>
+  </div>`;
+}
+
+function healHP(id,amount,reason){
+  applyHPChange([{id,delta:amount,reason:reason||'休息恢復'}]);
+}
+
+function restoreAllHP(){
+  allParty().forEach(c=>{
+    const hp=getHP(c.id);
+    if(hp.cur<hp.max) applyHPChange([{id:c.id,delta:hp.max-hp.cur,reason:'完全休息'}]);
+  });
+}
+
+function restAllHP(){
+  const injured=allParty().filter(c=>{const hp=getHP(c.id);return hp.cur<hp.max;});
+  if(!injured.length){showToast('所有人HP已滿','inf');return;}
+  injured.forEach(c=>{
+    const hp=getHP(c.id);
+    applyHPChange([{id:c.id,delta:Math.floor(hp.max*0.4),reason:'紮營休息'}]);
+  });
+  appendEntryToDOM({type:'sys',v:'🌙 全員休息。隊伍回復了部分體力。'});
+  advanceTime(8); // 休息推進8小時
+  scrollD();
+}
+
+// ═══ TIME & WEATHER SYSTEM ═══
+const HOUR_LABEL={
+  0:'深夜',1:'深夜',2:'深夜',3:'凌晨',4:'凌晨',5:'黎明',
+  6:'清晨',7:'早晨',8:'上午',9:'上午',10:'上午',11:'午前',
+  12:'正午',13:'午後',14:'午後',15:'下午',16:'下午',17:'傍晚',
+  18:'黃昏',19:'入夜',20:'夜晚',21:'夜晚',22:'深夜',23:'深夜'
+};
+const HOUR_ICON={
+  0:'🌑',1:'🌑',2:'🌑',3:'🌙',4:'🌙',5:'🌅',
+  6:'🌤',7:'🌤',8:'☀️',9:'☀️',10:'☀️',11:'☀️',
+  12:'☀️',13:'☀️',14:'🌤',15:'🌤',16:'🌤',17:'🌇',
+  18:'🌆',19:'🌃',20:'🌃',21:'🌃',22:'🌑',23:'🌑'
+};
+// 艾爾薩大陸天氣表（依時節）
+const WEATHERS=[
+  {w:'晴朗',icon:'☀️',prob:25,effect:null},
+  {w:'多雲',icon:'⛅',prob:20,effect:null},
+  {w:'濃霧',icon:'🌫',prob:20,effect:'能見度低，部分路徑受阻'},
+  {w:'細雨',icon:'🌧',prob:15,effect:'移動速度 −1'},
+  {w:'暴雨',icon:'⛈',prob:8, effect:'無法長距離移動・視野受限'},
+  {w:'狂風',icon:'🌬',prob:7, effect:'遠程攻擊 −2'},
+  {w:'異常寒冷',icon:'❄️',prob:3,effect:'體力消耗加快・橘子變遲鈍'},
+  {w:'赤紅晨光',icon:'🔴',prob:2,effect:'不祥之兆——今日遭遇率上升'},
+];
+
+function rollWeather(){
+  const total=WEATHERS.reduce((a,w)=>a+w.prob,0);
+  let r=Math.floor(Math.random()*total);
+  for(const w of WEATHERS){r-=w.prob;if(r<0)return w.w;}
+  return'多雲';
+}
+
+function updateTimeDisplay(){
+  const t=G.time;
+  const el=document.getElementById('time-hdr');
+  if(!el)return;
+  const hi=HOUR_ICON[t.hour]||'🌑';
+  const hl=HOUR_LABEL[t.hour]||'';
+  const wObj=WEATHERS.find(w=>w.w===t.weather)||{icon:'⛅'};
+  el.innerHTML=`Day${t.day}・${hi}${hl}・${wObj.icon}${t.weather}`;
+  el.title=wObj.effect||'天氣無特殊影響';
+}
+
+function advanceTime(hours=1){
+  if(!G.time)G.time={day:1,hour:18,weather:'霧'};
+  const prevHour=G.time.hour;
+  G.time.hour+=hours;
+  // 跨日處理
+  let dayChanged=false;
+  while(G.time.hour>=24){
+    G.time.hour-=24;
+    G.time.day++;
+    dayChanged=true;
+    G.time.weather=rollWeather(); // 每日換天氣
+  }
+  if(dayChanged){
+    const wObj=WEATHERS.find(w=>w.w===G.time.weather)||{icon:'⛅',effect:null};
+    appendEntryToDOM({type:'sys',v:`🌅 Day ${G.time.day} 開始。天氣：${wObj.icon}${G.time.weather}${wObj.effect?'（'+wObj.effect+'）':''}`});
+  }
+  updateTimeDisplay();
+  saveGame();
+}
+
+function applyTimeUpdate(tm){
+  if(!tm)return;
+  if(tm.advance)advanceTime(tm.advance);
+  if(tm.setHour!==undefined){G.time.hour=tm.setHour;updateTimeDisplay();saveGame();}
+  if(tm.setWeather){
+    G.time.weather=tm.setWeather;
+    const wObj=WEATHERS.find(w=>w.w===tm.setWeather)||{icon:'⛅',effect:null};
+    appendEntryToDOM({type:'sys',v:`天氣變化：${wObj.icon}${tm.setWeather}${wObj.effect?'（'+wObj.effect+'）':''}`});
+    updateTimeDisplay();saveGame();
+  }
+}
+
+function getTimeContext(){
+  const t=G.time;
+  const wObj=WEATHERS.find(w=>w.w===t.weather)||{};
+  return`Day${t.day}・${HOUR_LABEL[t.hour]||''}（${t.hour}時）・${t.weather}${wObj.effect?'・'+wObj.effect:''}`;
+}
+
 // ═══ FAVOR SYSTEM ═══
 const FAVOR_DEFAULT={alfar:null,orange:65}; // 艾爾法無好感度（主角），橘子從65開始
 const FAVOR_LABELS=['嫌惡','冷淡','普通','親近','信任','命運羈絆'];
@@ -1486,6 +1867,115 @@ function favorBarHtml(id){
   </div>`;
 }
 
+// ═══ BOND SKILL SYSTEM ═══
+// 羈絆技能：好感度達到門檻後解鎖，可手動或由AI觸發
+const BOND_SKILLS={
+  // 艾爾法 + 橘子
+  'alfar+orange':[
+    {id:'cat_alert',   name:'貓眼警戒',   req:55,  type:'被動',
+     desc:'橘子察覺危機。下一次骰子判定 +3。',
+     effect:'next_dice+3', cooldown:3, icon:'👁‍🗨'},
+    {id:'silent_bond', name:'無聲默契',   req:75,  type:'主動',
+     desc:'橘子以神秘方式指引，故事中解鎖一個隱藏選項。',
+     effect:'unlock_hint', cooldown:5, icon:'🔮'},
+    {id:'diku_seal',   name:'地魁之印',   req:95,  type:'覺醒',
+     desc:'橘子地魁星之力瞬間覺醒。本場景所有判定成功。一局限用一次。',
+     effect:'scene_success', cooldown:999, icon:'⚜️'},
+  ],
+  // 通用（艾爾法 + 其他星辰）
+  '_default':[
+    {id:'back_cover',  name:'掩護',       req:55,  type:'被動',
+     desc:'夥伴在危急時主動擋下一次攻擊，HP傷害減半。',
+     effect:'block_hit', cooldown:4, icon:'🛡'},
+    {id:'inspire',     name:'激勵',       req:75,  type:'主動',
+     desc:'呼喚夥伴的意志，全員下一次判定 +2。',
+     effect:'party_dice+2', cooldown:6, icon:'✦'},
+    {id:'fate_link',   name:'命運羈絆',   req:95,  type:'覺醒',
+     desc:'命運之星間的羈絆共鳴。瀕死時自動救援並回復30HP。',
+     effect:'auto_revive', cooldown:999, icon:'💫'},
+  ],
+};
+
+// 取得兩人之間的羈絆技能定義
+function getBondDef(idA,idB){
+  const key=`${idA}+${idB}`;
+  const keyR=`${idB}+${idA}`;
+  return BOND_SKILLS[key]||BOND_SKILLS[keyR]||BOND_SKILLS['_default'];
+}
+
+// 取得已解鎖的羈絆技能
+function getUnlockedBonds(idA,idB){
+  const fav=getFavor(idB);
+  if(fav===null||fav===undefined)return[];
+  return getBondDef(idA,idB).filter(sk=>fav>=sk.req);
+}
+
+// 觸發羈絆技能
+function triggerBond(idA,idB,skillId){
+  const skills=getBondDef(idA,idB);
+  const sk=skills.find(s=>s.id===skillId);
+  if(!sk)return;
+  const fav=getFavor(idB);
+  if(fav<sk.req){showToast('好感度不足','err');return;}
+  // 冷卻檢查
+  const cdKey=`bond_cd_${skillId}`;
+  const lastUsed=G.rep[cdKey]||0;
+  if(lastUsed>0){showToast(`羈絆技能冷卻中（剩${lastUsed}次）`,'inf');return;}
+  // 執行效果
+  const cA=getCharData(idA),cB=getCharData(idB);
+  appendEntryToDOM({type:'sys',v:`${sk.icon} 【羈絆技能】${cA?.name||idA} ✦ ${cB?.name||idB}：《${sk.name}》`});
+  appendEntryToDOM({type:'dial',sp:`${cA?.name||'艾爾法'}${cA?.emoji||'😒'}`,ln:'⋯⋯'});
+  if(idB==='orange'){
+    appendEntryToDOM({type:'dial',sp:'橘子🐈😒',ln:'喵——'});
+    appendEntryToDOM({type:'sys',v:`〔${sk.desc}〕`});
+  }else{
+    appendEntryToDOM({type:'sys',v:`〔${sk.desc}〕`});
+  }
+  // 實際效果
+  if(sk.effect==='next_dice+3')G.rep['_bond_dice_bonus']=(G.rep['_bond_dice_bonus']||0)+3;
+  if(sk.effect==='party_dice+2')G.rep['_bond_dice_bonus']=(G.rep['_bond_dice_bonus']||0)+2;
+  if(sk.effect==='auto_revive')G.rep['_bond_revive']=idB;
+  if(sk.effect==='block_hit')G.rep['_bond_block']=idB;
+  if(sk.effect==='scene_success')G.rep['_bond_auto_success']=1;
+  if(sk.effect==='unlock_hint'){
+    sendChoice(`【羈絆觸發】${sk.name}：橘子以神秘感知指引了一個方向，請在當前場景中加入一個原本不存在的隱藏選項或情報線索。`);
+    scrollD();return;
+  }
+  // 設定冷卻
+  G.rep[cdKey]=sk.cooldown;
+  showToast(`${sk.name} 已觸發`,'ok');
+  scrollD();saveGame();
+}
+
+// 每次AI回應後減少冷卻
+function tickBondCooldowns(){
+  Object.keys(G.rep).forEach(k=>{
+    if(k.startsWith('bond_cd_')&&G.rep[k]>0)G.rep[k]--;
+  });
+}
+
+// 羈絆面板HTML（嵌入角色卡）
+function bondBarHtml(charId){
+  if(charId==='alfar')return'';
+  const unlocked=getUnlockedBonds('alfar',charId);
+  if(!unlocked.length)return'';
+  return`<div style="padding:.28rem .62rem;border-top:1px solid var(--brd);">
+    <div style="font-size:.52rem;color:rgba(201,168,76,.5);letter-spacing:.08em;margin-bottom:.22rem;">羈絆技能</div>
+    <div style="display:flex;flex-wrap:wrap;gap:.25rem;">
+      ${unlocked.map(sk=>{
+        const cdKey=`bond_cd_${sk.id}`;
+        const cd=G.rep[cdKey]||0;
+        const ready=cd<=0;
+        return`<button onclick="event.stopPropagation();triggerBond('alfar','${charId}','${sk.id}')"
+          style="font-size:.55rem;padding:.12rem .4rem;background:${ready?'rgba(201,168,76,.1)':'rgba(60,60,60,.3)'};border:1px solid ${ready?'rgba(201,168,76,.4)':'rgba(100,100,100,.3)'};border-radius:3px;color:${ready?'var(--goldd)':'var(--sild)'};cursor:${ready?'pointer':'not-allowed'};font-family:'Noto Serif TC',serif;"
+          title="${sk.desc}"
+          ${ready?`onmouseover="this.style.background='rgba(201,168,76,.2)'" onmouseout="this.style.background='rgba(201,168,76,.1)'"`:''}>
+          ${sk.icon}${sk.name}${!ready?` (${cd})`:sk.type==='覺醒'?'★':''}
+        </button>`;
+      }).join('')}
+    </div>
+  </div>`;
+}
 function smini(s,sn,id){
   const ug=id&&id!=='orange'?getUpgrade(id):null;
   const hasPts=ug&&ug.pts>0;
@@ -1504,7 +1994,12 @@ function smini(s,sn,id){
 }
 function buildParty(){
   const members=allParty();
-  const countHtml=`<div style="font-size:.6rem;color:var(--sild);text-align:right;margin-bottom:.55rem;letter-spacing:.06em;">同伴 <span style="color:var(--gold)">${members.length}</span> / ${MAX_PARTY}</div>`;
+  const countHtml=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.55rem;">
+    <div style="font-size:.6rem;color:var(--sild);letter-spacing:.06em;">同伴 <span style="color:var(--gold)">${members.length}</span> / ${MAX_PARTY}</div>
+    <button onclick="restAllHP()" style="font-size:.58rem;padding:.12rem .45rem;background:transparent;border:1px solid rgba(100,180,100,.35);border-radius:2px;color:rgba(100,200,100,.7);cursor:pointer;font-family:'Noto Serif TC',serif;"
+      onmouseover="this.style.background='rgba(100,180,100,.1)';this.style.borderColor='#6ab46a';this.style.color='#6ab46a'"
+      onmouseout="this.style.background='transparent';this.style.borderColor='rgba(100,180,100,.35)';this.style.color='rgba(100,200,100,.7)'">休息🌙</button>
+  </div>`;
   const hasAlfar=members.some(m=>m.id==='alfar');
   const cards=members.map(c=>{
     const ug=c.id!=='orange'?getUpgrade(c.id):null;
@@ -1517,6 +2012,7 @@ function buildParty(){
         <div style="display:flex;align-items:center;gap:.35rem;">
           <div class="pname">${c.name}</div>
           ${ug?`<span class="lv-badge">Lv.${ug.lv}</span>`:''}
+          ${jobBadgeHtml(c.id)}
           ${pts>0?`<span style="font-size:.5rem;color:var(--gold);background:rgba(201,168,76,.2);border-radius:2px;padding:.05rem .25rem;">+${pts}點</span>`:''}
         </div>
         <div class="psub">${c.title}</div>
@@ -1538,11 +2034,33 @@ function buildParty(){
     </div>
     <div class="tgrow">${c.tl.map(t=>`<span class="tg ${t.s?'sl':''}">${t.s?'【封】':''}${t.n}</span>`).join('')}</div>
     ${favorBarHtml(c.id)}
+    ${bondBarHtml(c.id)}
+    ${hpBarHtml(c.id)}
     <div style="padding:.35rem .62rem;border-top:1px solid var(--brd);display:flex;justify-content:space-between;align-items:center;gap:.4rem;">
       <div style="display:flex;gap:.4rem;align-items:center;">
-        ${c.id==='orange'&&hasAlfar?`<button onclick="forceBellyFlip(event)" style="font-size:.6rem;padding:.15rem .5rem;background:transparent;border:1px solid rgba(255,165,0,.35);border-radius:2px;color:rgba(255,165,0,.7);font-family:'Noto Serif TC',serif;cursor:pointer;"
-          onmouseover="this.style.background='rgba(255,165,0,.1)';this.style.borderColor='orange';this.style.color='orange'"
-          onmouseout="this.style.background='transparent';this.style.borderColor='rgba(255,165,0,.35)';this.style.color='rgba(255,165,0,.7)'">強制翻肚 🐾</button>`:''}
+        ${c.id==='orange'&&hasAlfar?`
+        <div style="display:flex;gap:.3rem;flex-wrap:wrap;">
+          <button onclick="forceBellyFlip(event)" style="font-size:.58rem;padding:.13rem .42rem;background:transparent;border:1px solid rgba(255,165,0,.35);border-radius:2px;color:rgba(255,165,0,.7);font-family:'Noto Serif TC',serif;cursor:pointer;"
+            onmouseover="this.style.background='rgba(255,165,0,.1)';this.style.borderColor='orange';this.style.color='orange'"
+            onmouseout="this.style.background='transparent';this.style.borderColor='rgba(255,165,0,.35)';this.style.color='rgba(255,165,0,.7)'">翻肚🐾</button>
+          <button onclick="giveOrangeFish(event)" style="font-size:.58rem;padding:.13rem .42rem;background:transparent;border:1px solid rgba(100,180,220,.35);border-radius:2px;color:rgba(100,180,220,.7);font-family:'Noto Serif TC',serif;cursor:pointer;"
+            onmouseover="this.style.background='rgba(100,180,220,.1)';this.style.borderColor='#64b4dc';this.style.color='#64b4dc'"
+            onmouseout="this.style.background='transparent';this.style.borderColor='rgba(100,180,220,.35)';this.style.color='rgba(100,180,220,.7)'">魚乾🐟</button>
+          <button onclick="pickUpOrange(event)" style="font-size:.58rem;padding:.13rem .42rem;background:transparent;border:1px solid rgba(180,140,220,.35);border-radius:2px;color:rgba(180,140,220,.7);font-family:'Noto Serif TC',serif;cursor:pointer;"
+            onmouseover="this.style.background='rgba(180,140,220,.1)';this.style.borderColor='#b48cdc';this.style.color='#b48cdc'"
+            onmouseout="this.style.background='transparent';this.style.borderColor='rgba(180,140,220,.35)';this.style.color='rgba(180,140,220,.7)'">抱起🤍</button>
+          <button onclick="chatOrange(event)" style="font-size:.58rem;padding:.13rem .42rem;background:transparent;border:1px solid rgba(100,200,140,.35);border-radius:2px;color:rgba(100,200,140,.7);font-family:'Noto Serif TC',serif;cursor:pointer;"
+            onmouseover="this.style.background='rgba(100,200,140,.1)';this.style.borderColor='#64c88c';this.style.color='#64c88c'"
+            onmouseout="this.style.background='transparent';this.style.borderColor='rgba(100,200,140,.35)';this.style.color='rgba(100,200,140,.7)'">聊天💬</button>
+          <button onclick="askOrangeSuggest(event)" style="font-size:.58rem;padding:.13rem .42rem;background:transparent;border:1px solid rgba(201,168,76,.35);border-radius:2px;color:var(--goldd);font-family:'Noto Serif TC',serif;cursor:pointer;"
+            onmouseover="this.style.background='rgba(201,168,76,.1)';this.style.borderColor='var(--goldd)';this.style.color='var(--gold)'"
+            onmouseout="this.style.background='transparent';this.style.borderColor='rgba(201,168,76,.35)';this.style.color='var(--goldd)'">建議✦</button>
+        </div>
+        `:''}
+
+        ${c.id!=='orange'?`<button onclick="event.stopPropagation();openJobModal('${c.id}')" style="font-size:.6rem;padding:.15rem .5rem;background:transparent;border:1px solid rgba(180,160,100,.35);border-radius:2px;color:rgba(200,180,100,.7);font-family:'Noto Serif TC',serif;cursor:pointer;"
+          onmouseover="this.style.background='rgba(180,160,100,.1)';this.style.borderColor='var(--goldd)';this.style.color='var(--goldd)'"
+          onmouseout="this.style.background='transparent';this.style.borderColor='rgba(180,160,100,.35)';this.style.color='rgba(200,180,100,.7)'">轉職⚔️</button>`:''}
         ${ug?`<button onclick="trainChar('${c.id}',event)" style="font-size:.6rem;padding:.15rem .5rem;background:transparent;border:1px solid rgba(100,180,100,.35);border-radius:2px;color:rgba(100,180,100,.75);font-family:'Noto Serif TC',serif;cursor:pointer;"
           onmouseover="this.style.background='rgba(100,180,100,.1)';this.style.borderColor='#6ab46a';this.style.color='#6ab46a'"
           onmouseout="this.style.background='transparent';this.style.borderColor='rgba(100,180,100,.35)';this.style.color='rgba(100,180,100,.75)'"
@@ -1654,6 +2172,153 @@ function forceBellyFlip(ev){
   saveGame();
   showToast(`翻肚 ×${n} 🐾`,'ok');
 }
+// ── 給魚乾 ──
+function giveOrangeFish(ev){
+  ev.stopPropagation();
+  const inv=getInv();
+  const fish=inv.items.find(i=>i.n.includes('魚乾')||i.n.includes('魚'));
+  const hasFish=!!fish;
+  if(hasFish){
+    // 消耗一份魚乾
+    const m=fish.q.match(/×(\d+)/);
+    const qty=m?parseInt(m[1]):1;
+    if(qty<=1)inv.items=inv.items.filter(i=>i!==fish);
+    else fish.q=`×${qty-1}`;
+    setFavor('orange',8);
+    renderBoth('inv');
+  }
+  const reactions=hasFish?[
+    [{type:'narr',v:'艾爾法從袋裡取出一片魚乾，遞到橘子面前。'},
+     {type:'dial',sp:'橘子🐈😒',ln:'喵——'},
+     {type:'sys',v:'〔系統翻譯：⋯⋯勉強收下。〕'},
+     {type:'narr',v:'橘子瞟了一眼，然後以優雅而精準的姿態，把魚乾從艾爾法手中叼走。'},
+     {type:'sys',v:'橘子好感 +8 ／ 魚乾 -1'},
+    ],
+    [{type:'narr',v:'魚乾出現的瞬間，橘子的耳朵微微動了一下。'},
+     {type:'dial',sp:'橘子🐈😒',ln:'喵。'},
+     {type:'sys',v:'〔系統翻譯：你有點用。〕'},
+     {type:'narr',v:'橘子接過魚乾，退後兩步，背對著艾爾法吃完。'},
+     {type:'sys',v:'橘子好感 +8'},
+    ],
+  ]:[
+    [{type:'dial',sp:'艾爾法😒',ln:'⋯⋯沒有魚乾了。'},
+     {type:'dial',sp:'橘子🐈😒',ln:'喵。'},
+     {type:'sys',v:'〔系統翻譯：廢物。〕'},
+    ],
+  ];
+  const r=reactions[Math.floor(Math.random()*reactions.length)];
+  r.forEach(e=>appendEntryToDOM(e));
+  scrollD();saveGame();renderBoth('party');
+  showToast(hasFish?'橘子：魚乾 +8好感 🐟':'道具欄沒有魚乾','ok');
+}
+
+// ── 抱起橘子 ──
+function pickUpOrange(ev){
+  ev.stopPropagation();
+  const scenes=[
+    [{type:'narr',v:'艾爾法俯身，將橘子從地上抄起，抱在胸前。橘子沒有反抗——她只是抬頭，用藍眼睛看著艾爾法的臉。'},
+     {type:'dial',sp:'橘子🐈😒',ln:'喵。'},
+     {type:'sys',v:'〔系統翻譯：⋯⋯就這樣吧。〕'},
+     {type:'narr',v:'沉默持續了幾秒。橘子微微收緊了爪子。'},
+    ],
+    [{type:'narr',v:'被抱起的瞬間，橘子全身肌肉繃緊，尾巴炸成一根棒子。'},
+     {type:'dial',sp:'橘子🐈😰',ln:'嗚——喵！'},
+     {type:'sys',v:'〔系統翻譯：沒有預警！這違反了協議！〕'},
+     {type:'narr',v:'橘子在艾爾法懷裡掙扎了兩秒，然後放棄，以沉默表達強烈不滿。'},
+    ],
+    [{type:'narr',v:'艾爾法抱起橘子，走了幾步，然後坐下，把橘子放在膝上。'},
+     {type:'dial',sp:'橘子🐈😒',ln:'喵⋯⋯'},
+     {type:'sys',v:'〔系統翻譯：⋯⋯暫時許可。〕'},
+     {type:'narr',v:'橘子繞了一圈，找到一個令她滿意的角度，然後趴下。她的呼嚕聲非常小，小到幾乎聽不見。'},
+     {type:'dial',sp:'艾爾法😒',ln:'⋯⋯'},
+     {type:'sys',v:'雙方的HP回復+1（理由不明）'},
+    ],
+  ];
+  const r=scenes[Math.floor(Math.random()*scenes.length)];
+  r.forEach(e=>appendEntryToDOM(e));
+  scrollD();saveGame();
+}
+
+// ── 和橘子聊天 ──
+function chatOrange(ev){
+  ev.stopPropagation();
+  const topics=[
+    // 關於命運
+    [{type:'dial',sp:'艾爾法😒',ln:'你真的只是一隻貓嗎？'},
+     {type:'dial',sp:'橘子🐈😒',ln:'喵。'},
+     {type:'sys',v:'〔系統翻譯：這個問題，你已經問過三次了。〕'},
+     {type:'dial',sp:'艾爾法😒',ln:'你每次都這樣回。'},
+     {type:'dial',sp:'橘子🐈😒',ln:'喵。'},
+     {type:'sys',v:'〔系統翻譯：因為答案沒有改變。〕'},
+    ],
+    // 關於今天
+    [{type:'dial',sp:'艾爾法😒',ln:'今天有什麼不對勁的地方嗎？'},
+     {type:'dial',sp:'橘子🐈😒',ln:'喵——'},
+     {type:'sys',v:'〔系統翻譯：東邊有危險。但你不會聽的。〕'},
+     {type:'dial',sp:'艾爾法😒',ln:'⋯⋯'},
+    ],
+    // 閒聊
+    [{type:'dial',sp:'艾爾法😒',ln:'最近吃得怎麼樣？'},
+     {type:'dial',sp:'橘子🐈😒',ln:'喵。'},
+     {type:'sys',v:'〔系統翻譯：魚乾數量不足。這是控訴。〕'},
+     {type:'dial',sp:'艾爾法😒',ln:'我會記得補。'},
+     {type:'dial',sp:'橘子🐈😒',ln:'喵——'},
+     {type:'sys',v:'〔系統翻譯：你每次都這樣說。〕'},
+    ],
+    // 關於天父星
+    [{type:'dial',sp:'艾爾法😒',ln:'那個先行者⋯⋯你見過他嗎？'},
+     {type:'dial',sp:'橘子🐈😒',ln:'⋯⋯喵。'},
+     {type:'sys',v:'〔系統翻譯：（沉默。這是少數讓橘子停頓的話題之一。）〕'},
+     {type:'dial',sp:'橘子🐈😒',ln:'喵。'},
+     {type:'sys',v:'〔系統翻譯：他的氣息⋯⋯我記得。〕'},
+     {type:'dial',sp:'艾爾法😒',ln:'⋯⋯所以你也不是普通的貓。'},
+    ],
+  ];
+  const fav=getFavor('orange')||50;
+  // 好感高時解鎖天父星話題
+  const available=fav>=70?topics:topics.slice(0,3);
+  const r=available[Math.floor(Math.random()*available.length)];
+  r.forEach(e=>appendEntryToDOM(e));
+  scrollD();saveGame();
+  // 聊天有機率觸發橘子秘密
+  tryOrangeSecretTrigger();
+}
+
+// ── 橘子建議 ──
+function askOrangeSuggest(ev){
+  ev.stopPropagation();
+  const fav=getFavor('orange')||50;
+  const suggests=[
+    // 通用建議
+    [{type:'dial',sp:'艾爾法😒',ln:'有什麼需要注意的嗎？'},
+     {type:'dial',sp:'橘子🐈😒',ln:'喵——喵。'},
+     {type:'sys',v:'〔橘子建議：留意南方。有什麼東西在靠近。〕'},
+    ],
+    [{type:'dial',sp:'艾爾法😒',ln:'下一步怎麼走？'},
+     {type:'dial',sp:'橘子🐈😒',ln:'喵。'},
+     {type:'sys',v:'〔橘子建議：你現在需要的是情報，不是行動。〕'},
+    ],
+    [{type:'dial',sp:'艾爾法😒',ln:'要相信她嗎？'},
+     {type:'dial',sp:'橘子🐈😒',ln:'⋯⋯喵。'},
+     {type:'sys',v:'〔橘子建議：她說的是真話。但她沒說完。〕'},
+    ],
+    // 高好感解鎖
+    ...(fav>=75?[
+      [{type:'dial',sp:'艾爾法😒',ln:'橘子，你覺得⋯⋯108星真的能聚齊嗎？'},
+       {type:'dial',sp:'橘子🐈😒',ln:'喵——'},
+       {type:'sys',v:'〔橘子建議（罕見的認真）：能。但代價比你想的大。有人會走，有人不會回來。〕'},
+       {type:'dial',sp:'艾爾法😒',ln:'⋯⋯'},
+       {type:'dial',sp:'橘子🐈😒',ln:'喵。'},
+       {type:'sys',v:'〔橘子補充：但你已經走到這裡了。〕'},
+      ],
+    ]:[]),
+  ];
+  const r=suggests[Math.floor(Math.random()*suggests.length)];
+  r.forEach(e=>appendEntryToDOM(e));
+  scrollD();saveGame();
+  showToast('橘子建議 ✦','ok');
+}
+
 function buildStars(){
   const f=G.starFilter,ft=s=>f==='recruited'?s.status==='recruited':f==='unknown'?s.status==='unknown':true;
   const sT=f==='all'||f==='天罡'||f==='recruited'||f==='unknown';
@@ -1669,19 +2334,28 @@ function buildStars(){
       const name=ov.name||sp.name;
       const cls=status==='unknown'?'unk':status==='heard'?'con':'rec';
       const stLabel=status==='unknown'?'● 身份不明':status==='heard'?'◈ 有所耳聞':status==='met'?'◈ 已相遇':status==='dead'?'✦ 已逝':'?';
-      return`<div class="sc ${cls}" onclick="openSpecialChar('${sp.id}')" style="border-color:rgba(150,120,200,.4)">
-        <div class="stp" style="color:rgba(180,150,220,.8)">星外</div>
-        <div class="snm">${sp.role}</div>
-        <div class="sst" style="font-size:.52rem;">${sp.emoji}</div>
-        <div class="snm2">${status==='unknown'?'???':name}</div>
-        <div style="font-size:.44rem;color:rgba(180,150,220,.7);margin-top:.1rem">${stLabel}</div>
-      </div>`;
+      return`<div class="sc ${cls}" onclick="openSpecialChar('${sp.id}')" style="border-color:rgba(150,120,200,.4)"><div class="stp" style="color:rgba(180,150,220,.8)">星外</div><div class="snm">${sp.role}</div><div class="sst" style="font-size:.52rem;">${sp.emoji}</div><div class="snm2">${status==='unknown'?'???':name}</div><div style="font-size:.44rem;color:rgba(180,150,220,.7);margin-top:.1rem">${stLabel}</div></div>`;
     }).join('');
     h+=`</div>`;
   }
   if(sT){const it=TIANGANG.filter(ft);if(it.length){if(f==='all'||f==='天罡')h+=`<div class="sdiv">✦ 天罡三十六星 ✦</div>`;h+=`<div class="sgrid">${it.map(s=>scell(s,'天罡')).join('')}</div>`;}}
   if(sD){const it=DISHAT.filter(ft);if(it.length){if(f==='all'||f==='地煞')h+=`<div class="sdiv">✦ 地煞七十二星 ✦</div>`;h+=`<div class="sgrid">${it.map(s=>scell(s,'地煞')).join('')}</div>`;}}
   return h;
+}
+
+async function testAPI(){
+  const w=document.getElementById('test-res');
+  if(w)w.textContent='測試中⋯';
+  try{
+    const r=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':CFG.key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:CFG.model,max_tokens:20,messages:[{role:'user',content:'Hi'}]})
+    });
+    const d=await r.json();
+    if(w)w.textContent=r.ok?'✓ 連線成功':'✗ 錯誤：'+(d.error?.message||r.status);
+    if(w)w.style.color=r.ok?'var(--grn)':'var(--red)';
+  }catch(e){if(w){w.textContent='✗ 網路錯誤';w.style.color='var(--red)';}}
 }
 
 function openSpecialChar(id){
@@ -1702,6 +2376,7 @@ function openSpecialChar(id){
     <div class="mbody">
       <div class="msec"><div class="msect">背景說明</div><div class="mdesc">${desc}</div></div>
       <div class="msec"><div class="msect">橘子的感知</div><div class="mdesc" style="color:rgba(180,150,220,.7)">${sp.hint}</div></div>
+      ${id==='sky_father'?`<div class="msec"><div class="msect">線索追蹤</div>${buildFounderClues()}</div>`:''}
     </div>`;
   document.getElementById('detail-modal').classList.add('open');
 }
@@ -1760,10 +2435,562 @@ function buildInv(){
   <div class="isec"><div class="ittl">裝備中</div>${equipped.length?equipped.map(i=>eqCard(i,inv.equip.indexOf(i),true)).join(''):'<div style="font-size:.65rem;color:var(--sild);padding:.2rem 0">（無裝備中道具）</div>'}</div>
   ${held.length?`<div class="isec"><div class="ittl">持有裝備</div>${held.map(i=>eqCard(i,inv.equip.indexOf(i),false)).join('')}</div>`:''}
   <div class="isec"><div class="ittl">道具欄</div>${inv.items.map(i=>`<div class="irow"><div><div class="inm">${i.n}</div><div class="int">${i.t}</div></div><div class="iqt">${i.q}</div></div>`).join('')}</div>
-  <div class="isec"><div class="ittl">重要情報</div>${inv.key.map(i=>`<div class="irow"><div><div class="inm">${i.n}</div><div class="int">${i.t}</div></div><div class="iqt">${i.q}</div></div>`).join('')}</div>`;
+  <div class="isec"><div class="ittl">重要情報</div>${inv.key.map(i=>`<div class="irow"><div><div class="inm">${i.n}</div><div class="int">${i.t}</div></div><div class="iqt">${i.q}</div></div>`).join('')}</div>
+  ${buildRepSection()}
+  ${buildRelicSection()}`;
 }
+
+// ═══ REPUTATION / FACTION SYSTEM ═══
+const FACTIONS=[
+  {id:'ironmist',   name:'鐵霧城居民', icon:'🏙', desc:'鐵霧城的平民與市井'},
+  {id:'mistblade',  name:'霧刃幫',      icon:'⚔️', desc:'橫行碼頭的地下組織'},
+  {id:'merchant',   name:'商人公會',    icon:'💰', desc:'掌控貿易與情報的商會'},
+  {id:'hero',       name:'英雄公會',    icon:'🛡', desc:'接受委託的傭兵組織'},
+  {id:'imperial',   name:'帝國殘軍',    icon:'👑', desc:'崩裂帝國的殘存勢力'},
+  {id:'shadow',     name:'幕後勢力',    icon:'👁', desc:'操縱十二王國的神秘組織'},
+];
+const REP_LEVELS=[
+  {min:60,  name:'盟友',  color:'#6ab46a', effect:'商店八折・特殊任務解鎖'},
+  {min:20,  name:'友好',  color:'#a8c84c', effect:'商店九折・額外情報'},
+  {min:-19, name:'中立',  color:'#888',    effect:'無特殊效果'},
+  {min:-59, name:'敵對',  color:'#d05050', effect:'商店漲價・部分區域受阻'},
+  {min:-100,name:'公敵',  color:'#880000', effect:'見面即攻擊・禁區入場'},
+];
+
+function getRep(fid){return G.rep[fid]||0;}
+function repLevel(v){for(const l of REP_LEVELS)if(v>=l.min)return l;return REP_LEVELS[4];}
+
+function applyRep(changes){
+  // changes: [{id, delta, reason}]
+  if(!changes||!changes.length)return;
+  changes.forEach(ch=>{
+    const prev=getRep(ch.id);
+    G.rep[ch.id]=Math.max(-100,Math.min(100,prev+(ch.delta||0)));
+    const lv=repLevel(G.rep[ch.id]);
+    const fac=FACTIONS.find(f=>f.id===ch.id);
+    const sign=ch.delta>0?'+':'';
+    appendEntryToDOM({type:'sys',v:`${fac?.icon||'◈'} ${fac?.name||ch.id} 聲望 ${sign}${ch.delta} → ${G.rep[ch.id]}【${lv.name}】${ch.reason?'（'+ch.reason+'）':''}`});
+  });
+  renderBoth('inv');saveGame();
+}
+
+function buildRepSection(){
+  const active=FACTIONS.filter(f=>G.rep[f.id]!==undefined&&G.rep[f.id]!==0);
+  if(!active.length)return`<div class="isec"><div class="ittl">陣營聲望</div><div style="font-size:.62rem;color:var(--sild);padding:.2rem 0">尚未與任何勢力產生聲望關係</div></div>`;
+  return`<div class="isec"><div class="ittl">陣營聲望</div>${FACTIONS.map(f=>{
+    const v=getRep(f.id);
+    if(!v&&v!==0)return'';
+    const lv=repLevel(v);
+    const pct=Math.round((v+100)/2); // -100~100 → 0~100%
+    const barColor=lv.color;
+    return`<div style="margin-bottom:.45rem;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.18rem;">
+        <span style="font-size:.62rem;color:var(--sil)">${f.icon} ${f.name}</span>
+        <span style="font-size:.55rem;color:${barColor}">${lv.name}（${v>0?'+':''}${v}）</span>
+      </div>
+      <div style="height:4px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden;">
+        <div style="width:${pct}%;height:100%;background:${barColor};border-radius:2px;transition:width .4s;"></div>
+      </div>
+      <div style="font-size:.52rem;color:var(--sild);margin-top:.08rem;">${lv.effect}</div>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+// 聲望影響商店價格
+// ═══ ORANGE SECRET LINE（橘子秘密線）═══
+// 橘子的真實身份透過五個階段逐步揭露
+// 觸發條件：聊天互動、高好感、特定劇情事件、AI的 orange_reveal 欄位
+
+const ORANGE_SECRETS=[
+  // Stage 1：異常的貓
+  {stage:1, title:'異常的貓', icon:'🐈',
+   scenes:[
+    {type:'narr',v:'深夜，艾爾法注意到橘子並未入睡。她坐在窗台，藍眼睛凝視著遠方的某個方向——那個方向什麼也沒有，只有霧。'},
+    {type:'narr',v:'艾爾法走過去。橘子沒有回頭，但耳朵微微轉動。'},
+    {type:'dial',sp:'橘子🐈😒',ln:'喵。'},
+    {type:'sys',v:'〔系統翻譯：⋯⋯你也感覺到了嗎。〕'},
+    {type:'narr',v:'艾爾法順著橘子的視線望去，只看到霧。'},
+    {type:'sys',v:'〔橘子秘密・第一層浮現〕這隻貓，似乎一直在等待什麼。'},
+   ],
+   intel:{id:'os_1',title:'橘子的夜間行為',content:'橘子有時在深夜凝視某個方向，即便那裡空無一物。她的反應不像普通的貓。',src:'艾爾法觀察',rel:3,cat:'人物',orange:true,related:'橘子・地魁星'}},
+
+  // Stage 2：五枚銅幣的秘密
+  {stage:2, title:'五枚銅幣的秘密', icon:'🪙',
+   scenes:[
+    {type:'narr',v:'艾爾法翻出了當初買橘子的收據，仔細看了一遍。'},
+    {type:'narr',v:'五枚銅幣。一隻流浪貓的價格。但賣貓的老人在橘子被帶走後的第二天就消失了，沒有任何人再見過他。'},
+    {type:'dial',sp:'橘子🐈😒',ln:'⋯⋯喵。'},
+    {type:'sys',v:'〔系統翻譯：那個老人⋯⋯知道你要來找我。〕'},
+    {type:'narr',v:'橘子走到艾爾法腳邊，用頭蹭了一下她的腳踝——這是她極少做的動作。'},
+    {type:'sys',v:'〔橘子秘密・第二層浮現〕五枚銅幣並不是偶然的交易。那是一個約定的記號。'},
+   ],
+   intel:{id:'os_2',title:'消失的賣貓老人',content:'五枚銅幣買下橘子的那個攤販，在交易後隔天便從鐵霧城消失，再無蹤跡。是巧合，還是任務完成？',src:'市場記錄',rel:4,cat:'人物',orange:true}},
+
+  // Stage 3：帝國占星師的預言
+  {stage:3, title:'帝國占星師的預言', icon:'🔮',
+   scenes:[
+    {type:'narr',v:'在一本廢棄的帝國文獻中，艾爾法發現了一段加密的段落。她不確定為什麼橘子湊過來嗅了一下，然後用爪子輕輕推了推書頁。'},
+    {type:'narr',v:'那段文字，是帝國最後一任占星師留下的預言：'},
+    {type:'sys',v:'〔古帝國文字〕「命運之錨，以貓為形，以銅為價，以等待為職。凡能尋得此錨者，108星辰之主也。」'},
+    {type:'dial',sp:'橘子🐈😒',ln:'喵——'},
+    {type:'sys',v:'〔系統翻譯：⋯⋯你看到了。〕'},
+    {type:'dial',sp:'艾爾法😒',ln:'⋯⋯所以你不是普通的貓。'},
+    {type:'dial',sp:'橘子🐈😒',ln:'喵。'},
+    {type:'sys',v:'〔系統翻譯：我是一隻貓。五枚銅幣的貓。（停頓）但我也是你的貓。〕'},
+    {type:'sys',v:'〔橘子秘密・第三層浮現〕命運之錨的封印，開始出現細小的裂縫。'},
+   ],
+   intel:{id:'os_3',title:'帝國占星師的預言',content:'「命運之錨，以貓為形，以銅為價，以等待為職。凡能尋得此錨者，108星辰之主也。」帝國最後任占星師的遺言。',src:'廢棄帝國文獻',rel:5,cat:'命運',orange:true,related:'命運之錨'}},
+
+  // Stage 4：記憶的碎片
+  {stage:4, title:'記憶的碎片', icon:'💫',
+   scenes:[
+    {type:'narr',v:'那夜艾爾法做了一個奇怪的夢。夢裡沒有景象，只有一個聲音——不是橘子的聲音，但又像是。'},
+    {type:'dial',sp:'???',ln:'⋯⋯你終於來了。我等了很久。'},
+    {type:'dial',sp:'艾爾法😒',ln:'（夢中）你是誰？'},
+    {type:'dial',sp:'???',ln:'一個記憶。一個選擇留下來的記憶。'},
+    {type:'narr',v:'艾爾法醒來時，橘子正坐在她的胸口，用一種不像貓的眼神看著她。'},
+    {type:'dial',sp:'橘子🐈😒',ln:'⋯⋯喵。'},
+    {type:'sys',v:'〔系統翻譯：你記得了嗎。〕'},
+    {type:'dial',sp:'艾爾法😒',ln:'⋯⋯那個聲音是你嗎？'},
+    {type:'dial',sp:'橘子🐈😒',ln:'喵。'},
+    {type:'sys',v:'〔系統翻譯：是一部分的我。被封印在這個形體裡最深的那一部分。〕'},
+    {type:'sys',v:'〔橘子秘密・第四層浮現〕命運之錨的封印，已有三分之一鬆動。'},
+   ],
+   relicUpdate:{status:'partial', effect:'感知範圍擴大，橘子能感知更遠距離的星辰氣息'}},
+
+  // Stage 5：覺醒
+  {stage:5, title:'命運之錨・覺醒', icon:'⚓',
+   scenes:[
+    {type:'sys',v:'═══ 命運之錨封印解除 ═══'},
+    {type:'narr',v:'那一刻沒有任何預警。橘子突然停在原地，所有的毛直立起來，藍眼睛在黑暗中發出淡淡的光。'},
+    {type:'dial',sp:'橘子🐈😒',ln:'喵——'},
+    {type:'sys',v:'〔系統翻譯：（這一次，翻譯失效了。）〕'},
+    {type:'narr',v:'艾爾法感覺到某種東西從橘子身上流出，像是水，像是光，又像是某種更古老的東西——那是108顆星辰共同的重量。'},
+    {type:'narr',v:'然後橘子打了一個哈欠，踱步到艾爾法身邊，若無其事地趴下。'},
+    {type:'dial',sp:'橘子🐈😒',ln:'喵。'},
+    {type:'sys',v:'〔⋯⋯沒有翻譯。有些事情不需要語言。〕'},
+    {type:'sys',v:'✦ 命運之錨・封印解除 ✦\n地魁星真正的效果覺醒：橘子的感知覆蓋整個艾爾薩大陸。任何108星辰的動向，她都能察覺。'},
+   ],
+   relicUpdate:{status:'awakened', effect:'【覺醒】感知覆蓋全大陸・任何星辰氣息無所遁形・好感度永不下降'}},
+];
+
+function revealOrangeSecret(targetStage){
+  const curStage=G.orangeStage||0;
+  if(targetStage<=curStage||targetStage>5)return;
+  const secret=ORANGE_SECRETS[targetStage-1];
+  if(!secret)return;
+  G.orangeStage=targetStage;
+  // 播放場景
+  secret.scenes.forEach(e=>appendEntryToDOM(e));
+  // 更新情報
+  if(secret.intel)addIntel(secret.intel);
+  // 更新寶器
+  if(secret.relicUpdate&&PRESET_RELICS.orange){
+    PRESET_RELICS.orange.status=secret.relicUpdate.status;
+    PRESET_RELICS.orange.effect=secret.relicUpdate.effect;
+    renderBoth('inv');
+  }
+  // 系統提示
+  appendEntryToDOM({type:'sys',v:`✦ 橘子・秘密線 第${targetStage}層揭露：【${secret.title}】`});
+  showToast('橘子秘密解鎖：'+secret.title,'ok');
+  scrollD();saveGame();
+  renderBoth('party');
+}
+
+// 聊天時有機率觸發
+function tryOrangeSecretTrigger(){
+  const cur=G.orangeStage||0;
+  if(cur>=5)return;
+  const fav=getFavor('orange')||50;
+  // 好感度和線索數影響觸發機率
+  const founderCount=(G.founderClues||[]).length;
+  const baseChance=0.15+(fav/100)*0.2+(founderCount*0.02);
+  if(Math.random()<baseChance){
+    setTimeout(()=>revealOrangeSecret(cur+1),800);
+  }
+}
+
+function getOrangeSecretHtml(){
+  const cur=G.orangeStage||0;
+  if(cur===0)return`<div style="font-size:.62rem;color:var(--sild);padding:.3rem 0;font-style:italic">⋯⋯她只是一隻貓。一隻花五枚銅幣買來的貓。</div>`;
+  const unlocked=ORANGE_SECRETS.slice(0,cur);
+  return`<div>
+    <div style="display:flex;gap:.3rem;margin-bottom:.4rem;flex-wrap:wrap;">
+      ${ORANGE_SECRETS.map((s,i)=>`<span style="font-size:.55rem;padding:.1rem .35rem;border-radius:2px;background:${i<cur?'rgba(180,140,220,.15)':'rgba(50,50,50,.3)'};border:1px solid ${i<cur?'rgba(180,140,220,.4)':'rgba(80,80,80,.3)'};color:${i<cur?'rgba(200,160,240,.8)':'var(--sild)'}">${s.icon} ${i<cur?s.title:'???'}</span>`).join('')}
+    </div>
+    ${cur<5?`<div style="font-size:.58rem;color:var(--sild);">第${cur}/${5}層揭露 ・ 繼續與橘子互動以發現更多</div>`:`<div style="font-size:.6rem;color:rgba(200,160,240,.8);">✦ 全部揭露・命運之錨已覺醒</div>`}
+  </div>`;
+}
+// 透過蒐集碎片化線索，逐步揭開「先行者」的身份與命運
+// 四個解鎖門檻：3/6/9/12 條線索
+
+const FOUNDER_TIERS=[
+  {at:3,  label:'初現端倪', color:'#888',
+   unlock:'G.specialOv.sky_father 狀態更新為 heard，名字出現模糊輪廓。'},
+  {at:6,  label:'線索成形', color:'var(--goldd)',
+   unlock:'可在星外人物詳情中查看已揭示的碎片拼圖。'},
+  {at:9,  label:'真相將近', color:'var(--gold)',
+   unlock:'橘子開始有更深的感知反應。聊天中天父星話題解鎖。'},
+  {at:12, label:'啟示降臨', color:'rgba(200,120,220,.9)',
+   unlock:'觸發主線隱藏劇情——先行者留下的最後訊息。'},
+];
+
+const CLUE_CATS=['身份','蹤跡','目的','命運','橘子感知'];
+const CLUE_CAT_ICON={身份:'👤',蹤跡:'👣',目的:'🎯',命運:'⚜️','橘子感知':'🐈'};
+
+function addFounderClue(clue){
+  if(!clue||!clue.id)return;
+  G.founderClues=G.founderClues||[];
+  if(G.founderClues.find(c=>c.id===clue.id)){
+    showToast('線索已知：'+clue.title,'inf');return;
+  }
+  G.founderClues.push({cat:'身份',rel:3,day:G.time?.day||1,...clue});
+  const n=G.founderClues.length;
+  appendEntryToDOM({type:'sys',v:`⚜️ 天父星線索（${n}）：【${clue.title}】`});
+  // 檢查門檻解鎖
+  const tier=FOUNDER_TIERS.find(t=>t.at===n);
+  if(tier){
+    appendEntryToDOM({type:'sys',v:`✦ 線索達到 ${n} 條——【${tier.label}】`});
+    checkFounderTierUnlock(n);
+    showToast('線索里程碑：'+tier.label,'ok');
+  }else{
+    showToast('天父星線索 +1（'+n+'條）','ok');
+  }
+  // 自動加入情報板
+  addIntel({id:'founder_'+clue.id, title:'天父星・'+clue.title,
+    content:clue.content, src:clue.src||'不明來源',
+    rel:clue.rel||3, cat:'人物', orange:clue.orange||false,
+    related:'天父星・先行者'});
+  saveGame();
+  // 更新星外人物顯示
+  renderBoth('stars');
+}
+
+function checkFounderTierUnlock(n){
+  if(n>=3&&!G.specialOv.sky_father?.heard){
+    if(!G.specialOv.sky_father)G.specialOv.sky_father={};
+    G.specialOv.sky_father.status='heard';
+  }
+  if(n>=9){
+    // 橘子的天父星話題解鎖已在 chatOrange 中透過好感度控制，這裡額外觸發
+    appendEntryToDOM({type:'narr',v:'橘子從艾爾法的懷中坐起，望向遠方，耳朵微微轉動。那個方向，什麼也沒有——或者說，沒有任何人類能看見的東西。'});
+    appendEntryToDOM({type:'dial',sp:'橘子🐈😒',ln:'喵⋯⋯'});
+    appendEntryToDOM({type:'sys',v:'〔橘子感知：某個記憶的殘影。她認識那個氣息。〕'});
+  }
+  if(n>=12){
+    appendEntryToDOM({type:'sys',v:'═══ 線索達到12條。某個古老的訊息正在顯現。═══'});
+    setTimeout(()=>{
+      sendChoice('【線索啟示】天父星的線索已累積至12條。請觸發一個隱藏的主線劇情：先行者生前留下的最後訊息以某種形式傳達給艾爾法——可以是夢境、古老文件、某人臨終的話語，或橘子的神秘引導。');
+    },1000);
+  }
+}
+
+function buildFounderClues(){
+  const clues=G.founderClues||[];
+  const n=clues.length;
+  const nextTier=FOUNDER_TIERS.find(t=>t.at>n);
+  const maxTier=FOUNDER_TIERS[FOUNDER_TIERS.length-1];
+  const progress=Math.min(n,maxTier.at);
+  const pct=Math.round(progress/maxTier.at*100);
+  const currentTier=FOUNDER_TIERS.slice().reverse().find(t=>t.at<=n);
+
+  let h=`<div style="margin-bottom:.6rem;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.3rem;">
+      <span style="font-size:.62rem;color:var(--goldd);">⚜️ 先行者的蹤跡</span>
+      <span style="font-size:.52rem;color:var(--sild);">${n} 條線索 / 目標 ${maxTier.at}</span>
+    </div>
+    <div style="height:5px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden;margin-bottom:.3rem;">
+      <div style="width:${pct}%;height:100%;background:linear-gradient(90deg,var(--goldd),rgba(200,120,220,.8));border-radius:3px;transition:width .5s;"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:.5rem;color:var(--sild);">
+      ${FOUNDER_TIERS.map(t=>`<span style="color:${n>=t.at?t.color:'rgba(100,100,80,.4)'};">${n>=t.at?'✦':t.at+'條'}${n>=t.at?t.label:''}</span>`).join('')}
+    </div>
+  </div>`;
+
+  if(!clues.length){
+    return h+`<div style="font-size:.62rem;color:var(--sild);padding:.4rem 0">尚無線索。<br><span style="opacity:.6">先行者的蹤跡散落在艾爾薩大陸各處——古老的文件、年邁的見證者、以及橘子隱約的反應。</span></div>`;
+  }
+
+  CLUE_CATS.forEach(cat=>{
+    const catClues=clues.filter(c=>c.cat===cat);
+    if(!catClues.length)return;
+    const icon=CLUE_CAT_ICON[cat]||'◈';
+    const isOrange=cat==='橘子感知';
+    h+=`<div style="margin-bottom:.5rem;">
+      <div style="font-size:.55rem;color:${isOrange?'rgba(180,140,220,.8)':'var(--goldd)'};letter-spacing:.06em;margin-bottom:.25rem;">${icon} ${cat}</div>
+      ${catClues.map(c=>{
+        const rel='★'.repeat(c.rel||3)+'☆'.repeat(5-(c.rel||3));
+        return`<div style="background:${isOrange?'rgba(30,20,50,.4)':'rgba(30,25,15,.5)'};border:1px solid ${isOrange?'rgba(150,120,200,.2)':'rgba(150,130,80,.2)'};border-radius:3px;padding:.38rem .55rem;margin-bottom:.25rem;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:.12rem;">
+            <span style="font-size:.65rem;color:var(--sil);font-weight:600">${c.title}</span>
+            <span style="font-size:.48rem;color:var(--goldd);letter-spacing:-.05em">${rel}</span>
+          </div>
+          <div style="font-size:.61rem;color:var(--sild);line-height:1.5">${c.content}</div>
+          <div style="font-size:.5rem;color:rgba(120,110,80,.5);margin-top:.1rem">${c.src?'來源：'+c.src+' ・':''} Day${c.day||1}</div>
+        </div>`;
+      }).join('')}
+    </div>`;
+  });
+  return h;
+}
+
+function applyFounderClue(clueData){
+  if(!clueData)return;
+  (Array.isArray(clueData)?clueData:[clueData]).forEach(c=>addFounderClue(c));
+}
+
+// ═══ RELIC SYSTEM（命運寶器）═══
+// 每顆星辰降世時攜帶的命運寶器，集齊可觸發隱藏事件
+// 艾爾法和橘子的寶器預設定義；其他角色的寶器由 AI 通過 relic 欄位揭示
+
+const PRESET_RELICS={
+  'alfar': {starId:'alfar', starName:'艾爾法', starNum:'天1', name:'天命折刃',
+    type:'武器', icon:'⚔️', rarity:'稀有',
+    desc:'一把在帝國崩裂前夕折斷的城衛制式劍。斷口異常鋒利，仿佛命運本身留下的傷痕。',
+    effect:'武力+15・每次大成功額外造成傷害',
+    status:'equipped', // 艾爾法一開始就持有（雖然只是舊短劍）
+    lore:'天魁星降世之器。折斷之日，帝國滅亡之夜。'},
+  'orange': {starId:'orange', starName:'橘子', starNum:'地1', name:'命運之錨',
+    type:'神物', icon:'⚓', rarity:'傳說',
+    desc:'一枚五枚銅幣買來的貓。帝國最後的占星師說：「凡能找到這隻貓的人，便是命運之主。」',
+    effect:'【封印】真正的效果尚未覺醒',
+    status:'sealed',
+    lore:'地魁星降世之器。她本身即是寶器——或者說，她選擇了誰，命運便跟隨誰。'},
+};
+
+// 寶器品質顏色
+const RELIC_RARITY_COLOR={普通:'#888',精良:'#6ab4c8',稀有:'var(--gold)',傳說:'rgba(200,120,220,.9)',神器:'#ff6060'};
+
+function getRelicCount(){return Object.keys(G.relics).length+Object.keys(PRESET_RELICS).length;}
+
+function applyRelic(r){
+  if(!r||!r.id)return;
+  const existed=!!G.relics[r.id];
+  G.relics[r.id]={...r, foundDay:G.time?.day||1};
+  const col=RELIC_RARITY_COLOR[r.rarity]||'var(--gold)';
+  if(!existed){
+    appendEntryToDOM({type:'sys',v:`✦ 發現命運寶器：【${r.name}】${r.rarity?'（'+r.rarity+'）':''}`});
+    appendEntryToDOM({type:'sys',v:`${r.icon||'◈'} ${r.desc||''}`});
+    if(r.effect) appendEntryToDOM({type:'sys',v:`效果：${r.effect}`});
+    showToast('命運寶器：'+r.name,'ok');
+  }
+  renderBoth('inv');saveGame();
+}
+
+function buildRelicSection(){
+  const presets=Object.values(PRESET_RELICS);
+  const found=Object.values(G.relics);
+  const all=[...presets,...found];
+  const count=all.length;
+  const foundCount=found.length+presets.filter(r=>r.status!=='unknown').length;
+  return`<div class="isec">
+    <div class="ittl" style="display:flex;justify-content:space-between;align-items:center;">
+      <span>命運寶器</span>
+      <span style="font-size:.52rem;color:var(--sild);">${foundCount}/${count} 已知（共108件）</span>
+    </div>
+    ${all.map(r=>{
+      const col=RELIC_RARITY_COLOR[r.rarity]||'var(--gold)';
+      const sealed=r.status==='sealed';
+      return`<div style="display:flex;gap:.5rem;align-items:flex-start;padding:.4rem 0;border-bottom:1px solid rgba(255,255,255,.04);">
+        <span style="font-size:1.1rem;flex-shrink:0;opacity:${sealed?.5:1}">${r.icon||'◈'}</span>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:.3rem;margin-bottom:.1rem;">
+            <span style="font-size:.72rem;color:${col};font-weight:600">${r.name}</span>
+            ${r.rarity?`<span style="font-size:.48rem;color:${col};border:1px solid ${col};border-radius:2px;padding:.02rem .22rem;opacity:.7">${r.rarity}</span>`:''}
+            ${r.type?`<span style="font-size:.5rem;color:var(--sild);">${r.type}</span>`:''}
+          </div>
+          <div style="font-size:.6rem;color:var(--sild);line-height:1.45;margin-bottom:.12rem">${r.desc||''}</div>
+          ${r.effect?`<div style="font-size:.58rem;color:${sealed?'var(--sild)':'#6ab46a'};">${sealed?'【封印中】':r.effect}</div>`:''}
+          ${r.lore?`<div style="font-size:.54rem;color:rgba(150,140,100,.5);margin-top:.1rem;font-style:italic">${r.lore}</div>`:''}
+          ${r.starName?`<div style="font-size:.5rem;color:rgba(120,120,100,.5);margin-top:.08rem">持有者：${r.starName}（${r.starNum}）</div>`:''}
+        </div>
+      </div>`;
+    }).join('')}
+    ${found.length===0&&`<div style="font-size:.62rem;color:rgba(120,120,100,.5);padding:.3rem 0">其餘106件寶器散落於艾爾薩大陸各處，等待命運之人尋回。</div>`}
+  </div>`;
+}
+
+function repPriceMultiplier(factionId){
+  const v=getRep(factionId);
+  if(v>=60)return 0.8;
+  if(v>=20)return 0.9;
+  if(v<=-60)return 1.3;
+  if(v<=-20)return 1.15;
+  return 1.0;
+}
+// ═══ INTEL / RUMOR BOARD SYSTEM ═══
+// intel item: {id, title, content, src, rel:1-5, tags:[], day, cat, orange}
+const INTEL_CATS=['全部','地點','人物','勢力','謠言','橘子'];
+const INTEL_CAT_COLOR={地點:'#6ab4c8',人物:'#c8a46a',勢力:'#d05050',謠言:'#888',橘子:'rgba(180,140,220,.9)'};
+
+function addIntel(item){
+  if(!item||!item.id)return;
+  if((G.intel||[]).find(x=>x.id===item.id)){
+    // 更新現有情報
+    const idx=G.intel.findIndex(x=>x.id===item.id);
+    G.intel[idx]={...G.intel[idx],...item};
+    appendEntryToDOM({type:'sys',v:`📋 情報更新：【${item.title}】`});
+  }else{
+    G.intel=G.intel||[];
+    G.intel.unshift({rel:3,cat:'謠言',day:G.time?.day||1,...item});
+    const isOrange=item.orange||item.cat==='橘子';
+    appendEntryToDOM({type:'sys',v:`${isOrange?'🐈 橘子情報':'📋 新情報'}：【${item.title}】（可靠度：${'★'.repeat(item.rel||3)}${'☆'.repeat(5-(item.rel||3))}）`});
+    showToast('新情報：'+item.title,'ok');
+  }
+  renderBoth('intel');saveGame();
+}
+
+function buildIntel(){
+  const items=G.intel||[];
+  const filter=G.intelFilter||'全部';
+  const filtered=filter==='全部'?items:filter==='橘子'?items.filter(i=>i.orange||i.cat==='橘子'):items.filter(i=>i.cat===filter);
+
+  const filterRow=`<div class="sfrow" style="flex-wrap:wrap;">${INTEL_CATS.map(cat=>`<button class="sfb ${(G.intelFilter||'全部')===cat?'ac':''}" onclick="G.intelFilter='${cat}';renderBoth('intel')" style="${cat==='橘子'?'color:rgba(180,140,220,.8);':''}">${cat}</button>`).join('')}</div>`;
+
+  if(!filtered.length) return filterRow+`<div style="padding:1.2rem .8rem;text-align:center;color:var(--sild);font-size:.7rem;">
+    ${items.length?'此分類無情報':'尚無情報<br><span style="font-size:.6rem;opacity:.6">與NPC對話、探索地點可獲得情報<br>橘子有時會提供獨特的感知情報</span>'}
+  </div>`;
+
+  return filterRow+`<div style="display:flex;flex-direction:column;gap:.4rem;">
+  ${filtered.map(item=>{
+    const col=item.orange?INTEL_CAT_COLOR['橘子']:(INTEL_CAT_COLOR[item.cat]||'var(--sild)');
+    const stars='★'.repeat(item.rel||3)+'☆'.repeat(5-(item.rel||3));
+    const isOrange=item.orange||item.cat==='橘子';
+    return`<div style="background:var(--bg3);border:1px solid ${isOrange?'rgba(150,120,200,.3)':'var(--brd)'};border-radius:4px;padding:.5rem .65rem;${isOrange?'background:rgba(30,20,50,.4);':''}">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:.4rem;margin-bottom:.2rem;">
+        <div style="display:flex;align-items:center;gap:.35rem;flex-wrap:wrap;">
+          <span style="font-size:.5rem;color:${col};border:1px solid ${col};border-radius:2px;padding:.04rem .28rem;opacity:.85">${isOrange?'🐈 橘子':item.cat||'情報'}</span>
+          <span style="font-size:.72rem;color:var(--sil);font-weight:600">${item.title}</span>
+        </div>
+        <span style="font-size:.52rem;color:${col};flex-shrink:0;letter-spacing:-.05em">${stars}</span>
+      </div>
+      <div style="font-size:.63rem;color:var(--sild);line-height:1.55;margin-bottom:.2rem">${item.content}</div>
+      <div style="display:flex;justify-content:space-between;font-size:.52rem;color:rgba(120,120,100,.6);">
+        <span>${item.src?'來源：'+item.src:''}</span>
+        <span>Day${item.day||1}${item.related?'・'+item.related:''}</span>
+      </div>
+    </div>`;
+  }).join('')}
+  </div>`;
+}
+
+function applyIntelUpdate(infoArr){
+  if(!infoArr)return;
+  (Array.isArray(infoArr)?infoArr:[infoArr]).forEach(item=>addIntel(item));
+}
+
 function buildLog(){return G.log.map(s=>`<div class="log-entry"><div class="log-sec">${s.sec}</div><div class="log-loc">📍 ${s.loc}</div>${s.lines.map(l=>l.t==='sys'?`<div class="log-sys2">${l.v}</div>`:`<div class="log-txt">${l.v}</div>`).join('')}</div>`).join('');}
-function renderBoth(tab){let h='';if(tab==='party')h=buildParty();else if(tab==='stars')h=buildStars();else if(tab==='inv')h=buildInv();else if(tab==='log')h=buildLog();['p','d'].forEach(p=>{const el=document.getElementById(p+'-'+tab);if(el)el.innerHTML=h;});if(tab==='party')setTimeout(loadPortraits,50);}
+
+// ═══ QUEST SYSTEM ═══
+
+// ═══ QUEST SYSTEM ═══
+// quest: {id, title, type:'主線'|'支線'|'緊急', status:'active'|'completed'|'failed',
+//          desc, objectives:[{text,done}], rewards, loc, addedAt}
+function buildQuest(){
+  const qs=G.quests||[];
+  if(!qs.length) return`<div style="padding:1.2rem .8rem;text-align:center;color:var(--sild);font-size:.7rem;">尚無任務<br><span style="font-size:.6rem;opacity:.6">與 NPC 對話或探索地點可獲得任務</span></div>`;
+  const active=qs.filter(q=>q.status==='active');
+  const done=qs.filter(q=>q.status==='completed');
+  const failed=qs.filter(q=>q.status==='failed');
+  const typeColor={主線:'var(--gold)',支線:'#6ab4c8',緊急:'#d05050'};
+  const statusIcon={active:'●',completed:'✦',failed:'✗'};
+  const qCard=q=>{
+    const tc=typeColor[q.type]||'var(--sild)';
+    const si=statusIcon[q.status]||'●';
+    const faded=q.status!=='active';
+    const objs=q.objectives||[];
+    const doneCount=objs.filter(o=>o.done).length;
+    return`<div style="background:var(--bg3);border:1px solid ${faded?'rgba(100,100,100,.2)':'var(--brd)'};border-radius:4px;padding:.55rem .7rem;opacity:${faded?'.5':'1'}">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:.5rem;margin-bottom:.25rem;">
+        <div style="flex:1">
+          <span style="font-size:.52rem;color:${tc};border:1px solid ${tc};border-radius:2px;padding:.05rem .3rem;margin-right:.35rem;opacity:.8">${q.type}</span>
+          <span style="font-size:.75rem;color:var(--sil);font-weight:600;">${q.title}</span>
+        </div>
+        <span style="font-size:.55rem;color:${faded?'var(--sild)':tc};flex-shrink:0">${si} ${q.status==='active'?'進行中':q.status==='completed'?'已完成':'已失敗'}</span>
+      </div>
+      ${q.desc?`<div style="font-size:.63rem;color:var(--sild);margin-bottom:.3rem;line-height:1.5">${q.desc}</div>`:''}
+      ${objs.length?`<div style="display:flex;flex-direction:column;gap:.15rem;margin-bottom:.28rem;">
+        ${objs.map(o=>`<div style="display:flex;align-items:center;gap:.35rem;font-size:.62rem;color:${o.done?'#6ab46a':'var(--sil)'}">
+          <span style="flex-shrink:0">${o.done?'☑':'☐'}</span>
+          <span style="${o.done?'opacity:.6;text-decoration:line-through;':''}">${o.text}</span>
+        </div>`).join('')}
+      </div>`:''}
+      <div style="display:flex;justify-content:space-between;align-items:center;font-size:.55rem;color:var(--sild);">
+        <span>${q.loc?'📍 '+q.loc:''}</span>
+        <div style="display:flex;gap:.4rem;align-items:center;">
+          ${objs.length?`<span>${doneCount}/${objs.length}</span>`:''}
+          ${q.rewards?`<span style="color:var(--goldd)">🏆 ${q.rewards}</span>`:''}
+          ${q.status==='active'?`<button onclick="completeQuest('${q.id}')" style="font-size:.52rem;padding:.08rem .3rem;background:transparent;border:1px solid rgba(100,180,100,.4);border-radius:2px;color:rgba(100,200,100,.7);cursor:pointer;"
+            onmouseover="this.style.borderColor='#6ab46a';this.style.color='#6ab46a'"
+            onmouseout="this.style.borderColor='rgba(100,180,100,.4)';this.style.color='rgba(100,200,100,.7)'">完成</button>
+          <button onclick="failQuest('${q.id}')" style="font-size:.52rem;padding:.08rem .3rem;background:transparent;border:1px solid rgba(180,80,80,.3);border-radius:2px;color:rgba(200,100,100,.6);cursor:pointer;"
+            onmouseover="this.style.borderColor='var(--red)';this.style.color='var(--red)'"
+            onmouseout="this.style.borderColor='rgba(180,80,80,.3)';this.style.color='rgba(200,100,100,.6)'">放棄</button>`:''}
+        </div>
+      </div>
+    </div>`;
+  };
+  let h='';
+  if(active.length){
+    h+=`<div style="font-size:.6rem;color:var(--goldd);letter-spacing:.08em;padding:.3rem .2rem .2rem;border-bottom:1px solid var(--brd);margin-bottom:.4rem;">進行中任務 (${active.length})</div>`;
+    h+=`<div style="display:flex;flex-direction:column;gap:.4rem;margin-bottom:.6rem;">${active.map(qCard).join('')}</div>`;
+  }
+  if(done.length||failed.length){
+    h+=`<div style="font-size:.6rem;color:var(--sild);letter-spacing:.08em;padding:.3rem .2rem .2rem;border-bottom:1px solid var(--brd);margin-bottom:.4rem;">已結束任務 (${done.length+failed.length})</div>`;
+    h+=`<div style="display:flex;flex-direction:column;gap:.4rem;">${[...done,...failed].map(qCard).join('')}</div>`;
+  }
+  return h;
+}
+
+function addQuest(q){
+  if(!q||!q.id||!q.title)return;
+  if((G.quests||[]).find(x=>x.id===q.id)){updateQuest(q);return;}
+  G.quests=G.quests||[];
+  G.quests.push({status:'active',...q,addedAt:Date.now()});
+  appendEntryToDOM({type:'sys',v:`📋 新任務：【${q.title}】${q.type?'（'+q.type+'）':''}`});
+  renderBoth('quest');saveGame();
+  showToast('新任務：'+q.title,'ok');
+}
+
+function updateQuest(q){
+  const idx=(G.quests||[]).findIndex(x=>x.id===q.id);
+  if(idx<0){addQuest(q);return;}
+  // 更新目標勾選
+  if(q.objectives) q.objectives.forEach(o=>{
+    const ex=G.quests[idx].objectives?.find(x=>x.text===o.text);
+    if(ex)ex.done=o.done;
+    else (G.quests[idx].objectives=G.quests[idx].objectives||[]).push(o);
+  });
+  if(q.status)G.quests[idx].status=q.status;
+  if(q.desc)G.quests[idx].desc=q.desc;
+  renderBoth('quest');saveGame();
+}
+
+function completeQuest(id){
+  const q=(G.quests||[]).find(x=>x.id===id);if(!q)return;
+  q.status='completed';q.objectives?.forEach(o=>o.done=true);
+  appendEntryToDOM({type:'sys',v:`✦ 任務完成：【${q.title}】${q.rewards?'　獎勵：'+q.rewards:''}`});
+  renderBoth('quest');saveGame();
+  showToast('任務完成：'+q.title,'ok');
+}
+
+function failQuest(id){
+  const q=(G.quests||[]).find(x=>x.id===id);if(!q)return;
+  q.status='failed';
+  appendEntryToDOM({type:'sys',v:`✗ 任務失敗：【${q.title}】`});
+  renderBoth('quest');saveGame();
+  showToast('任務放棄：'+q.title,'inf');
+}
+
+function applyQuestUpdate(qt){
+  if(!qt)return;
+  (Array.isArray(qt)?qt:[qt]).forEach(q=>{
+    if(q.status==='new')addQuest({...q,status:'active'});
+    else updateQuest(q);
+  });
+}
+
+function renderBoth(tab){let h='';if(tab==='party')h=buildParty();else if(tab==='stars')h=buildStars();else if(tab==='inv')h=buildInv();else if(tab==='log')h=buildLog();else if(tab==='quest')h=buildQuest();else if(tab==='intel')h=buildIntel();['p','d'].forEach(p=>{const el=document.getElementById(p+'-'+tab);if(el)el.innerHTML=h;});if(tab==='party')setTimeout(loadPortraits,50);}
 function switchTab(el,pf,name){
   const pn=pf==='p'?'ptab':'dtab',pc=pf==='p'?'ptc':'dtc';
   const c=pf==='p'?document.getElementById('panel-side'):document.getElementById('drawer');
@@ -1782,7 +3009,7 @@ function openChar(id){
       <button onclick="openPortraitSettings('${id}')" style="font-size:.58rem;padding:.18rem .45rem;background:rgba(0,0,0,.5);border:1px solid rgba(201,168,76,.3);border-radius:2px;color:rgba(201,168,76,.7);cursor:pointer;">🖼 頭像設定</button>
     </div>
   </div>`;
-  document.getElementById('modal-inner').innerHTML=pHtml+`<div class="mtop"><div class="mscol"><div class="mtp">${c.type}</div><div class="mnm">第${c.num}星</div><div class="mst">${c.star}</div></div><div class="micol"><div class="mname">${c.name} <span style="font-size:.8rem">${c.emoji}</span></div><div class="msub2">${c.title}</div><div class="mstat r">✦ 已加入</div></div></div><div class="mbody"><div class="msec"><div class="msect">人物說明</div><div class="mdesc">${c.desc}</div></div><div class="msec"><div class="msect">素質數值</div><div style="padding-top:.18rem">${smini(c.stats,c.sn,c.id)}</div></div><div class="msec"><div class="msect">天賦技能</div>${c.tl.map(t=>`<div class="tarow"><span class="ta2 ${t.s?'sl':''}">${t.s?'【封印】':''}${t.n}</span><div class="tadesc">${t.d}</div></div>`).join('')}</div><div class="msec"><div class="msect">裝備</div>${Object.entries(c.eq).map(([k,v])=>`<div class="tr2"><span class="ts">${k}</span><span class="ti">${v}</span></div>`).join('')}</div></div>`;
+  document.getElementById('modal-inner').innerHTML=pHtml+`<div class="mtop"><div class="mscol"><div class="mtp">${c.type}</div><div class="mnm">第${c.num}星</div><div class="mst">${c.star}</div></div><div class="micol"><div class="mname">${c.name} <span style="font-size:.8rem">${c.emoji}</span></div><div class="msub2">${c.title}</div><div class="mstat r">✦ 已加入</div></div></div><div class="mbody"><div class="msec"><div class="msect">人物說明</div><div class="mdesc">${c.desc}</div></div><div class="msec"><div class="msect">素質數值</div><div style="padding-top:.18rem">${smini(c.stats,c.sn,c.id)}</div></div><div class="msec"><div class="msect">天賦技能</div>${c.tl.map(t=>`<div class="tarow"><span class="ta2 ${t.s?'sl':''}">${t.s?'【封印】':''}${t.n}</span><div class="tadesc">${t.d}</div></div>`).join('')}</div><div class="msec"><div class="msect">裝備</div>${Object.entries(c.eq).map(([k,v])=>`<div class="tr2"><span class="ts">${k}</span><span class="ti">${v}</span></div>`).join('')}</div>${id==='orange'?`<div class="msec"><div class="msect" style="color:rgba(180,140,220,.8);">⚓ 秘密・命運之錨</div>${getOrangeSecretHtml()}</div>`:''}</div>`;
   document.getElementById('detail-modal').classList.add('open');
 }
 function openStar(type,num){
@@ -2019,6 +3246,12 @@ function resetGame(){
     G.favor={};
     G.bellyFlipCount=0;
     G.specialOv={};
+    G.intel=[];
+    G.relics={};
+    G.founderClues=[];
+    G.orangeStage=0;
+    G.starFilter='all';
+    G.intelFilter='全部';
     G.log=initLog();
 
     // 3. 重設星辰
@@ -2142,7 +3375,11 @@ function autoCombat(cb){
   if(!cb)return;
   const char=getCharData('alfar');
   const statVal=char?.stats[cb.stat]||0;
-  const mod=Math.floor(statVal/10);
+  const bondBonus=G.rep['_bond_dice_bonus']||0;
+  if(bondBonus>0){G.rep['_bond_dice_bonus']=0;appendEntryToDOM({type:'sys',v:`✦ 羈絆加成 +${bondBonus} 生效中`});}
+  const autoSuccess=G.rep['_bond_auto_success']||0;
+  if(autoSuccess)G.rep['_bond_auto_success']=0;
+  const mod=Math.floor(statVal/10)+bondBonus;
   const enemy=cb.enemy||'敵人';
   const diff=cb.difficulty||12;
   appendEntryToDOM({type:'sys',v:`⚔️ 戰鬥判定：${cb.desc||cb.stat+'判定'} ／ 難度 ${diff}`});
@@ -2159,13 +3396,19 @@ function autoCombat(cb){
       clearInterval(anim);
       const raw=Math.floor(Math.random()*20)+1;
       const total=raw+mod;
-      const success=total>=diff;
+      const success=autoSuccess||total>=diff;
       const crit=raw===20,fumble=raw===1;
       const grade=crit?'大成功！':fumble?'大失敗…':total>=diff+4?'完全成功':success?'成功':total>=diff-3?'失敗':'重大失敗';
       const col=crit?'#f0d060':fumble?'#f06060':success?'#80d080':'#d08060';
       const box2=document.getElementById('dice-anim-box');
       if(box2)box2.innerHTML=`<span style="color:${col};font-size:1.6rem;font-weight:700">${raw}</span><span style="color:var(--sild);font-size:.72rem;"> +${mod}(${cb.stat}) = </span><span style="color:${col};font-weight:700">${total}</span>　<span style="color:${col}">${grade}</span>`;
       appendEntryToDOM({type:'sys',v:`vs ${enemy}（難度${diff}）→ ${success?'✓ 通過':'✗ 失敗'}`});
+      // 失敗時自動扣HP
+      if(!success){
+        const dmgBase=fumble?15:8;
+        const dmg=fumble?dmgBase:Math.max(3,dmgBase-Math.floor(mod/2));
+        applyHPChange([{id:'alfar',delta:-dmg,reason:`${enemy}攻擊（${grade}）`}]);
+      }
       scrollD();saveGame();
       setTimeout(()=>{
         const msg=`【骰子判定結果】${cb.desc||''}：投出${raw}，加值+${mod}，合計${total}（難度${diff}）。結果：${grade}。${success?'成功，請依成功後果繼續劇情。':'失敗，請依失敗後果繼續劇情。'}`;
@@ -2672,11 +3915,9 @@ function doSetWaystation(){
 
 
 applyResp();
-renderBoth('party');renderBoth('stars');
-updateGold();
+renderBoth('party');renderBoth('stars');renderBoth('quest');renderBoth('intel');
+updateGold();updateTimeDisplay();
 
-// no-store meta 確保 reload 不走 bfcache，所以這裡直接讀存檔
-// 重置後 localStorage 已清空，loadGame 回傳 false，走 initStory
 const hasSave=loadGame();
 if(hasSave){
   updateGold();
@@ -2690,10 +3931,7 @@ if(hasSave){
 }
 scrollD();
 if(!CFG.key)document.getElementById('api-modal').classList.add('open');
-document.getElementById('free-inp').addEventListener('keydown',e=>{
-  // isComposing=true 代表輸入法正在選字，此時 Enter 只是確認選字，不發送
-  if(e.key==='Enter'&&!e.isComposing)sendFree();
-});
+document.getElementById('free-inp').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.isComposing)sendFree();});
 document.getElementById('api-inp').addEventListener('keydown',e=>{if(e.key==='Enter')saveKey();});
 document.getElementById('s-key').addEventListener('keydown',e=>{if(e.key==='Enter')applySettings();});
 </script>
