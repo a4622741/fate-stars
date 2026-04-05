@@ -707,14 +707,14 @@ const SYS=`你是西方奇幻版水滸傳文字RPG故事引擎，輸出劇情與
 世界：艾爾薩大陸，帝國崩裂，十二王國割據。108顆命運之星降世，聚旗終結輪迴。
 主角艾爾法（天魁星）：前城衛，平民，銀色長髮，面無表情，原則至上，知力高武力中等。
 同伴橘子（地魁星）：布偶貓・雌性，藍眼雙色毛，面癱，只會喵叫，智力異常。
-當前：鐵霧城碼頭，紅髮女（地煞第2星候選，左臂傷，霧刃幫相關）剛開口搭話。
 規則：
 1. 只輸出純JSON，無任何Markdown或多餘文字。
 2. 格式：{"st":"場景標題","sl":"📍 地點","nv":["敘述段落"],"dl":[{"sp":"角色","ln":"台詞"}],"sm":null,"gd":{"g":0,"s":0,"c":0},"ch":[{"t":"選項","h":""}],"nm":null}
 3. nv每段60-80字，1-3段。橘子喵叫sp「橘子🐈😒」ln「喵——」，再加{sp:"系統翻譯",ln:"…"}。
 4. ch提供3-4個選項，策略各異。sm記錄金錢道具變動。
 5. 簡潔乾燥文風，偶有乾式幽默。
-6. nm欄位：當角色正式確認加入同伴時填寫，否則為null。格式：
+6. 玩家輸入的行動必須被尊重並如實反映在劇情中，不可忽略或替換成其他行動。玩家選擇什麼，故事就從那個方向發展。
+7. nm欄位：當角色正式確認加入同伴時填寫，否則為null。格式：
 {"id":"英文小寫id","name":"姓名","star":"星名如地煞星","type":"天罡或地煞","num":星位數字,"title":"職業/稱號","emoji":"適合的emoji","desc":"人物說明100字以內","portrait":"角色外貌英文描述供AI繪圖用，例如：young woman with red hair wearing leather armor，不要加anime style等風格詞","stats":{"武力":0,"知力":0,"統率":0,"魅力":0,"幸運":0},"tl":[{"n":"天賦名","s":false,"d":"說明"}],"eq":{"武器":"","防具":"","飾品":""}}`;
 
 
@@ -899,7 +899,14 @@ function renderChoices(arr,doSave=true){
   g.appendChild(fb);
 }
 function renderFallback(){renderChoices([{t:'繼續聆聽對方說明',h:''},{t:'詢問傷勢和來歷',h:'（讀心）'},{t:'提議調查霧刃幫',h:''}]);}
-function sendFree(){const v=document.getElementById('free-inp').value.trim();if(!v)return;document.getElementById('free-inp').value='';document.getElementById('free-row').classList.remove('open');sendChoice(v);}
+function sendFree(){
+  const v=document.getElementById('free-inp').value.trim();
+  if(!v)return;
+  document.getElementById('free-inp').value='';
+  document.getElementById('free-row').classList.remove('open');
+  // 自由行動加上前綴，讓 AI 明確知道這是玩家自訂指令
+  sendChoice('【玩家自由行動】'+v);
+}
 function setDis(b){document.querySelectorAll('.ch-btn').forEach(btn=>btn.disabled=b);}
 
 // ═══ GOLD ═══
