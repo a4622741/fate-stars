@@ -1257,7 +1257,8 @@ function sellItem(displayIdx){
   appendEntryToDOM({type:'sys',v:`💰 售出：${item.n} → ${priceStr(sp)}`});
   scrollD();saveGame();
   document.getElementById('shop-gold').textContent=goldS();
-  renderShopSell();renderBoth('inv');
+  renderShopSell();
+  renderChanged('inv','party');
   showToast(`售出：${item.n}`,'ok');
 }
 function closeShop(){document.getElementById('shop-modal').classList.remove('open');}
@@ -1278,7 +1279,8 @@ function buyItem(idx){
   appendEntryToDOM({type:'sys',v:`✦ 購得：${item.n}（${priceStr(item.price)}）${item.slot?'・已加入持有欄':''}`});
   scrollD();saveGame();
   document.getElementById('shop-gold').textContent=goldS();
-  openShop(_currentShop);renderBoth('inv');
+  openShop(_currentShop);
+  renderChanged('inv','party');
   showToast(`購得：${item.n}`,'ok');
 }
 
@@ -1291,7 +1293,8 @@ function equipItemToggle(idx){
     item.status='持有';
     const c=allParty().find(m=>m.name===item.w);
     if(c&&c.eq)c.eq[item.slot||'武器']='——';
-    showToast(`${item.n} 已卸下`,'inf');
+    renderChanged('party','inv');
+  showToast(`${item.n} 已卸下`,'inf');
   }else{
     // 選擇裝備到哪個角色（簡單版：第一個可戰鬥角色）
     const candidates=allParty().filter(m=>m.id!=='orange');
@@ -1305,7 +1308,7 @@ function equipItemToggle(idx){
     if(target.eq)target.eq[slot]=item.n;
     showToast(`${item.n} 裝備至 ${target.name}`,'ok');
   }
-  renderBoth('inv');renderBoth('party');saveGame();
+  renderChanged('inv','party');saveGame();
 }
 
 // ═══ PARTY MANAGEMENT ═══
@@ -1391,7 +1394,10 @@ function addNewMember(m){
   const star=arr.find(s=>s.num===m.num);
   if(star){star.status='recruited';star.name=m.name;star.id=m.id;}
   joinParty(m.id);
+
+  renderChanged('party','stars');
 }
+
 
 function renderResp(d){
   if(d.st){document.getElementById('scene-title').textContent=d.st;G.sceneTitle=d.st;}
@@ -1438,18 +1444,25 @@ function renderAll(){
   updateGold();
   updateTimeDisplay();
   updateShopBtn();
-  // 只渲染可見分頁，其他標記 dirty 等切換時再渲染
   const vis=G.activeTab||'party';
+  // 立即渲染可見分頁
   markDirty(vis);
   renderBoth(vis);
   if(G.currentChoices?.length)renderChoices(G.currentChoices,false);
+  // 用 RAF 批次渲染其餘分頁（不阻塞當前畫面）
+  requestAnimationFrame(()=>{
+    ['party','stars','inv','quest','intel','log'].forEach(t=>{
+      if(t!==vis){markDirty(t);renderBoth(t);}
+    });
+  });
 }
 
 function renderChanged(...tabs){
   updateGold();updateShopBtn();
+  const vis=G.activeTab||'party';
   tabs.forEach(t=>{
     markDirty(t);
-    if(t===(G.activeTab||'party'))renderBoth(t);
+    renderBoth(t); // 全部渲染，不論可見與否
   });
 }
 function addAction(txt){appendEntryToDOM({type:'action',v:txt});scrollD();}
@@ -1512,13 +1525,24 @@ function applyGold(d){
   G.gold.silver=Math.max(0,G.gold.silver);
   G.gold.copper=Math.max(0,G.gold.copper);
   updateGold();
+  markDirty('inv');
 }
-function goldS(){const g=G.gold;return `金${g.gold}・銀${g.silver}・銅${g.copper}`;}
+function goldS(){
+  const g=G.gold;
+  const parts=[];
+  if(g.gold>0)parts.push(`金${g.gold}`);
+  if(g.silver>0||g.gold>0)parts.push(`銀${g.silver}`);
+  parts.push(`銅${g.copper}`);
+  return parts.join('・');
+}
 function goldFull(){const g=G.gold;return `金幣 ${g.gold}　銀幣 ${g.silver}　銅幣 ${g.copper}`;}
 function updateGold(){
-  document.getElementById('gold-hdr').textContent=goldS();
-  document.getElementById('drawer-gold').textContent='🪙 '+goldS();
-  const el=document.getElementById('inv-gold-amt');if(el)el.textContent=goldFull();
+  const s=goldS();
+  document.getElementById('gold-hdr').textContent=s;
+  document.getElementById('drawer-gold').textContent='🪙 '+s;
+  const el=document.getElementById('inv-gold-amt');
+  if(el)el.textContent=goldFull();
+  else{markDirty('inv');if((G.activeTab||'party')==='inv')renderBoth('inv');}
 }
 
 // ═══ PANEL ═══
@@ -1698,7 +1722,7 @@ function upgradeStat(id,stat){
   const spent=Object.values(c.stats).filter(v=>v!=null).reduce((a,b)=>a+b,0);
   const expectedLv=Math.floor(spent/50)+1;
   if(expectedLv>ug.lv){ug.lv=expectedLv;showToast(`${c.name} → Lv.${ug.lv}`,'ok');}
-  renderBoth('party');saveGame();
+  renderChanged('party');saveGame();
 }
 function trainChar(id,ev){
   ev.stopPropagation();
@@ -1708,7 +1732,7 @@ function trainChar(id,ev){
   applyGold({g:0,s:-cost,c:0});
   const ug=getUpgrade(id);
   ug.pts+=3;
-  renderBoth('party');saveGame();
+  renderChanged('party');saveGame();
   showToast(`${c.name} 獲得 3 點提升（消耗5銀）`,'ok');
 }
 // ═══ JOB / CLASS SYSTEM（職業系統）═══
@@ -1790,7 +1814,7 @@ function setJob(id, jobName){
   const newBonus=jobName?JOBS[jobName]?.maxHPBonus||0:0;
   hp.max=Math.max(10, hp.max - prevBonus + newBonus);
   hp.cur=Math.min(hp.cur, hp.max);
-  renderBoth('party');saveGame();
+  renderChanged('party');saveGame();
 }
 
 // 職業加成整合進 getEffectiveStats
@@ -1943,7 +1967,8 @@ function restAllHP(){
     applyHPChange([{id:c.id,delta:Math.floor(hp.max*0.4),reason:'紮營休息'}]);
   });
   appendEntryToDOM({type:'sys',v:'🌙 全員休息。隊伍回復了部分體力。'});
-  advanceTime(8); // 休息推進8小時
+  advanceTime(8);
+  renderChanged('party');
   scrollD();
 }
 
@@ -2047,6 +2072,7 @@ function setFavor(id,delta){
   if(cur===null)return;
   G.favor[id]=Math.max(0,Math.min(100,cur+delta));
   saveGame();
+  renderChanged('party');
 }
 function favorLabel(v){
   if(v===null)return'—';
@@ -2715,7 +2741,8 @@ function applyRep(changes){
     const sign=ch.delta>0?'+':'';
     appendEntryToDOM({type:'sys',v:`${fac?.icon||'◈'} ${fac?.name||ch.id} 聲望 ${sign}${ch.delta} → ${G.rep[ch.id]}【${lv.name}】${ch.reason?'（'+ch.reason+'）':''}`});
   });
-  renderBoth('inv');saveGame();
+  renderBoth('inv');renderChanged('inv','party');
+  saveGame();
 }
 
 function buildRepSection(){
@@ -2838,7 +2865,7 @@ function revealOrangeSecret(targetStage){
   appendEntryToDOM({type:'sys',v:`✦ 橘子・秘密線 第${targetStage}層揭露：【${secret.title}】`});
   showToast('橘子秘密解鎖：'+secret.title,'ok');
   scrollD();saveGame();
-  renderBoth('party');
+  renderChanged('party','inv','stars');
 }
 
 // 聊天時有機率觸發
@@ -2907,7 +2934,7 @@ function addFounderClue(clue){
     related:'天父星・先行者'});
   saveGame();
   // 更新星外人物顯示
-  renderBoth('stars');
+  renderChanged('stars','intel');
 }
 
 function checkFounderTierUnlock(n){
@@ -3207,7 +3234,7 @@ function updateQuest(q){
   });
   if(q.status)G.quests[idx].status=q.status;
   if(q.desc)G.quests[idx].desc=q.desc;
-  renderBoth('quest');saveGame();
+  renderChanged('quest');saveGame();
 }
 
 function completeQuest(id){
@@ -3598,18 +3625,25 @@ function applyResp(){const m=window.innerWidth<768;document.getElementById('draw
 
 function syncAll(){
   markAllDirty();
-  // 重新渲染全部面板、金幣、時間、圖示
+  // 清除所有 render cache，強制全部重建
+  Object.keys(_renderCache).forEach(k=>delete _renderCache[k]);
+  // 更新所有顯示
   updateGold();
   updateTimeDisplay();
+  updateShopBtn();
+  // 強制重渲全部六個面板
   ['party','stars','inv','quest','intel','log'].forEach(tab=>renderBoth(tab));
-  // 重新渲染故事選項（如果有）
-  if(G.currentChoices?.length) renderChoices(G.currentChoices);
+  // 重渲故事選項
+  if(G.currentChoices?.length)renderChoices(G.currentChoices,false);
+  // 更新場景標題
+  document.getElementById('scene-title').textContent=G.sceneTitle||'';
+  document.getElementById('scene-loc').textContent=G.sceneLoc||'';
   // 存檔
   saveGame();
-  // 轉動同步按鈕動畫提示
-  const btns=document.querySelectorAll('.ib');
-  btns.forEach(b=>{if(b.title==='同步所有狀態'){b.style.transition='transform .5s';b.style.transform='rotate(360deg)';setTimeout(()=>{b.style.transform='';b.style.transition='';},500);}});
-  showToast('✦ 狀態已同步','ok');
+  // 按鈕動畫
+  const btn=document.querySelector('button[onclick="syncAll()"]');
+  if(btn){btn.style.transition='transform .5s';btn.style.transform='rotate(360deg)';setTimeout(()=>{btn.style.transform='';btn.style.transition='';},500);}
+  showToast('✦ 全部已同步','ok');
 }
 window.addEventListener('resize',applyResp);
 
@@ -3766,7 +3800,7 @@ function upgradeEquip(id,slot){
   const next=getEnhancedBonus(eqItem);
   const diff=Object.entries(next).filter(([s,v])=>v>0).map(([s,v])=>`${s}+${v}`).join(' ');
   appendEntryToDOM({type:'sys',v:`✦ 強化成功！${eqItem.n} [+${eqItem.enhance}] → ${diff}（消耗${cost}銀）`});
-  renderBoth('party');renderBoth('inv');saveGame();scrollD();
+  renderChanged('party','inv');saveGame();scrollD();
 }
 
 // ═══ DICE SYSTEM ═══
