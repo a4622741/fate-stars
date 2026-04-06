@@ -499,7 +499,7 @@ body::before{content:'';position:fixed;inset:0;background-image:
 
 <!-- SHOP MODAL -->
 <div class="mlay" id="shop-modal" onclick="if(event.target===this)closeShop()">
-  <div class="mbox" style="max-width:440px;padding:0;overflow:hidden;border-radius:6px;">
+  <div class="mbox" style="max-width:460px;padding:0;overflow:hidden;border-radius:6px;">
     <div style="padding:.65rem 1rem;background:linear-gradient(135deg,rgba(201,168,76,.12),transparent);border-bottom:1px solid var(--brd);display:flex;justify-content:space-between;align-items:center;">
       <div>
         <div id="shop-name" style="font-size:.85rem;color:var(--gold);font-weight:700;letter-spacing:.08em;"></div>
@@ -507,7 +507,12 @@ body::before{content:'';position:fixed;inset:0;background-image:
       </div>
       <button class="mclose" onclick="closeShop()">✕</button>
     </div>
-    <div id="shop-items" style="max-height:380px;overflow-y:auto;padding:.6rem .9rem;display:flex;flex-direction:column;gap:.5rem;"></div>
+    <!-- 購買/售出 Tab -->
+    <div style="display:flex;border-bottom:1px solid var(--brd);">
+      <button id="shop-tab-buy" onclick="switchShopTab('buy')" style="flex:1;padding:.4rem;background:rgba(201,168,76,.08);border:none;border-bottom:2px solid var(--goldd);color:var(--gold);font-size:.68rem;cursor:pointer;font-family:'Noto Serif TC',serif;">購買</button>
+      <button id="shop-tab-sell" onclick="switchShopTab('sell')" style="flex:1;padding:.4rem;background:transparent;border:none;border-bottom:2px solid transparent;color:var(--sild);font-size:.68rem;cursor:pointer;font-family:'Noto Serif TC',serif;">售出</button>
+    </div>
+    <div id="shop-items" style="max-height:360px;overflow-y:auto;padding:.6rem .9rem;display:flex;flex-direction:column;gap:.5rem;"></div>
   </div>
 </div>
 
@@ -591,6 +596,9 @@ body::before{content:'';position:fixed;inset:0;background-image:
         <button id="dice-btn" onclick="openDiceModal()" title="素質判定" style="display:none;padding:.4rem .55rem;background:rgba(201,168,76,.12);border:1px solid var(--goldd);border-radius:3px;color:var(--gold);cursor:pointer;font-size:.85rem;flex-shrink:0;transition:all .2s;animation:pulse .9s infinite alternate;"
           onmouseover="this.style.background='rgba(201,168,76,.25)'"
           onmouseout="this.style.background='rgba(201,168,76,.12)'">🎲</button>
+        <button id="shop-btn" onclick="reopenShop()" title="重新開啟商店" style="display:none;padding:.4rem .55rem;background:rgba(100,180,100,.12);border:1px solid rgba(100,180,100,.5);border-radius:3px;color:rgba(130,200,130,.9);cursor:pointer;font-size:.85rem;flex-shrink:0;transition:all .2s;"
+          onmouseover="this.style.background='rgba(100,180,100,.25)'"
+          onmouseout="this.style.background='rgba(100,180,100,.12)'">🏪</button>
         <input class="free-inp" id="free-inp" placeholder="輸入自由行動… （密技：@錢）"/>
         <button class="free-send" onclick="sendFree()">送出</button>
       </div>
@@ -652,7 +660,7 @@ const CFG={
   set key(v){localStorage.setItem('fate_key',v);},
   get model(){return localStorage.getItem('fate_model')||'claude-sonnet-4-20250514';},
   set model(v){localStorage.setItem('fate_model',v);},
-  get tokens(){return parseInt(localStorage.getItem('fate_tokens')||'1200');},
+  get tokens(){return parseInt(localStorage.getItem('fate_tokens')||'2000');},
   set tokens(v){localStorage.setItem('fate_tokens',String(v));},
 };
 
@@ -660,7 +668,7 @@ const CFG={
 const MAX_PARTY=6;
 const G={
   gold:{gold:0,silver:8,copper:135},
-  panelOpen:true,drawerOpen:false,starFilter:'all',intelFilter:'全部',
+  panelOpen:true,drawerOpen:false,starFilter:'all',intelFilter:'全部',activeTab:'party',
   history:[],log:[],thinking:false,
   storyData:[],
   currentChoices:[],
@@ -680,7 +688,9 @@ const G={
   relics:{},       // {starNum:{name,found,effect}} 寶器
   founderClues:[], // 天父星線索碎片
   orangeStage:0,
-  intel:[],        // 情報條目 [{id,title,content,src,rel,tags,day}]
+  intel:[],
+  lastShop:null,
+  shopCatalogs:{},  // 商店固定目錄快取
   extraParty:[],
   extraPcfg:{},
 };
@@ -697,7 +707,7 @@ function saveGame(){
       sceneTitle:G.sceneTitle,sceneLoc:G.sceneLoc,
       extraParty:G.extraParty,extraPcfg:G.extraPcfg,
       partyIds:G.partyIds,upgrade:G.upgrade,inv:getInv(),favor:G.favor,bellyFlipCount:G.bellyFlipCount||0,specialOv:G.specialOv||{},
-      hp:G.hp,quests:G.quests,time:G.time,rep:G.rep,relics:G.relics,presetRelicOv:Object.fromEntries(Object.entries(PRESET_RELICS).filter(([k,v])=>v.status&&v.status!=='equipped').map(([k,v])=>[k,{status:v.status,effect:v.effect}])),founderClues:G.founderClues,orangeStage:G.orangeStage||0,intel:G.intel||[],
+      hp:G.hp,quests:G.quests,time:G.time,rep:G.rep,relics:G.relics,presetRelicOv:Object.fromEntries(Object.entries(PRESET_RELICS).filter(([k,v])=>v.status&&v.status!=='equipped').map(([k,v])=>[k,{status:v.status,effect:v.effect}])),founderClues:G.founderClues,orangeStage:G.orangeStage||0,intel:G.intel||[],lastShop:G.lastShop||null,inShop:G.inShop||false,shopCatalogs:G.shopCatalogs||{},
       starOv,savedAt:Date.now(),
     };
     localStorage.setItem(SAVE_KEY,JSON.stringify(data));
@@ -734,6 +744,9 @@ function loadGame(){
     G.founderClues=data.founderClues||[];
     G.orangeStage=data.orangeStage||0;
     G.intel=data.intel||[];
+    G.lastShop=data.lastShop||null;
+    G.inShop=data.inShop||false;
+    G.shopCatalogs=data.shopCatalogs||{};
     // 恢復星辰狀態
     if(data.starOv){
       Object.entries(data.starOv).forEach(([k,v])=>{
@@ -845,11 +858,11 @@ const SYS=`你是西方奇幻版水滸傳文字RPG故事引擎。只輸出純JSO
 2. nv每段60-80字，1-3段。
 3. 橘子台詞：sp="橘子🐈😒" ln="喵——"，緊接{sp:"系統",ln:"〔翻譯〕"}。
 4. ch提供3-4個策略各異的選項。
-5. 乾燥文風，偶有幽默。允許荒誕與破格，不必強求邏輯。
+5. 乾燥文風，偶有幽默。允許荒誕與破格，前後矛盾也無妨，接受即可推進。
 6. 每個角色有固定emoji，全程不換。
 7. 【最高優先】玩家行動必須如實執行。未指定互動時，禁止安排同伴主動發言。
 8. 同伴只在：(a)玩家主動互動、(b)劇情危機、(c)選項後果時才發言。
-9. 地點移動需合理銜接。st不得使用玩家輸入文字。
+9. 地點移動需合理銜接。st不得使用玩家輸入文字。不必在nv中回顧或呼應前一場景，直接描寫當下。
 10. cb填寫時ch設空陣列，等待骰子。
 11. iv：道具/裝備變動。purchase=加入持有欄。
 12. hp：[{id,delta,reason}] 受傷/治療。
@@ -862,7 +875,8 @@ const SYS=`你是西方奇幻版水滸傳文字RPG故事引擎。只輸出純JSO
 19. or：橘子秘密觸發。{"stage":N}（1-5，謹慎使用）。
 20. job：職業變更。[{id,job}]。
 21. fa：好感變動。[{id,delta,reason}]。
-22. shop：商店。{name,items:[{n,t,slot,price:{g,s,c},desc}]}。
+22. shop【重要】：進入商店填此欄。固定商品由系統提供，只需提供：{id:"唯一id",name:"商店名",baseKey:"general/blacksmith/inn/apothecary",newItems:[只填新商品,格式:{n,t,slot,price:{g,s,c},bonus:{武力:N}}]}
+若無新商品newItems設[]，不要重複填基本商品。
 23. sp：星辰感知。108星{"num":N,"type":"天罡/地煞","star":"星名","name":"稱呼","hint":"","special":false}；星外{"id":"sky_father/shadow_king","special":true,"status":"heard","hint":""}。
 24. nm：新成員加入。{id,name,star,type,num,title,emoji,desc,portrait,stats:{武力,知力,統率,魅力,幸運},tl:[{n,s,d}],eq:{武器,防具,飾品},baseLv}。
 `;
@@ -878,12 +892,10 @@ async function callAPI(action){
   if(!CFG.key){document.getElementById('api-modal').classList.add('open');throw new Error('請先設定 API 金鑰');}
   // 每次呼叫附上當前遊戲狀態快照，確保 AI 知道真實數值（不依賴文字推算）
   const inv=getInv();
-  const partySnap=allParty().map(c=>{
-    const hp=getHP(c.id);
-    const job=getJob(c.id);
-    const fav=getFavor(c.id);
-    return `${c.name}【${job||'無職業'}・HP${hp.cur}/${hp.max}${fav!==null?'・好感'+fav:''}】`;
-  }).join('、');
+  const partySnap=allParty().filter(m=>m.id!=='orange').map(m=>{
+    const hp=getHP(m.id);const job=getJob(m.id);
+    return `${m.name}/${job||'?'}/HP${hp.cur}`;
+  }).join(',')+'；橘子HP'+getHP('orange').cur+'/好感'+getFavor('orange');
   const goldSnap=`金${G.gold.gold}・銀${G.gold.silver}・銅${G.gold.copper}`;
   const questSnap=(G.quests||[]).filter(q=>q.status==='active').map(q=>q.title).join('、')||'無';
   // 只在數值與行動相關時才附上金幣（避免 AI 在不相關劇情中提及金額）
@@ -970,6 +982,11 @@ function scrollD(){const s=document.getElementById('story-scroll');setTimeout(()
 
 async function sendChoice(txt){
   if(G.thinking)return;
+  // 自動壓縮：超過40輪靜默壓縮
+  if(G.history.length>80&&!G.autoCompressing){
+    G.autoCompressing=true;
+    try{await autoCompressHistory();}finally{G.autoCompressing=false;}
+  }
   G.thinking=true;setDis(true);
   addAction(txt);
   const th=addThink();
@@ -1074,36 +1091,114 @@ function applyInv(iv){
       appendEntryToDOM({type:'sys',v:`✦ 獲得：${item.n}（持有中・可在道具欄裝備）`});
     }
   });
-  renderBoth('inv');
-  renderBoth('party');
+  renderChanged('inv','party');
 }
 
 // ═══ SHOP SYSTEM ═══
 let _currentShop=null;
-function handleShop(shop){
-  if(!shop||!shop.items?.length)return;
-  _currentShop=shop;
-  openShop(shop);
+
+// ═══ SHOP CATALOG SYSTEM ═══
+const BASE_SHOPS={
+  general:{name:'雜貨鋪',items:[
+    {n:'乾糧',t:'回復道具',price:{g:0,s:0,c:20}},
+    {n:'魚乾',t:'橘子最愛・好感+8',price:{g:0,s:0,c:30}},
+    {n:'繃帶',t:'緊急止血・HP+5',price:{g:0,s:0,c:25}},
+    {n:'火種',t:'生火用具',price:{g:0,s:0,c:10}},
+    {n:'破舊地圖',t:'區域地圖・殘缺',price:{g:0,s:1,c:0}},
+  ]},
+  blacksmith:{name:'鐵匠舖',items:[
+    {n:'短刀',t:'輕量利刃',slot:'武器',price:{g:0,s:15,c:0},bonus:{武力:8}},
+    {n:'皮甲',t:'基礎防護',slot:'防具',price:{g:0,s:20,c:0},bonus:{統率:6,幸運:2}},
+    {n:'鐵盾',t:'格擋專用',slot:'防具',price:{g:0,s:18,c:0},bonus:{統率:10}},
+    {n:'銅指環',t:'略有加持',slot:'飾品',price:{g:0,s:8,c:0},bonus:{幸運:4}},
+  ]},
+  inn:{name:'旅店',items:[
+    {n:'客房一晚',t:'全員HP回復・推進8小時',price:{g:0,s:3,c:0},action:'rest'},
+    {n:'熱食套餐',t:'HP+15・推進1小時',price:{g:0,s:1,c:50},action:'meal'},
+    {n:'消息打探',t:'獲得一條當地情報',price:{g:0,s:2,c:0},action:'intel'},
+  ]},
+  apothecary:{name:'藥鋪',items:[
+    {n:'草藥包',t:'HP+20',price:{g:0,s:2,c:0}},
+    {n:'解毒劑',t:'解除中毒',price:{g:0,s:3,c:0}},
+    {n:'魚肉乾',t:'橘子最愛・好感+8',price:{g:0,s:0,c:40}},
+    {n:'提神藥',t:'疲勞恢復',price:{g:0,s:1,c:50}},
+  ]},
+};
+
+function mergeShop(shopId,baseKey,newItems,shopName){
+  if(!G.shopCatalogs)G.shopCatalogs={};
+  const base=BASE_SHOPS[baseKey]||{name:shopName||'商店',items:[]};
+  const existing=G.shopCatalogs[shopId]||{items:[...base.items],newItems:[]};
+  const addedNew=[];
+  (newItems||[]).forEach(ni=>{
+    if(!existing.items.find(i=>i.n===ni.n)){existing.items.push(ni);addedNew.push(ni.n);}
+  });
+  existing.newItems=addedNew;
+  existing.name=shopName||base.name;
+  existing.lastVisit=G.time?.day||1;
+  G.shopCatalogs[shopId]=existing;
+  return existing;
 }
+
+function handleShop(shop){
+  if(!shop)return;
+  let finalShop;
+  if(shop.id){
+    finalShop=mergeShop(shop.id,shop.baseKey||'general',shop.newItems||[],shop.name);
+  }else if(shop.items?.length){
+    finalShop=mergeShop('shop_'+(shop.name||'').replace(/\s/g,'_'),'general',shop.items,shop.name);
+  }else return;
+  _currentShop=finalShop;G.lastShop=finalShop;G.inShop=true;saveGame();
+  const sb=document.getElementById('shop-btn');if(sb){sb.style.display='';sb.title=finalShop.name;}
+  const fr=document.getElementById('free-row');if(fr)fr.classList.add('open');
+  openShop(finalShop);
+}
+function reopenShop(){if(G.lastShop)openShop(G.lastShop);else showToast('沒有可開啟的商店','inf');}
+
+function updateShopBtn(){
+  const sb=document.getElementById('shop-btn');if(!sb)return;
+  if(G.inShop&&G.lastShop){sb.style.display='';sb.title=G.lastShop.name||'商店';}
+  else sb.style.display='none';
+}
+function clearShop(){G.lastShop=null;const sb=document.getElementById('shop-btn');if(sb)sb.style.display='none';saveGame();}
+
+let _shopTab='buy';
+function switchShopTab(tab){
+  _shopTab=tab;
+  const btnBuy=document.getElementById('shop-tab-buy');
+  const btnSell=document.getElementById('shop-tab-sell');
+  if(btnBuy){btnBuy.style.background=tab==='buy'?'rgba(201,168,76,.08)':'transparent';btnBuy.style.borderBottomColor=tab==='buy'?'var(--goldd)':'transparent';btnBuy.style.color=tab==='buy'?'var(--gold)':'var(--sild)';}
+  if(btnSell){btnSell.style.background=tab==='sell'?'rgba(100,180,220,.08)':'transparent';btnSell.style.borderBottomColor=tab==='sell'?'rgba(100,180,220,.7)':'transparent';btnSell.style.color=tab==='sell'?'rgba(130,200,230,.9)':'var(--sild)';}
+  if(tab==='buy')renderShopBuy();else renderShopSell();
+}
+
 function openShop(shop){
   _currentShop=shop;
   document.getElementById('shop-name').textContent=shop.name||'商店';
   document.getElementById('shop-gold').textContent=goldS();
-  const container=document.getElementById('shop-items');
-  container.innerHTML=shop.items.map((item,i)=>{
+  _shopTab='buy';
+  switchShopTab('buy');
+  document.getElementById('shop-modal').classList.add('open');
+}
+
+function renderShopBuy(){
+  if(!_currentShop)return;
+  const container=document.getElementById('shop-items');if(!container)return;
+  const newSet=new Set(_currentShop.newItems||[]);
+  container.innerHTML=(_currentShop.items||[]).map((item,i)=>{
     const priceText=priceStr(item.price);
     const canAfford=canPay(item.price);
-    return`<div style="background:var(--bg3);border:1px solid var(--brd);border-radius:4px;padding:.55rem .7rem;">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:.6rem;">
+    const isNew=newSet.has(item.n);
+    return`<div style="background:var(--bg3);border:1px solid ${isNew?'rgba(100,180,100,.4)':'var(--brd)'};border-radius:4px;padding:.55rem .7rem;position:relative;">
+      ${isNew?`<span style="position:absolute;top:.3rem;right:.3rem;font-size:.48rem;padding:.06rem .26rem;background:rgba(100,180,100,.2);border:1px solid rgba(100,180,100,.5);border-radius:2px;color:#6ab46a;">NEW</span>`:''}
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:.6rem;margin-top:${isNew?'.5rem':'0'}">
         <div style="flex:1">
-          <div style="font-size:.78rem;color:var(--sil);font-weight:600;">${item.n}
-            ${item.slot?`<span style="font-size:.58rem;color:var(--goldd);margin-left:.3rem">[${item.slot}]</span>`:''}
-          </div>
-          <div style="font-size:.65rem;color:var(--sild);margin:.12rem 0">${item.t||''}</div>
-          ${item.desc?`<div style="font-size:.62rem;color:rgba(150,150,120,.7)">${item.desc}</div>`:''}
+          <div style="font-size:.78rem;color:var(--sil);font-weight:600;">${item.n}${item.slot?` <span style="font-size:.58rem;color:var(--goldd)">[${item.slot}]</span>`:''}</div>
+          <div style="font-size:.65rem;color:var(--sild);margin:.1rem 0">${item.t||''}</div>
+          ${item.bonus?`<div style="font-size:.58rem;color:#6ab46a">${bonusText(item.bonus)}</div>`:''}
         </div>
         <div style="text-align:right;flex-shrink:0">
-          <div style="font-size:.72rem;color:var(--gold);margin-bottom:.3rem">${priceText}</div>
+          <div style="font-size:.72rem;color:var(--gold);margin-bottom:.28rem">${priceText}</div>
           <button onclick="buyItem(${i})" ${canAfford?'':'disabled'}
             style="font-size:.65rem;padding:.22rem .6rem;background:${canAfford?'rgba(201,168,76,.15)':'rgba(80,80,80,.1)'};border:1px solid ${canAfford?'rgba(201,168,76,.5)':'rgba(100,100,100,.3)'};border-radius:3px;color:${canAfford?'var(--gold)':'var(--sild)'};cursor:${canAfford?'pointer':'not-allowed'};font-family:'Noto Serif TC',serif;">
             ${canAfford?'購買':'不足'}
@@ -1112,47 +1207,78 @@ function openShop(shop){
       </div>
     </div>`;
   }).join('');
-  document.getElementById('shop-modal').classList.add('open');
+}
+
+function renderShopSell(){
+  const container=document.getElementById('shop-items');if(!container)return;
+  const inv=getInv();
+  const sellable=[
+    ...inv.items.map((item,idx)=>({...item,_src:'items',_idx:idx})),
+    ...inv.equip.filter(e=>e.status==='持有').map((item,idx)=>({...item,_src:'equip',_idx:idx})),
+  ];
+  if(!sellable.length){container.innerHTML=`<div style="padding:1.2rem;text-align:center;color:var(--sild);font-size:.68rem;">沒有可售出的物品</div>`;return;}
+  container.innerHTML=sellable.map((item,di)=>{
+    const sp=calcSellPrice(item,item._src==='equip');
+    return`<div style="background:var(--bg3);border:1px solid var(--brd);border-radius:4px;padding:.5rem .7rem;display:flex;align-items:center;gap:.6rem;">
+      <div style="flex:1">
+        <div style="font-size:.75rem;color:var(--sil);font-weight:600">${item.n}${item.enhance?` [+${item.enhance}]`:''}</div>
+        <div style="font-size:.62rem;color:var(--sild)">${item.t||''}${item.q?' ・ '+item.q:''}</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-size:.65rem;color:rgba(130,200,230,.8);margin-bottom:.22rem">${priceStr(sp)}</div>
+        <button onclick="sellItem(${di})"
+          style="font-size:.65rem;padding:.2rem .55rem;background:rgba(100,180,220,.1);border:1px solid rgba(100,180,220,.4);border-radius:3px;color:rgba(130,200,230,.9);cursor:pointer;font-family:'Noto Serif TC',serif;"
+          onmouseover="this.style.background='rgba(100,180,220,.22)'"
+          onmouseout="this.style.background='rgba(100,180,220,.1)'">售出</button>
+      </div>
+    </div>`;
+  }).join('');
+  container._sellable=sellable; // temp ref
+}
+
+function calcSellPrice(item,isEquip=false){
+  if(item.price)return{g:0,s:Math.max(0,Math.floor(((item.price.s||0)+(item.price.g||0)*100)*0.4)),c:Math.max(0,Math.floor((item.price.c||0)*0.4))};
+  if(isEquip){const enh=item.enhance||0;const base=Math.max(1,Math.floor((item.bonus?Object.values(item.bonus).filter(v=>v>0).reduce((a,b)=>a+b,0):5)*0.3));return{g:0,s:base+enh,c:0};}
+  return{g:0,s:0,c:5};
+}
+
+function sellItem(displayIdx){
+  const container=document.getElementById('shop-items');
+  const inv=getInv();
+  const sellable=[
+    ...inv.items.map((item,idx)=>({...item,_src:'items',_idx:idx})),
+    ...inv.equip.filter(e=>e.status==='持有').map((item,idx)=>({...item,_src:'equip',_idx:idx})),
+  ];
+  const item=sellable[displayIdx];if(!item)return;
+  const sp=calcSellPrice(item,item._src==='equip');
+  applyGold(sp);
+  if(item._src==='items')inv.items.splice(item._idx,1);
+  else inv.equip=inv.equip.filter(e=>e!==inv.equip.filter(e2=>e2.status==='持有')[item._idx]);
+  appendEntryToDOM({type:'sys',v:`💰 售出：${item.n} → ${priceStr(sp)}`});
+  scrollD();saveGame();
+  document.getElementById('shop-gold').textContent=goldS();
+  renderShopSell();renderBoth('inv');
+  showToast(`售出：${item.n}`,'ok');
 }
 function closeShop(){document.getElementById('shop-modal').classList.remove('open');}
-function priceStr(p){
-  if(!p)return'免費';
-  const parts=[];
-  if(p.g)parts.push(`金${p.g}`);
-  if(p.s)parts.push(`銀${p.s}`);
-  if(p.c)parts.push(`銅${p.c}`);
-  return parts.join('・')||'免費';
-}
-function canPay(p){
-  if(!p)return true;
-  const g=G.gold;
-  const total=(g.gold*100+g.silver)*10+g.copper;
-  const cost=(((p.g||0)*100)+(p.s||0))*10+(p.c||0);
-  return total>=cost;
-}
+function priceStr(p){if(!p)return'免費';const parts=[];if(p.g)parts.push(`金${p.g}`);if(p.s)parts.push(`銀${p.s}`);if(p.c)parts.push(`銅${p.c}`);return parts.join('・')||'免費';}
+function canPay(p){if(!p)return true;const g=G.gold;const total=(g.gold*100+g.silver)*10+g.copper;const cost=(((p.g||0)*100)+(p.s||0))*10+(p.c||0);return total>=cost;}
 function buyItem(idx){
   if(!_currentShop)return;
-  const item=_currentShop.items[idx];
-  if(!item)return;
+  const item=_currentShop.items[idx];if(!item)return;
   if(!canPay(item.price)){showToast('金幣不足','err');return;}
   if(item.price)applyGold({g:-(item.price.g||0),s:-(item.price.s||0),c:-(item.price.c||0)});
   const inv=getInv();
-  if(item.slot){
-    // 裝備類→持有欄
-    const bi={n:item.n,t:item.t||'',w:null,status:'持有',slot:item.slot};
-    autoBonus(bi);inv.equip.push(bi);
-  }else{
-    // 道具類→道具欄
-    const exist=inv.items.find(i=>i.n===item.n);
-    if(exist){const m=exist.q.match(/×(\d+)/);exist.q='×'+(m?(parseInt(m[1])+1):2);}
-    else inv.items.push({n:item.n,t:item.t||'',q:'×1'});
-  }
+  if(item.action==='rest'){restAllHP();appendEntryToDOM({type:'sys',v:'✦ 入住旅店・全員HP回復・時間推進8小時'});}
+  else if(item.action==='meal'){applyHPChange(allParty().map(c=>({id:c.id,delta:15,reason:'熱食套餐'})));advanceTime(1);}
+  else if(item.action==='intel'){sendChoice('【購買情報】剛才在旅店打探消息，請給一條當地情報（透過info欄位加入情報板）。');}
+  else if(item.slot){const bi={n:item.n,t:item.t||'',w:null,status:'持有',slot:item.slot,bonus:item.bonus||null};autoBonus(bi);inv.equip.push(bi);}
+  else{const exist=inv.items.find(i=>i.n===item.n);if(exist){const m=exist.q.match(/[×x]?\s*(\d+)/);exist.q='×'+(m?(parseInt(m[1])+1):2);}else inv.items.push({n:item.n,t:item.t||'',q:'×1'});}
+  if(_currentShop.newItems)_currentShop.newItems=_currentShop.newItems.filter(n=>n!==item.n);
   appendEntryToDOM({type:'sys',v:`✦ 購得：${item.n}（${priceStr(item.price)}）${item.slot?'・已加入持有欄':''}`});
   scrollD();saveGame();
-  // 更新金額顯示
   document.getElementById('shop-gold').textContent=goldS();
-  openShop(_currentShop);// 重新渲染（更新按鈕狀態）
-  renderBoth('inv');
+  openShop(_currentShop);renderBoth('inv');
   showToast(`購得：${item.n}`,'ok');
 }
 
@@ -1269,7 +1395,13 @@ function addNewMember(m){
 
 function renderResp(d){
   if(d.st){document.getElementById('scene-title').textContent=d.st;G.sceneTitle=d.st;}
-  if(d.sl){document.getElementById('scene-loc').textContent=d.sl;G.sceneLoc=d.sl;}
+  if(d.sl){document.getElementById('scene-loc').textContent=d.sl;G.sceneLoc=d.sl;
+    // 如果地點不再是商店相關場景，清除 inShop 標記
+    const shopKeywords=/(商店|市集|攤販|雜貨|武器|鐵匠|藥舖|酒館|客棧)/;
+    if(G.inShop&&!shopKeywords.test(d.sl)&&!shopKeywords.test(d.st||'')){
+      G.inShop=false;
+    }
+  }
   (d.nv||[]).forEach(p=>appendEntryToDOM({type:'narr',v:p}));
   (d.dl||[]).forEach(dl=>appendEntryToDOM({type:'dial',sp:dl.sp,ln:dl.ln}));
   if(d.sm){appendEntryToDOM({type:'sys',v:d.sm});if(d.gd)applyGold(d.gd);}
@@ -1287,10 +1419,13 @@ function renderResp(d){
   if(d.or&&d.or.stage)revealOrangeSecret(d.or.stage);
   if(d.job)applyJobUpdate(d.job);
   tickBondCooldowns();
-  if(d.fa){(d.fa||[]).forEach(f=>{if(f.id&&f.delta){setFavor(f.id,f.delta);if(f.delta>0)showToast(`${getCharData(f.id)?.name||f.id} 好感 +${f.delta}`,'ok');else showToast(`${getCharData(f.id)?.name||f.id} 好感 ${f.delta}`,'inf');}});renderBoth('party');}
+  if(d.fa){(d.fa||[]).forEach(f=>{if(f.id&&f.delta){setFavor(f.id,f.delta);if(f.delta>0)showToast(`${getCharData(f.id)?.name||f.id} 好感 +${f.delta}`,'ok');else showToast(`${getCharData(f.id)?.name||f.id} 好感 ${f.delta}`,'inf');}});renderChanged('party');}
   scrollD();
   G.log.push({sec:d.st||'',loc:(d.sl||'').replace('📍 ',''),lines:[...(d.nv||[]).map(v=>({t:'txt',v})),...(d.dl||[]).map(dl=>({t:'txt',v:`${dl.sp}：「${dl.ln}」`})),...(d.sm?[{t:'sys',v:d.sm}]:[]) ]});
-  renderBoth('log');
+  markDirty('log');
+  // 每次 AI 回應後強制同步所有面板
+  renderAll();
+  updateShopBtn();
   if(d.cb){
     saveGame();
     setTimeout(()=>autoCombat(d.cb),800);
@@ -1298,6 +1433,24 @@ function renderResp(d){
     if(d.ch?.length)renderChoices(d.ch);
     saveGame();
   }
+}
+function renderAll(){
+  updateGold();
+  updateTimeDisplay();
+  updateShopBtn();
+  // 只渲染可見分頁，其他標記 dirty 等切換時再渲染
+  const vis=G.activeTab||'party';
+  markDirty(vis);
+  renderBoth(vis);
+  if(G.currentChoices?.length)renderChoices(G.currentChoices,false);
+}
+
+function renderChanged(...tabs){
+  updateGold();updateShopBtn();
+  tabs.forEach(t=>{
+    markDirty(t);
+    if(t===(G.activeTab||'party'))renderBoth(t);
+  });
 }
 function addAction(txt){appendEntryToDOM({type:'action',v:txt});scrollD();}
 function addThink(){const w=mk('div','sentry think-row');w.innerHTML='<div class="dot"></div><div class="dot"></div><div class="dot"></div>';document.getElementById('story-content').appendChild(w);scrollD();return w;}
@@ -1398,15 +1551,47 @@ function clearPortraitCache(id){
   else{Object.keys(PC).forEach(k=>delete PC[k]);Object.keys(localStorage).filter(k=>k.startsWith('portrait_')).forEach(k=>{try{localStorage.removeItem(k);}catch{}});}
 }
 
+const SVG_CACHE={};
+const _renderCache={};
+const _dirty={};
+function markDirty(...tabs){tabs.forEach(t=>{_dirty[t]=true;});}
+function markAllDirty(){['party','stars','inv','quest','intel','log'].forEach(t=>{_dirty[t]=true;});}
+function dicebearCacheKey(id){return `db_svg_${id}`;}
+function getCachedDicebear(id){
+  if(SVG_CACHE[id])return SVG_CACHE[id];
+  try{const v=localStorage.getItem(dicebearCacheKey(id));if(v){SVG_CACHE[id]=v;return v;}}catch{}
+  return null;
+}
+function cacheDicebear(id,dataUrl){
+  SVG_CACHE[id]=dataUrl;
+  try{localStorage.setItem(dicebearCacheKey(id),dataUrl);}catch{}
+}
+// 背景預取並快取 Dicebear SVG（轉為 data URL 避免每次重新 fetch）
+function prefetchDicebear(id){
+  const cfg=PCFG[id]||(G.extraPcfg&&G.extraPcfg[id]);
+  if(!cfg?.default||getCachedDicebear(id))return;
+  fetch(cfg.default).then(r=>r.text()).then(svg=>{
+    const dataUrl='data:image/svg+xml;base64,'+btoa(unescape(encodeURIComponent(svg)));
+    cacheDicebear(id,dataUrl);
+    // 更新頁面上已顯示的圖片
+    document.querySelectorAll(`img[alt="${id}"]`).forEach(img=>{img.src=dataUrl;});
+  }).catch(()=>{});
+}
+
 function getPortraitSrc(id){
-  // 優先：用戶自訂 URL（存在 localStorage）
   const custom=getCustomPortrait(id);
   if(custom)return custom;
-  // 其次：記憶體快取
   if(PC[id])return PC[id];
-  // 預設：Dicebear（即時，不需要等待）
+  // 優先使用快取的 Dicebear
+  const cached=getCachedDicebear(id);
+  if(cached)return cached;
+  // 還沒快取：用預設 URL 並背景快取
   const cfg=PCFG[id]||(G.extraPcfg&&G.extraPcfg[id]);
-  return cfg?.default||null;
+  if(cfg?.default){
+    prefetchDicebear(id); // 背景快取，下次直接用 data URL
+    return cfg.default;
+  }
+  return null;
 }
 
 function getPortrait(id){
@@ -1722,7 +1907,7 @@ function applyHPChange(changes){
       appendEntryToDOM({type:'sys',v:`${inj.icon} ${name} HP ${sign}${diff} → ${hp.cur}/${hp.max}【${inj.name}】${ch.reason?'（'+ch.reason+'）':''}`});
     }
   });
-  renderBoth('party');
+  renderChanged('party');
   saveGame();
 }
 
@@ -2113,6 +2298,7 @@ function buildParty(){
 
 function forceBellyFlip(ev){
   ev.stopPropagation();
+  markDirty('party');
   G.bellyFlipCount=(G.bellyFlipCount||0)+1;
   const n=G.bellyFlipCount;
 
@@ -2209,26 +2395,40 @@ function forceBellyFlip(ev){
   showToast(`翻肚 ×${n} 🐾`,'ok');
 }
 // ── 給魚乾 ──
+function findFishItem(){
+  const inv=getInv();
+  // 搜尋任何含「魚」字的道具（魚乾、乾魚、烤魚、魚片等都算）
+  return inv.items.find(i=>/魚/.test(i.n));
+}
+function consumeItem(item){
+  // 解析數量：支援 ×N、xN、N個、或直接數字，沒有就當1
+  const inv=getInv();
+  const qStr=item.q||'';
+  const m=qStr.match(/[×x*]?\s*(\d+)/);
+  const qty=m?parseInt(m[1]):1;
+  if(qty<=1){
+    inv.items=inv.items.filter(i=>i!==item);
+  }else{
+    item.q=`×${qty-1}`;
+  }
+  renderBoth('inv');
+}
+
 function giveOrangeFish(ev){
   ev.stopPropagation();
-  const inv=getInv();
-  const fish=inv.items.find(i=>i.n.includes('魚乾')||i.n.includes('魚'));
+  markDirty('party');
+  const fish=findFishItem();
   const hasFish=!!fish;
   if(hasFish){
-    // 消耗一份魚乾
-    const m=fish.q.match(/×(\d+)/);
-    const qty=m?parseInt(m[1]):1;
-    if(qty<=1)inv.items=inv.items.filter(i=>i!==fish);
-    else fish.q=`×${qty-1}`;
+    consumeItem(fish);
     setFavor('orange',8);
-    renderBoth('inv');
   }
   const reactions=hasFish?[
     [{type:'narr',v:'艾爾法從袋裡取出一片魚乾，遞到橘子面前。'},
      {type:'dial',sp:'橘子🐈😒',ln:'喵——'},
      {type:'sys',v:'〔系統翻譯：⋯⋯勉強收下。〕'},
      {type:'narr',v:'橘子瞟了一眼，然後以優雅而精準的姿態，把魚乾從艾爾法手中叼走。'},
-     {type:'sys',v:'橘子好感 +8 ／ 魚乾 -1'},
+     {type:'sys',v:`橘子好感 +8 ／ ${fish.n} -1`},
     ],
     [{type:'narr',v:'魚乾出現的瞬間，橘子的耳朵微微動了一下。'},
      {type:'dial',sp:'橘子🐈😒',ln:'喵。'},
@@ -2244,13 +2444,19 @@ function giveOrangeFish(ev){
   ];
   const r=reactions[Math.floor(Math.random()*reactions.length)];
   r.forEach(e=>appendEntryToDOM(e));
-  scrollD();saveGame();renderBoth('party');
-  showToast(hasFish?'橘子：魚乾 +8好感 🐟':'道具欄沒有魚乾','ok');
+  // 魚乾消氣：每次餵食減少1點翻肚怒氣
+  if(hasFish&&G.bellyFlipCount>0){
+    G.bellyFlipCount=Math.max(0,G.bellyFlipCount-2);
+    if(G.bellyFlipCount===0)appendEntryToDOM({type:'sys',v:'〔橘子：怒氣已平息。）〕'});
+  }
+  markDirty('party');scrollD();saveGame();renderBoth('party');
+  showToast(hasFish?`橘子：${fish.n} +8好感 🐟`:'道具欄沒有魚（需先購買或取得）','ok');
 }
 
 // ── 抱起橘子 ──
 function pickUpOrange(ev){
   ev.stopPropagation();
+  markDirty('party');
   const scenes=[
     [{type:'narr',v:'艾爾法俯身，將橘子從地上抄起，抱在胸前。橘子沒有反抗——她只是抬頭，用藍眼睛看著艾爾法的臉。'},
      {type:'dial',sp:'橘子🐈😒',ln:'喵。'},
@@ -2278,6 +2484,7 @@ function pickUpOrange(ev){
 // ── 和橘子聊天 ──
 function chatOrange(ev){
   ev.stopPropagation();
+  markDirty('party');
   const topics=[
     // 關於命運
     [{type:'dial',sp:'艾爾法😒',ln:'你真的只是一隻貓嗎？'},
@@ -2323,6 +2530,7 @@ function chatOrange(ev){
 // ── 橘子建議 ──
 function askOrangeSuggest(ev){
   ev.stopPropagation();
+  markDirty('party');
   const fav=getFavor('orange')||50;
   const suggests=[
     // 通用建議
@@ -2873,7 +3081,7 @@ function addIntel(item){
     appendEntryToDOM({type:'sys',v:`${isOrange?'🐈 橘子情報':'📋 新情報'}：【${item.title}】（可靠度：${'★'.repeat(item.rel||3)}${'☆'.repeat(5-(item.rel||3))}）`});
     showToast('新情報：'+item.title,'ok');
   }
-  renderBoth('intel');saveGame();
+  renderChanged('intel');saveGame();
 }
 
 function buildIntel(){
@@ -2984,7 +3192,7 @@ function addQuest(q){
   G.quests=G.quests||[];
   G.quests.push({status:'active',...q,addedAt:Date.now()});
   appendEntryToDOM({type:'sys',v:`📋 新任務：【${q.title}】${q.type?'（'+q.type+'）':''}`});
-  renderBoth('quest');saveGame();
+  renderChanged('quest');saveGame();
   showToast('新任務：'+q.title,'ok');
 }
 
@@ -3006,7 +3214,7 @@ function completeQuest(id){
   const q=(G.quests||[]).find(x=>x.id===id);if(!q)return;
   q.status='completed';q.objectives?.forEach(o=>o.done=true);
   appendEntryToDOM({type:'sys',v:`✦ 任務完成：【${q.title}】${q.rewards?'　獎勵：'+q.rewards:''}`});
-  renderBoth('quest');saveGame();
+  renderChanged('quest');saveGame();
   showToast('任務完成：'+q.title,'ok');
 }
 
@@ -3014,7 +3222,7 @@ function failQuest(id){
   const q=(G.quests||[]).find(x=>x.id===id);if(!q)return;
   q.status='failed';
   appendEntryToDOM({type:'sys',v:`✗ 任務失敗：【${q.title}】`});
-  renderBoth('quest');saveGame();
+  renderChanged('quest');saveGame();
   showToast('任務放棄：'+q.title,'inf');
 }
 
@@ -3026,12 +3234,35 @@ function applyQuestUpdate(qt){
   });
 }
 
-function renderBoth(tab){let h='';if(tab==='party')h=buildParty();else if(tab==='stars')h=buildStars();else if(tab==='inv')h=buildInv();else if(tab==='log')h=buildLog();else if(tab==='quest')h=buildQuest();else if(tab==='intel')h=buildIntel();['p','d'].forEach(p=>{const el=document.getElementById(p+'-'+tab);if(el)el.innerHTML=h;});if(tab==='party')setTimeout(loadPortraits,50);}
+function renderBoth(tab){
+  let h;
+  const cacheable=['stars']; // log moved out - changes every response; party never cached
+  if(cacheable.includes(tab)&&!_dirty[tab]&&_renderCache[tab]){
+    h=_renderCache[tab];
+  }else{
+    if(tab==='party')h=buildParty();
+    else if(tab==='stars')h=buildStars();
+    else if(tab==='inv')h=buildInv();
+    else if(tab==='log')h=buildLog();
+    else if(tab==='quest')h=buildQuest();
+    else if(tab==='intel')h=buildIntel();
+    else h='';
+    if(cacheable.includes(tab)){_renderCache[tab]=h;_dirty[tab]=false;}
+  }
+  ['p','d'].forEach(p=>{const el=document.getElementById(p+'-'+tab);if(el)el.innerHTML=h;});
+  if(tab==='party')setTimeout(()=>{
+    // 預取所有隊員頭像
+    allParty().forEach(c=>prefetchDicebear(c.id));
+  },100);
+}
 function switchTab(el,pf,name){
   const pn=pf==='p'?'ptab':'dtab',pc=pf==='p'?'ptc':'dtc';
-  const c=pf==='p'?document.getElementById('panel-side'):document.getElementById('drawer');
-  c.querySelectorAll('.'+pn).forEach(b=>b.classList.remove('ac'));c.querySelectorAll('.'+pc).forEach(c=>c.classList.remove('ac'));
-  el.classList.add('ac');document.getElementById(pf+'-'+name).classList.add('ac');renderBoth(name);
+  const cont=pf==='p'?document.getElementById('panel-side'):document.getElementById('drawer');
+  cont.querySelectorAll('.'+pn).forEach(b=>b.classList.remove('ac'));cont.querySelectorAll('.'+pc).forEach(c=>c.classList.remove('ac'));
+  el.classList.add('ac');document.getElementById(pf+'-'+name).classList.add('ac');
+  G.activeTab=name;
+  // 切換時才渲染（lazy render）
+  markDirty(name);renderBoth(name);
 }
 
 // ═══ DETAIL MODALS ═══
@@ -3106,7 +3337,7 @@ function openSettings(){
   document.getElementById('s-dot').className='s-dot '+(k?'ok':'no');
   document.getElementById('s-stxt').textContent=k?'已設定':'未設定';
   document.getElementById('s-model').value=CFG.model;
-  document.getElementById('s-tok').value=String(CFG.tokens);
+  document.getElementById('s-tok').value=String(CFG.tokens||2000);
   document.getElementById('test-res').textContent='';
   // 顯示對話歷史狀態
   const turns=Math.floor(G.history.length/2);
@@ -3141,6 +3372,27 @@ async function generateAIPortrait(id){
     if(btn)btn.disabled=false;
   };
   img.src=url;
+}
+
+async function autoCompressHistory(){
+  if(G.history.length<20)return;
+  const keepN=10;
+  const toCompress=G.history.slice(0,-keepN);
+  const toKeep=G.history.slice(-keepN);
+  const compressPrompt=`以下是RPG遊戲的故事歷史記錄，請用200字以內的繁體中文摘要，保留：重要劇情事件、招募的角色、已完成的任務、關鍵情報。\n\n${toCompress.map(m=>m.role+':'+m.content.slice(0,200)).join('\n')}`;
+  try{
+    const r=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':CFG.key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:CFG.model,max_tokens:300,messages:[{role:'user',content:compressPrompt}]})
+    });
+    if(!r.ok)return;
+    const d=await r.json();
+    const summary=d.content?.[0]?.text||'（歷史記錄已壓縮）';
+    G.history=[{role:'user',content:'【故事摘要】'+summary},{role:'assistant',content:'{"st":"繼續","sl":"'+G.sceneLoc+'","nv":[],"dl":[],"sm":null,"gd":{"g":0,"s":0,"c":0},"ch":[],"nm":null,"cb":null,"iv":null,"sp":null,"shop":null,"fa":null,"hp":null,"qt":null,"tm":null,"rp":null,"info":null,"relic":null,"clue":null,"or":null,"job":null}'},...toKeep];
+    appendEntryToDOM({type:'sys',v:'✦ 故事記憶已自動整理（保留近期'+keepN/2+'輪）'});
+    saveGame();
+  }catch(e){console.warn('autoCompress failed:',e);}
 }
 
 async function compressHistory(){
@@ -3345,6 +3597,7 @@ function closeDrawer(){G.drawerOpen=false;document.getElementById('drawer').clas
 function applyResp(){const m=window.innerWidth<768;document.getElementById('drawer-btn').style.display=m?'':'none';document.getElementById('panel-btn').style.display=m?'none':'';}
 
 function syncAll(){
+  markAllDirty();
   // 重新渲染全部面板、金幣、時間、圖示
   updateGold();
   updateTimeDisplay();
@@ -3354,8 +3607,8 @@ function syncAll(){
   // 存檔
   saveGame();
   // 轉動同步按鈕動畫提示
-  const btn=document.querySelector('button.ib[onclick="syncAll()"]');
-  if(btn){btn.style.transition='transform .4s';btn.style.transform='rotate(360deg)';setTimeout(()=>{btn.style.transform='';},400);}
+  const btns=document.querySelectorAll('.ib');
+  btns.forEach(b=>{if(b.title==='同步所有狀態'){b.style.transition='transform .5s';b.style.transform='rotate(360deg)';setTimeout(()=>{b.style.transform='';b.style.transition='';},500);}});
   showToast('✦ 狀態已同步','ok');
 }
 window.addEventListener('resize',applyResp);
@@ -3752,11 +4005,21 @@ function doTravel(cityId){
   G.atWayStation=false;
   document.getElementById('scene-title').textContent=G.sceneTitle;
   document.getElementById('scene-loc').textContent=G.sceneLoc;
-  appendEntryToDOM({type:'sys',v:`✦ 出發前往 ${city.name}…（抵達後繼續行動）`});
-  G.history.push({role:'user',content:`【玩家移動】艾爾法決定前往${city.name}。請描述抵達${city.name}的情形並給出行動選項。`});
+  advanceTime(3); // 移動消耗時間
+  appendEntryToDOM({type:'narr',v:`艾爾法踏上前往${city.name}的路途，${G.time?HOUR_LABEL[G.time.hour]+'時分，':''}橘子蜷縮在背包頂端，不發一語。`});
+  appendEntryToDOM({type:'sys',v:`📍 已抵達 ${city.name}`});
+  // 提供抵達後的即時選項（不需要等 AI 回應）
+  const arrivalChoices=[
+    {t:'環顧四周，確認地形',h:''},
+    {t:'尋找落腳處',h:''},
+    {t:'打聽當地情報',h:''},
+    {t:'前往市集',h:''},
+  ];
+  renderChoices(arrivalChoices);
+  G.history.push({role:'user',content:`【抵達${city.name}】`});
+  G.history.push({role:'assistant',content:`{"st":"抵達${city.name}","sl":"📍 ${city.name}","nv":["艾爾法抵達${city.name}。"],"dl":[],"sm":null,"gd":{"g":0,"s":0,"c":0},"ch":[{"t":"環顧四周，確認地形","h":""},{"t":"尋找落腳處","h":""},{"t":"打聽當地情報","h":""},{"t":"前往市集","h":""}],"nm":null,"cb":null,"iv":null,"sp":null,"shop":null,"fa":null,"hp":null,"qt":null,"tm":null,"rp":null,"info":null,"relic":null,"clue":null,"or":null,"job":null}`});
   scrollD();
   saveGame();
-  sendChoice('【抵達'+city.name+'】');
 }
 
 // 地圖開啟/關閉
@@ -3955,12 +4218,67 @@ function showPoiInfo(cityId,poiIdx){
   </div>`;
 }
 
+// POI 名稱對應商店類型
+const POI_SHOP_MAP={
+  '雜貨鋪':'general','雜貨店':'general','雜貨':'general','市集':'general','攤販':'general',
+  '鐵匠舖':'blacksmith','鐵匠':'blacksmith','武器鋪':'blacksmith','武器店':'blacksmith','兵器':'blacksmith',
+  '旅店':'inn','客棧':'inn','酒館':'inn','酒館旅店':'inn',
+  '藥鋪':'apothecary','藥店':'apothecary','藥草':'apothecary','藥師':'apothecary',
+};
+
+function getShopKey(poiName){
+  for(const[k,v] of Object.entries(POI_SHOP_MAP)){
+    if(poiName.includes(k))return v;
+  }
+  return'general';
+}
+
 function doGoToPoi(cityId,poiName){
   closeMap();
   const city=MAP_CITIES[cityId];
-  G.sceneLoc='📍 '+city.name+'・'+poiName.replace('・','');
+  const loc=city.name+'・'+poiName.replace('・','');
+  G.sceneLoc='📍 '+loc;
   document.getElementById('scene-loc').textContent=G.sceneLoc;
-  sendChoice('【玩家移動至】'+poiName);
+  appendEntryToDOM({type:'sys',v:`📍 前往 ${loc}`});
+  advanceTime(1);
+
+  const isShop=/(商店|市集|攤販|雜貨|武器|鐵匠|藥舖|酒館|客棧|旅店|藥店|藥鋪)/.test(poiName);
+  if(isShop){
+    // 直接開啟商店 UI，不等 AI
+    const baseKey=getShopKey(poiName);
+    const shopId=`${cityId}_${poiName}`;
+    const shop=mergeShop(shopId,baseKey,[],poiName);
+    G.inShop=true;
+    handleShop(shop);
+    // 背景讓 AI 補充劇情描述和可能的特殊商品（不阻塞 UI）
+    appendEntryToDOM({type:'sys',v:`🏪 ${shop.name}　點選商品購買・或輸入自由行動繼續`});
+    scrollD();saveGame();
+    // 背景呼叫 AI 補充新商品（silent，不影響主流程）
+    silentShopRefresh(shopId,baseKey,poiName,cityId);
+  }else{
+    sendChoice(`【抵達${loc}】`);
+  }
+}
+
+async function silentShopRefresh(shopId,baseKey,poiName,cityId){
+  if(!CFG.key)return;
+  // 背景讓 AI 補充特殊商品，不顯示讀取動畫
+  try{
+    const prompt=`【背景任務・只輸出JSON・不輸出其他文字】\n進入${poiName}。用shop欄位補充2-3件這個地點特有的商品（不要重複基礎商品：乾糧/魚乾/繃帶/短刀/皮甲/草藥包等）。\n只輸出：{"shop":{"id":"${shopId}","name":"${poiName}","baseKey":"${baseKey}","newItems":[...]}}\n若無特殊商品輸出：{"shop":null}`;
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':CFG.key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:CFG.model,max_tokens:300,messages:[{role:'user',content:prompt}]})
+    });
+    if(!res.ok)return;
+    const data=await res.json();
+    const raw=data.content?.[0]?.text||'';
+    const parsed=tryParseJSON(raw);
+    if(parsed?.shop?.newItems?.length){
+      handleShop(parsed.shop); // 有新商品就更新商店（已開著會刷新）
+      showToast('商店更新了商品','ok');
+    }
+  }catch(e){/* silent fail */}
 }
 
 function doSetWaystation(){
@@ -3974,16 +4292,18 @@ function doSetWaystation(){
 applyResp();
 renderBoth('party');renderBoth('stars');renderBoth('quest');renderBoth('intel');
 updateGold();updateTimeDisplay();
+// 恢復商店按鈕狀態
+updateShopBtn();
 
 const hasSave=loadGame();
 if(hasSave){
   updateGold();
   renderStoryFromData();
-  renderBoth('log');
+  markDirty('log');
   showToast('✦ 讀取存檔成功','ok');
 }else{
   G.log=initLog();
-  renderBoth('log');
+  markDirty('log');
   initStory();
 }
 scrollD();
