@@ -1082,60 +1082,65 @@ function cacheDicebear(id,dataUrl){
 }
 // 背景預取並快取 Dicebear SVG（轉為 data URL 避免每次重新 fetch）
 function prefetchDicebear(id){
+  // 不再 fetch+base64，直接用 URL 讓瀏覽器快取
   const cfg=PCFG[id]||(G.extraPcfg&&G.extraPcfg[id]);
-  if(!cfg?.default||getCachedDicebear(id))return;
-  fetch(cfg.default).then(r=>r.text()).then(svg=>{
-    const dataUrl='data:image/svg+xml;base64,'+btoa(unescape(encodeURIComponent(svg)));
-    cacheDicebear(id,dataUrl);
-    // 更新頁面上已顯示的圖片
-    document.querySelectorAll(`img[alt="${id}"]`).forEach(img=>{img.src=dataUrl;});
-  }).catch(()=>{});
+  if(!cfg?.default)return;
+  const img=new Image();
+  img.src=cfg.default; // 預載入，讓瀏覽器自行快取
 }
 
 function getPortraitSrc(id){
   const custom=getCustomPortrait(id);
   if(custom)return custom;
   if(PC[id])return PC[id];
-  // 優先使用快取的 Dicebear
   const cached=getCachedDicebear(id);
   if(cached)return cached;
-  // 還沒快取：用預設 URL 並背景快取
   const cfg=PCFG[id]||(G.extraPcfg&&G.extraPcfg[id]);
-  if(cfg?.default){
-    prefetchDicebear(id); // 背景快取，下次直接用 data URL
-    return cfg.default;
-  }
+  if(cfg?.default)return cfg.default;
   return null;
 }
 
 function getPortrait(id){
   const src=getPortraitSrc(id);
   if(src){
-    // 有圖直接顯示，無需等待
+    const esc=escHtml(id);
+    const cfg=PCFG[id]||G.extraPcfg?.[id]||{};
+    const fbEmoji=cfg.emoji||'⚔';
+    const fbColor=cfg.color||'#c9a84c';
+    const fbLabel=cfg.label||id;
     return `<div style="width:100%;height:100%;position:relative;background:var(--bg3);">
-      <img src="${src}" style="width:100%;height:100%;object-fit:cover;object-position:center top;display:block;" alt="${id}"
-        onerror="this.parentNode.innerHTML=getFallbackPortrait('${id}')"/>
+      <img src="${src}" style="width:100%;height:100%;object-fit:cover;object-position:center top;display:block;" alt="${esc}"
+        onerror="this.onerror=null;var fb=this.parentNode.querySelector('[data-fb]');if(fb){fb.style.display='flex';this.style.display='none';}"/>
       <div style="position:absolute;inset:0;background:linear-gradient(to bottom,transparent 55%,var(--bg3) 100%);pointer-events:none;"></div>
+      <div data-fb style="display:none;width:100%;height:100%;position:absolute;inset:0;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;background:var(--bg3);">
+        <div style="font-size:2.2rem;">${fbEmoji}</div>
+        <div style="font-size:.7rem;color:${fbColor};letter-spacing:.1em;">${fbLabel}</div>
+      </div>
     </div>`;
   }
   return getFallbackPortrait(id);
 }
 
 function getFallbackPortrait(id){
-  const cfg=PCFG[id];
-  const color=cfg?.color||'#c9a84c';
-  const emoji=cfg?.emoji||'⚔';
-  const label=cfg?.label||id;
+  const cfg=PCFG[id]||(G.extraPcfg&&G.extraPcfg[id])||{};
+  const color=cfg.color||'#c9a84c';
+  const emoji=cfg.emoji||'⚔';
+  const label=cfg.label||id;
   return `<div style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;background:var(--bg3);border-bottom:1px solid var(--brd);">
     <div style="font-size:2.2rem;">${emoji}</div>
     <div style="font-size:.7rem;color:${color};letter-spacing:.1em;">${label}</div>
   </div>`;
 }
 
-function applyPortrait(el,src){
-  el.innerHTML=`<img src="${src}" style="width:100%;height:100%;object-fit:cover;object-position:center top;display:block;" alt="portrait"
-    onerror="this.parentNode.innerHTML=getFallbackPortrait(this.dataset.id||'')"/>
-    <div style="position:absolute;inset:0;background:linear-gradient(to bottom,transparent 55%,var(--bg3) 100%);pointer-events:none;"></div>`;
+function applyPortrait(el,src,id){
+  const cfg=PCFG[id]||G.extraPcfg?.[id]||{};
+  el.innerHTML=`<img src="${src}" style="width:100%;height:100%;object-fit:cover;object-position:center top;display:block;" alt="${escHtml(id||'portrait')}"
+    onerror="this.onerror=null;var fb=this.parentNode.querySelector('[data-fb]');if(fb){fb.style.display='flex';this.style.display='none';}"/>
+    <div style="position:absolute;inset:0;background:linear-gradient(to bottom,transparent 55%,var(--bg3) 100%);pointer-events:none;"></div>
+    <div data-fb style="display:none;width:100%;height:100%;position:absolute;inset:0;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;background:var(--bg3);">
+      <div style="font-size:2.2rem;">${cfg.emoji||'⚔'}</div>
+      <div style="font-size:.7rem;color:${cfg.color||'#c9a84c'};letter-spacing:.1em;">${cfg.label||id||''}</div>
+    </div>`;
   el.style.cssText='width:100%;height:100%;position:relative;';
 }
 
@@ -1146,7 +1151,7 @@ function loadPortraits(){
 function retryP(id,el){
   if(!el)return;
   const src=getPortraitSrc(id);
-  if(src&&document.body.contains(el))applyPortrait(el,src);
+  if(src&&document.body.contains(el))applyPortrait(el,src,id);
 }
 
 
