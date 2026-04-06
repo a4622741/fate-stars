@@ -2692,6 +2692,83 @@ function buildLog(){
   return lore+`<div style="font-size:.7rem;color:var(--gold);letter-spacing:.12em;text-align:center;padding:.5rem 0;border-bottom:1px solid var(--brd);margin-bottom:.6rem;">✦ 冒險紀錄 ✦</div>`+entries;
 }
 
+// ═══ WIKI / ENCYCLOPEDIA（百科系統）═══
+let _wikiFilter='世界';
+function setWikiFilter(cat){_wikiFilter=cat;markDirty('wiki');renderBoth('wiki');}
+
+const WIKI_DATA={
+  '世界':[
+    {title:'艾爾薩大陸',icon:'🌍',body:'本作的舞台。曾由聖赫倫帝國統治六百年，帝國崩裂後分裂為十二王國割據的亂世。大陸東臨碧藍海，西有霧山山脈，北方是永凍的霜嶺，南端則是被稱為「南荒」的不毛之地。'},
+    {title:'聖赫倫帝國',icon:'👑',body:'統治艾爾薩大陸長達六百年的龐大帝國。帝國曆 1077 年，末代皇帝在一夜之間暴斃，宮廷大亂，十二位總督各自割據稱王。帝國崩裂的那一夜，天空劃過 108 顆流星。'},
+    {title:'十二王國時代',icon:'⚔️',body:'帝國崩裂後的現狀。十二個王國互相征伐、結盟、背叛，平民在苛政與戰火中掙扎。目前故事主要涉及：霧山聯邦、中央王國、東海王國、翠林域、南荒、霜嶺、影沼地。'},
+    {title:'帝國曆',icon:'📅',body:'艾爾薩大陸通用的紀年方式。帝國建立之年為元年。當前故事發生在帝國曆 1080 年（帝國崩裂後第三年）。雖然帝國不復存在，但各國仍沿用此曆法。'},
+  ],
+  '勢力':[
+    {title:'霧山聯邦',icon:'🏔️',body:'大陸西部，以鐵霧城為首的工業城市聯盟。盛產鐵礦，霧氣終年不散。代理城主恩佐·卡羅以鐵腕治理，底層民眾苦不堪言。霧刃幫在山口地帶橫行。',tags:['鐵霧城','鐵冠城','灰港鎮']},
+    {title:'中央王國',icon:'🏛️',body:'大陸中部，帝國故土上建立的最大王國。首都銀月城是商貿與情報的中心。王國北有王冠峰、東有金橋城。鏽城（前帝都）位於其南境，充滿帝國遺跡。',tags:['銀月城','鏽城','金橋城','王冠峰']},
+    {title:'東海王國',icon:'⚓',body:'大陸東岸的海洋國家。東港城是最大的港口，海貿繁盛，但也是走私和間諜活動的溫床。霧海關控制南方航路。珊瑚灣則是海盜出沒的漁村。',tags:['東港城','霧海關','珊瑚灣']},
+    {title:'翠林域',icon:'🌳',body:'大陸北部的古老森林領地。精靈與森民聚居，外人不易進入。翠林城是其中心，古樹隱村則藏著上古時代的秘密與禁忌書庫。魔法力量在此地最為濃厚。',tags:['翠林城','古樹隱村']},
+    {title:'南荒',icon:'🏜️',body:'大陸南端的荒蕪之地。帝國時代曾是流放地，如今是亡命之徒和尋寶者的樂園。龍牙砦傳說有古龍遺跡。沙門城是進入荒野前的最後補給站。',tags:['龍牙砦','沙門城']},
+    {title:'霜嶺',icon:'❄️',body:'大陸最北端的極寒之地。霜守堡是帝國時代的邊防遺址，如今由一支流亡騎士團駐守。環境嚴酷，但據說藏有帝國時代最後的秘密。'},
+    {title:'影沼地',icon:'🌿',body:'大陸西南的瘴氣沼澤。毒霧瀰漫，常人難以久留。影沼鎮是藥師、毒師與亡命之徒的藏身之所。傳說沼澤深處有通往地底世界的通道。'},
+    {title:'霧刃幫',icon:'🗡️',body:'活躍在鐵霧城山口地帶的劫匪組織。已劫掠多支商隊，懸賞令貼滿了中央廣場。其首領身份不明，組織規模可能比表面上更大。'},
+    {title:'英雄公會',icon:'🛡️',body:'接受懸賞委託的傭兵組織，總部設在銀月城。各地設有分會。公會依據任務難度分級，從驅除害蟲到討伐軍閥都有。是冒險者的主要收入來源。'},
+    {title:'商人公會',icon:'💰',body:'掌控大陸貿易與情報網絡的商業聯盟。在東港城的勢力尤其強大。表面上是合法商會，暗地裡經手走私、情報買賣、政治獻金。'},
+    {title:'帝國殘軍',icon:'🏚️',body:'帝國崩裂後仍效忠皇室的殘存軍隊。主要盤踞在鏽城（前帝都）一帶。他們相信帝國會復興，但各派系之間也在互相內鬥。'},
+  ],
+  '星辰':[
+    {title:'108 命運之星',icon:'✦',body:'帝國崩裂之夜降世的 108 顆星辰。分為天罡三十六星（將領、英雄、智者）和地煞七十二星（工匠、商人、密探、學者等）。傳說：聚齊 108 星者可終結亂世輪迴。'},
+    {title:'天罡三十六星',icon:'⭐',body:'108 星中地位較高的 36 顆。對應的人物多為武將、謀士、領袖級人才。每位天罡星降世時攜帶一件命運寶器。天魁星為首——在本作中，天魁星是艾爾法。'},
+    {title:'地煞七十二星',icon:'💫',body:'108 星中數量較多的 72 顆。對應的人物多為各行各業的專才：鐵匠、廚師、醫師、密探、商人、學者、園丁、航海家等。他們不一定會戰鬥，但每一位都不可或缺。'},
+    {title:'天父星（先行者）',icon:'⚜️',body:'不屬於 108 星，但最早感知到星辰降世的人。他召集了最初的同伴，踏上聚星之路——卻在途中倒下。相當於《水滸傳》中的晁蓋，是開路人而非完成者。他的真實身份和倒下的原因是遊戲主線謎團之一。'},
+    {title:'命運寶器',icon:'🗡️',body:'每位星辰之人降世時攜帶的特殊道具。寶器與持有者的命運綁定，品質從「普通」到「神器」不等。集齊所有寶器據說可觸發隱藏事件。艾爾法的寶器是「天命折刃」，橘子本身就是寶器「命運之錨」。'},
+    {title:'星辰感知',icon:'🐈',body:'橘子（地魁星）的獨有能力。當附近有其他星辰之人時，橘子會產生反應——耳朵轉動、凝視某個方向、或發出特殊的叫聲。隨著橘子秘密線的推進，感知範圍會逐步擴大。'},
+    {title:'招募模式',icon:'🤝',body:'108 星辰之人透過六種方式加入：\n① 逼上梁山型（被迫害而投靠）\n② 義氣相投型（被正義行為感召）\n③ 計謀招攬型（需要策略說服）\n④ 比武收服型（必須擊敗對方）\n⑤ 連環引薦型（A 介紹 B）\n⑥ 時機限定型（錯過就失去）'},
+  ],
+  '角色':[
+    {title:'艾爾法😒',icon:'😒',body:'本作主角。天魁星。前鐵霧城城衛，因擅自釋放被扣押的糧食而遭解僱。銀色長髮，面無表情，沉默寡言但原則至上。不是英雄——是「做不到視而不見」的普通人。體內沉眠的星力是命運強加的枷鎖。'},
+    {title:'橘子🐈😒',icon:'🐈',body:'地魁星。五枚銅幣買來的布偶貓，雌性。藍眼睛，雙色毛，面癱。只會喵叫（由系統翻譯）。知力 99，看穿一切虛偽。對翻肚持強烈反對立場。她可能是 108 星中最接近真相的存在——命運之錨。'},
+    {title:'暗王（???）',icon:'👁️',body:'艾爾薩大陸幕後的神秘推手。不是 108 星之一，但其影響力凌駕於星辰之上。疑似在暗中操縱十二王國的政局。與星辰降世有某種關聯。真實身份完全不明。'},
+  ],
+  '系統':[
+    {title:'金幣系統',icon:'🪙',body:'三幣制：1 金 = 100 銀 = 1000 銅。金幣透過完成任務、打工、戰鬥獎勵、售出道具等方式獲得。用於購買裝備、道具、住宿、打探情報、角色修煉等。'},
+    {title:'HP（體力）',icon:'❤️',body:'角色的生命值。受傷扣HP，休息或使用道具回復。HP 歸零=瀕死。受傷程度分五級：健康（76%+）、輕傷、中傷、重傷、瀕死（0%）。職業會影響 HP 上限。'},
+    {title:'素質系統',icon:'📊',body:'五項基礎素質：\n・武力：物理攻擊、力量判定\n・知力：魔法、謀略、察覺判定\n・統率：士氣、指揮、恐嚇判定\n・魅力：說服、欺騙、交涉判定\n・幸運：機率、閃避、意外判定\n素質可透過修煉（消耗銀幣）提升。'},
+    {title:'骰子判定',icon:'🎲',body:'需要判斷成敗的行動使用 d20 骰子：投出 1~20 的隨機數 + 相關素質修正（素質值 ÷ 10）。結果與難度比較：大成功（20）、成功、失敗、大失敗（1）。戰鬥和技能檢定都使用此機制。'},
+    {title:'好感度',icon:'💛',body:'同伴對艾爾法的信任程度，0~100。影響：對話選項、羈絆技能解鎖、特殊劇情觸發。橘子的好感度初始 65。透過餵魚乾 +8、聊天互動、劇情選擇等方式提升。翻肚會降低好感。'},
+    {title:'羈絆技能',icon:'🔮',body:'好感度達到特定門檻後解鎖的特殊能力。\n・55：被動技能（如「貓眼警戒」骰子+3）\n・75：主動技能（如「無聲默契」解鎖隱藏選項）\n・95：覺醒技能（如「地魁之印」全場成功）\n每個同伴組合有不同的羈絆技能。'},
+    {title:'聲望系統',icon:'📈',body:'與各勢力的關係值，-100~+100。\n・盟友（60+）：商店八折、特殊任務\n・友好（20+）：九折、額外情報\n・中立：無特殊效果\n・敵對（-20~）：漲價、區域受阻\n・公敵（-60~）：見面即攻擊'},
+    {title:'職業系統',icon:'⚔️',body:'每位角色可選擇職業，影響素質加成和被動能力。\n戰鬥系：城衛、劍客、鬥士\n智謀系：術士、謀士\n輔助系：遊俠、密探、醫師、商賈\n特殊：命運之錨（橘子專屬）\n可透過劇情或「轉職」按鈕更換。'},
+    {title:'裝備強化',icon:'🔨',body:'裝備可強化 +1 至 +20。每級消耗銀幣（等級+1）×3。強化會按比例提升裝備的素質加成。+20 為上限。據點的鍛冶坊建成後上限提升至 +30。'},
+    {title:'時間與天氣',icon:'🌤️',body:'遊戲內時間以小時推進。每日 24 小時，跨日時隨機生成天氣。天氣影響行動：暴雨無法長距移動、濃霧視野受限、異常寒冷體力消耗加快。休息、趕路、過夜都會推進時間。'},
+    {title:'據點系統',icon:'🏛️',body:'招募 10 位星辰之人後解鎖。隨招募人數增加，可建設更多設施（鍛冶坊、炊煙閣、藏星閣等）。非戰鬥星辰經營據點：鐵匠強化武器、廚師恢復HP、密探偵查情報。108 星全員到齊時解鎖「天命之座」。'},
+    {title:'橘子秘密線',icon:'⚓',body:'橘子的真實身份透過五個階段逐步揭露。觸發條件包括：與橘子互動（聊天、餵魚）、好感度達標、蒐集天父星線索、特定劇情事件。每階段解鎖新的情報和能力。第五階段=命運之錨覺醒。'},
+    {title:'密技',icon:'💡',body:'在自由行動欄輸入特殊指令：\n・@錢：獲得大量金幣（測試用）\n・@骰子：開啟骰子面板'},
+  ],
+};
+const WIKI_CATS=Object.keys(WIKI_DATA);
+
+function buildWiki(){
+  const cat=_wikiFilter;
+  const filterRow=`<div class="sfrow" style="flex-wrap:wrap;">${WIKI_CATS.map(c=>`<button class="sfb ${cat===c?'ac':''}" onclick="setWikiFilter('${c}')">${c}</button>`).join('')}</div>`;
+  const items=WIKI_DATA[cat]||[];
+  const entries=items.map(item=>{
+    const bodyHtml=item.body.replace(/\n/g,'<br>');
+    const tagsHtml=item.tags?`<div style="display:flex;flex-wrap:wrap;gap:.2rem;margin-top:.35rem;">${item.tags.map(t=>`<span style="font-size:.5rem;padding:.06rem .28rem;border:1px solid rgba(201,168,76,.25);border-radius:2px;color:var(--goldd);">${t}</span>`).join('')}</div>`:'';
+    return`<details style="background:var(--bg3);border:1px solid var(--brd);border-radius:4px;margin-bottom:.4rem;overflow:hidden;">
+      <summary style="padding:.5rem .65rem;cursor:pointer;display:flex;align-items:center;gap:.45rem;font-size:.72rem;color:var(--sil);font-weight:600;list-style:none;">
+        <span style="font-size:.9rem;flex-shrink:0;">${item.icon}</span>
+        <span style="flex:1;">${item.title}</span>
+        <span style="font-size:.55rem;color:var(--sild);flex-shrink:0;">▼</span>
+      </summary>
+      <div style="padding:.45rem .65rem .55rem;border-top:1px solid var(--brd);font-size:.66rem;color:#7a8fa0;line-height:1.75;">
+        ${bodyHtml}${tagsHtml}
+      </div>
+    </details>`;
+  }).join('');
+  return filterRow+`<div style="margin-top:.3rem;">${entries}</div>`;
+}
+
 // ═══ HEADQUARTERS SYSTEM（據點系統）═══
 const HQ_UNLOCK_STARS=10; // 招募10人後解鎖
 const HQ_FACILITIES=[
@@ -2894,6 +2971,7 @@ function renderBoth(tab){
     else if(tab==='log')h=buildLog();
     else if(tab==='quest')h=buildQuest();
     else if(tab==='intel')h=buildIntel();
+    else if(tab==='wiki')h=buildWiki();
     else if(tab==='hq')h=buildHQ();
     else h='';
     if(cacheable.includes(tab)){_renderCache[tab]=h;_dirty[tab]=false;}

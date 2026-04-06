@@ -12,7 +12,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="assets/icon-192.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="assets/icon-192.svg">
-<link rel="stylesheet" href="css/style.css?v=4">
+<link rel="stylesheet" href="css/style.css?v=5">
 </head>
 <body>
 
@@ -231,6 +231,7 @@
       <button class="ptab" onclick="switchTab(this,'p','quest')">任務</button>
       <button class="ptab" onclick="switchTab(this,'p','intel')">情報</button>
       <button class="ptab" onclick="switchTab(this,'p','log')">劇誌</button>
+      <button class="ptab" onclick="switchTab(this,'p','wiki')">百科</button>
       <button class="ptab" id="hq-tab-p" onclick="switchTab(this,'p','hq')" style="opacity:.4;color:var(--sild);">據點🔒</button>
     </div>
     <div class="p-body">
@@ -240,6 +241,7 @@
       <div class="ptc" id="p-quest"></div>
       <div class="ptc" id="p-intel"></div>
       <div class="ptc" id="p-log"></div>
+      <div class="ptc" id="p-wiki"></div>
       <div class="ptc" id="p-hq"></div>
     </div>
   </div>
@@ -262,6 +264,7 @@
     <button class="dtab" onclick="switchTab(this,'d','quest')">任務</button>
     <button class="dtab" onclick="switchTab(this,'d','intel')">情報</button>
     <button class="dtab" onclick="switchTab(this,'d','log')">劇誌</button>
+    <button class="dtab" onclick="switchTab(this,'d','wiki')">百科</button>
     <button class="dtab" id="hq-tab-d" onclick="switchTab(this,'d','hq')" style="opacity:.4;color:var(--sild);">據點🔒</button>
   </div>
   <div class="drawer-body">
@@ -271,6 +274,7 @@
     <div class="dtc" id="d-quest"></div>
     <div class="dtc" id="d-intel"></div>
     <div class="dtc" id="d-log"></div>
+    <div class="dtc" id="d-wiki"></div>
     <div class="dtc" id="d-hq"></div>
   </div>
 </div>
@@ -282,7 +286,7 @@
   <button onclick="document.getElementById('pwa-install').style.display='none'" style="font-size:.8rem;background:none;border:none;color:var(--sild);cursor:pointer;">✕</button>
 </div>
 
-<script src="js/app.js?v=4"></script>
+<script src="js/app.js?v=5"></script>
 <script>
 // PWA Service Worker Registration
 if('serviceWorker' in navigator){
