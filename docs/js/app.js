@@ -2101,13 +2101,14 @@ function askOrangeSuggest(ev){
   showToast('橘子建議 ✦','ok');
 }
 
+function setStarFilter(k){G.starFilter=k;markDirty('stars');renderBoth('stars');}
 function buildStars(){
   const f=G.starFilter,ft=s=>f==='recruited'?s.status==='recruited':f==='unknown'?s.status==='unknown':true;
   const sT=f==='all'||f==='天罡'||f==='recruited'||f==='unknown';
   const sD=f==='all'||f==='地煞'||f==='recruited'||f==='unknown';
   const showSp=f==='all'||f==='special';
   const tot=[...TIANGANG,...DISHAT].filter(s=>s.status==='recruited').length;
-  let h=`<div class="sfrow">${[['all','全部'],['天罡','天罡36'],['地煞','地煞72'],['special','星外'],['recruited','已招募'],['unknown','未現身']].map(([k,l])=>`<button class="sfb ${f===k?'ac':''}" onclick="G.starFilter='${k}';markDirty('stars');renderBoth('stars')">${l}</button>`).join('')}</div><div class="rcnt">招募 <span>${tot}</span> / 108</div>`;
+  let h=`<div class="sfrow">${[['all','全部'],['天罡','天罡36'],['地煞','地煞72'],['special','星外'],['recruited','已招募'],['unknown','未現身']].map(([k,l])=>`<button class="sfb ${f===k?'ac':''}" onclick="setStarFilter('${k}')">${l}</button>`).join('')}</div><div class="rcnt">招募 <span>${tot}</span> / 108</div>`;
   if(showSp){
     h+=`<div class="sdiv">⚜ 星外關鍵人物 ⚜</div><div class="sgrid">`;
     h+=SPECIAL_CHARS.map(sp=>{
@@ -2623,12 +2624,13 @@ function addIntel(item){
   renderChanged('intel');saveGame();
 }
 
+function setIntelFilter(cat){G.intelFilter=cat;markDirty('intel');renderBoth('intel');}
 function buildIntel(){
   const items=G.intel||[];
   const filter=G.intelFilter||'全部';
   const filtered=filter==='全部'?items:filter==='橘子'?items.filter(i=>i.orange||i.cat==='橘子'):items.filter(i=>i.cat===filter);
 
-  const filterRow=`<div class="sfrow" style="flex-wrap:wrap;">${INTEL_CATS.map(cat=>`<button class="sfb ${(G.intelFilter||'全部')===cat?'ac':''}" onclick="G.intelFilter='${cat}';markDirty('intel');renderBoth('intel')" style="${cat==='橘子'?'color:rgba(180,140,220,.8);':''}">${cat}</button>`).join('')}</div>`;
+  const filterRow=`<div class="sfrow" style="flex-wrap:wrap;">${INTEL_CATS.map(cat=>`<button class="sfb ${(G.intelFilter||'全部')===cat?'ac':''}" onclick="setIntelFilter('${cat}')" style="${cat==='橘子'?'color:rgba(180,140,220,.8);':''}">${cat}</button>`).join('')}</div>`;
 
   if(!filtered.length) return filterRow+`<div style="padding:1.2rem .8rem;text-align:center;color:var(--sild);font-size:.7rem;">
     ${items.length?'此分類無情報':'尚無情報<br><span style="font-size:.6rem;opacity:.6">與NPC對話、探索地點可獲得情報<br>橘子有時會提供獨特的感知情報</span>'}
