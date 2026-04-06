@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>命運之星 · 108星辰錄</title>
+<meta name="description" content="西方奇幻版水滸傳文字RPG — 108顆命運之星，聚旗終結輪迴">
+<meta name="theme-color" content="#c9a84c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="命運之星">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="assets/icon-192.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/icon-192.svg">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- API KEY MODAL -->
+<div class="mlay" id="api-modal">
+  <div class="mbox api-mbox">
+    <div class="api-title">✦ 命運之星 ✦</div>
+    <div class="api-sub">
+      需要 Anthropic API 金鑰啟動故事引擎。<br>
+      免費取得：<a href="https://console.anthropic.com/keys" target="_blank">console.anthropic.com/keys</a>
+    </div>
+    <div class="api-warn" id="api-warn"></div>
+    <div class="flbl">API 金鑰</div>
+    <input class="finp" id="api-inp" type="password" placeholder="sk-ant-api03-xxxxxxxxxx…" autocomplete="off"/>
+    <button class="fbtn" onclick="saveKey()">✦ 開始遊戲</button>
+    <div class="api-note">金鑰僅存於您的瀏覽器本地（localStorage），不會傳送至任何第三方。</div>
+  </div>
+</div>
+
+<!-- CORS HELP MODAL -->
+<div class="mlay" id="cors-modal">
+  <div class="mbox cors-mbox">
+    <button class="mclose" onclick="document.getElementById('cors-modal').classList.remove('open')">✕</button>
+    <div class="cors-title">
+      <span style="font-size:1.1rem">⚠</span> API 無法連線
+    </div>
+    <div class="cors-sub">
+      用 <code>file://</code> 直接開啟 HTML 時，瀏覽器安全機制會封鎖 API 請求。<br>
+      以下任一方式可解決，選擇最方便的：
+    </div>
+    <div class="cors-method">
+      <div class="cors-mhdr"><div class="cors-badge cb1">1</div><div class="cors-mtitle">Python（最推薦）</div></div>
+      <div class="cors-mbody">
+        在資料夾開終端機，執行：
+        <div class="code-block"><span id="c1">python3 -m http.server 8765</span><button class="copy-btn" id="cpb1" onclick="doCopy('c1','cpb1')">複製</button></div>
+        <div class="cors-step">然後瀏覽器開啟 <b>http://localhost:8765</b></div>
+      </div>
+    </div>
+    <div class="cors-method">
+      <div class="cors-mhdr"><div class="cors-badge cb2">2</div><div class="cors-mtitle">Node.js / npx</div></div>
+      <div class="cors-mbody">
+        <div class="code-block"><span id="c2">npx serve . -p 8765</span><button class="copy-btn" id="cpb2" onclick="doCopy('c2','cpb2')">複製</button></div>
+        <div class="cors-step">開啟 <b>http://localhost:8765</b></div>
+      </div>
+    </div>
+    <div class="cors-method">
+      <div class="cors-mhdr"><div class="cors-badge cb3">3</div><div class="cors-mtitle">VS Code → Live Server</div></div>
+      <div class="cors-mbody"><div class="cors-step">右下角點 <b>Go Live</b>。</div></div>
+    </div>
+    <div style="margin-top:.85rem;padding:.6rem .68rem;background:rgba(201,168,76,.05);border:1px solid var(--brd);border-radius:3px;font-size:.67rem;color:var(--sild);line-height:1.7;">
+      💡 改從 <b style="color:var(--sil)">http://localhost:8765</b> 開啟，API 就能正常使用。
+    </div>
+    <button class="cors-close-btn" onclick="document.getElementById('cors-modal').classList.remove('open')">關閉</button>
+  </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div class="mlay" id="settings-modal">
+  <div class="mbox settings-mbox">
+    <div class="s-title">
+      <span>設定</span>
+      <button class="ib" onclick="closeSettings()" style="width:26px;height:26px;">✕</button>
+    </div>
+    <div class="s-row">
+      <div class="s-lbl">目前金鑰</div>
+      <div class="s-keydisp" id="key-disp">—</div>
+      <div class="s-status"><span class="s-dot" id="s-dot"></span><span id="s-stxt">未設定</span></div>
+      <div class="s-test-row">
+        <button class="s-test-btn" id="test-btn" onclick="testConn()">測試連接</button>
+        <span class="s-test-res" id="test-res"></span>
+      </div>
+    </div>
+    <div class="s-row">
+      <div class="s-lbl">更換金鑰</div>
+      <input class="s-inp" id="s-key" type="password" placeholder="sk-ant-api03-…" autocomplete="off"/>
+    </div>
+    <div class="s-row">
+      <div class="s-lbl">模型</div>
+      <select class="s-sel" id="s-model">
+        <option value="claude-sonnet-4-20250514">Claude Sonnet 4（推薦）</option>
+        <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5（快速省費）</option>
+        <option value="claude-opus-4-5">Claude Opus 4.5（最強・較慢）</option>
+      </select>
+    </div>
+    <div class="s-row">
+      <div class="s-lbl">回應長度</div>
+      <select class="s-sel" id="s-tok">
+        <option value="800">800・快速</option>
+        <option value="1200" selected>1200・標準</option>
+        <option value="2000">2000・詳細</option>
+      </select>
+    </div>
+    <hr class="s-divider">
+    <div class="s-row">
+      <div class="s-lbl">故事記憶管理</div>
+      <div style="font-size:.62rem;color:var(--sild);margin-bottom:.38rem;" id="history-stat">—</div>
+      <button class="sbn p" onclick="compressHistory()" id="compress-btn" style="width:100%;margin-bottom:.4rem;">✦ 整理記憶（壓縮故事歷史）</button>
+      <div style="font-size:.6rem;color:var(--sild);line-height:1.55;">對話累積過長時使用。</div>
+    </div>
+    <hr class="s-divider">
+    <div class="s-row">
+      <div class="s-lbl">危險操作</div>
+      <button class="sbn c" onclick="resetGame()" style="width:100%;border-color:rgba(200,80,80,.35);color:#f99;">重置遊戲進度</button>
+    </div>
+    <hr class="s-divider">
+    <div class="s-row">
+      <div class="s-lbl">跨裝置同步</div>
+      <div style="font-size:.62rem;color:var(--sild);margin-bottom:.5rem;">匯出存檔 → 複製 → 新裝置貼上匯入</div>
+      <div style="display:flex;gap:.45rem;margin-bottom:.4rem;">
+        <button class="sbn p" onclick="exportSave()" style="flex:1;">📤 匯出</button>
+        <button class="sbn c" onclick="importSave()" style="flex:1;">📥 匯入</button>
+      </div>
+      <textarea id="save-io" style="width:100%;height:72px;background:var(--bg3);border:1px solid var(--brd);border-radius:3px;color:var(--sil);font-family:monospace;font-size:.6rem;padding:.4rem;resize:none;outline:none;" placeholder="匯入時在此貼上存檔文字…"></textarea>
+    </div>
+    <div class="s-btns">
+      <button class="sbn c" onclick="closeSettings()">取消</button>
+      <button class="sbn p" onclick="applySettings()">儲存設定</button>
+    </div>
+  </div>
+</div>
+
+<!-- DETAIL / SWAP / SHOP / DICE / MAP MODALS -->
+<div class="mlay" id="detail-modal" onclick="closeDOut(event)"><div class="mbox detail-mbox"><button class="mclose" onclick="closeD()">✕</button><div id="modal-inner"></div></div></div>
+<div class="mlay" id="swap-modal" onclick="if(event.target===this)this.classList.remove('open')"><div class="mbox" style="max-width:380px;padding:1.3rem 1.4rem;"><div id="swap-inner"></div></div></div>
+<div class="mlay" id="shop-modal" onclick="if(event.target===this)closeShop()">
+  <div class="mbox" style="max-width:460px;padding:0;overflow:hidden;border-radius:6px;">
+    <div style="padding:.65rem 1rem;background:linear-gradient(135deg,rgba(201,168,76,.12),transparent);border-bottom:1px solid var(--brd);display:flex;justify-content:space-between;align-items:center;">
+      <div><div id="shop-name" style="font-size:.85rem;color:var(--gold);font-weight:700;letter-spacing:.08em;"></div><div style="font-size:.65rem;color:var(--sild);margin-top:.1rem;">持有：<span id="shop-gold"></span></div></div>
+      <button class="mclose" onclick="closeShop()">✕</button>
+    </div>
+    <div style="display:flex;border-bottom:1px solid var(--brd);">
+      <button id="shop-tab-buy" onclick="switchShopTab('buy')" style="flex:1;padding:.4rem;background:rgba(201,168,76,.08);border:none;border-bottom:2px solid var(--goldd);color:var(--gold);font-size:.68rem;cursor:pointer;font-family:'Noto Serif TC',serif;">購買</button>
+      <button id="shop-tab-sell" onclick="switchShopTab('sell')" style="flex:1;padding:.4rem;background:transparent;border:none;border-bottom:2px solid transparent;color:var(--sild);font-size:.68rem;cursor:pointer;font-family:'Noto Serif TC',serif;">售出</button>
+    </div>
+    <div id="shop-items" style="max-height:360px;overflow-y:auto;padding:.6rem .9rem;display:flex;flex-direction:column;gap:.5rem;"></div>
+  </div>
+</div>
+<div class="mlay" id="dice-modal" onclick="if(event.target===this)closeDiceModal()">
+  <div class="mbox" style="max-width:420px;padding:1.2rem 1.4rem;">
+    <div style="font-size:.85rem;color:var(--gold);letter-spacing:.1em;margin-bottom:.8rem;font-weight:700;">🎲 素質判定</div>
+    <div id="dice-char-select" style="margin-bottom:.7rem;"></div>
+    <div id="dice-stat-select" style="margin-bottom:.9rem;"></div>
+    <div id="dice-result" style="min-height:80px;display:flex;align-items:center;justify-content:center;"></div>
+    <div style="display:flex;gap:.5rem;margin-top:.85rem;">
+      <button onclick="rollDice()" id="roll-btn" style="flex:1;padding:.5rem;background:rgba(201,168,76,.15);border:1px solid rgba(201,168,76,.5);border-radius:3px;color:var(--gold);font-family:'Noto Serif TC',serif;font-size:.8rem;cursor:pointer;">投擲！</button>
+      <button onclick="confirmDiceResult()" id="confirm-dice-btn" style="display:none;flex:1;padding:.5rem;background:rgba(80,160,80,.15);border:1px solid rgba(80,160,80,.5);border-radius:3px;color:#6ab46a;font-family:'Noto Serif TC',serif;font-size:.8rem;cursor:pointer;">帶入故事</button>
+      <button onclick="closeDiceModal()" style="padding:.5rem .8rem;background:transparent;border:1px solid var(--brd);border-radius:3px;color:var(--sild);font-family:'Noto Serif TC',serif;font-size:.8rem;cursor:pointer;">取消</button>
+    </div>
+  </div>
+</div>
+<div class="mlay" id="map-modal" onclick="if(event.target===this)closeMap()">
+  <div class="mbox" style="max-width:680px;width:100%;padding:0;overflow:hidden;border-radius:6px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:.65rem 1rem;background:linear-gradient(135deg,rgba(201,168,76,.1),transparent);border-bottom:1px solid var(--brd);">
+      <span id="map-breadcrumb" style="font-size:.75rem;color:var(--gold);letter-spacing:.08em;">艾爾薩大陸</span>
+      <button class="mclose" style="padding:.4rem .8rem;" onclick="closeMap()">✕</button>
+    </div>
+    <div id="map-container" style="position:relative;overflow:hidden;background:#060d14;"></div>
+    <div id="map-info" style="display:none;padding:.6rem 1rem;border-top:1px solid var(--brd);background:var(--bg2);"></div>
+  </div>
+</div>
+
+<div class="save-ind" id="save-indicator">✦ 已自動存檔</div>
+<div class="toast" id="toast"></div>
+
+<!-- HEADER -->
+<div class="hdr">
+  <div>
+    <div class="hdr-t">命運之星</div>
+    <div class="hdr-s">108 Stars · Elsa Continent</div>
+  </div>
+  <div class="hdr-r">
+    <div class="hdr-g">🪙 <b id="gold-hdr">銀8・銅135</b></div>
+    <div id="time-hdr" style="font-size:.58rem;color:var(--sild);letter-spacing:.05em;"></div>
+    <button class="ib" onclick="syncAll()" title="同步所有狀態"><svg viewBox="0 0 16 16"><path d="M13.5 8A5.5 5.5 0 012.5 8" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M11 5.5l2.5 2.5 2.5-2.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.5 8A5.5 5.5 0 0113.5 8" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M5 10.5L2.5 8 0 10.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <button class="ib" onclick="openMap()" title="地圖"><svg viewBox="0 0 16 16"><path d="M1 3l4 1.5 6-2 4 1.5v9l-4-1.5-6 2-4-1.5V3z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><line x1="5" y1="4.5" x2="5" y2="13" stroke="currentColor" stroke-width="1"/><line x1="11" y1="2.5" x2="11" y2="11" stroke="currentColor" stroke-width="1"/></svg></button>
+    <button class="ib" id="drawer-btn" onclick="toggleDrawer()" style="display:none"><svg viewBox="0 0 16 16"><rect x="1" y="2" width="14" height="2.5" rx="1"/><rect x="1" y="6.75" width="14" height="2.5" rx="1"/><rect x="1" y="11.5" width="14" height="2.5" rx="1"/></svg></button>
+    <button class="ib ac" id="panel-btn" onclick="togglePanel()"><svg viewBox="0 0 16 16"><rect x="1" y="2" width="14" height="2.5" rx="1"/><rect x="1" y="6.75" width="14" height="2.5" rx="1"/><rect x="1" y="11.5" width="14" height="2.5" rx="1"/></svg></button>
+    <button class="ib" onclick="openSettings()"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="2"/><path d="M8 2a.65.65 0 00-.63.49l-.25.88a4.5 4.5 0 00-.76.44l-.85-.21a.65.65 0 00-.72.31l-.65 1.13a.65.65 0 00.15.82l.69.58a4.5 4.5 0 000 .88l-.69.58a.65.65 0 00-.15.82l.65 1.13a.65.65 0 00.72.31l.85-.21c.24.17.49.32.76.44l.25.88A.65.65 0 008 14a.65.65 0 00.63-.49l.25-.88c.27-.12.52-.27.76-.44l.85.21a.65.65 0 00.72-.31l.65-1.13a.65.65 0 00-.15-.82l-.69-.58a4.5 4.5 0 000-.88l.69-.58a.65.65 0 00.15-.82l-.65-1.13a.65.65 0 00-.72-.31l-.85.21a4.5 4.5 0 00-.76-.44l-.25-.88A.65.65 0 008 2z"/></svg></button>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="app-body">
+  <div class="story-side">
+    <div class="scene-bar">
+      <span class="scene-t" id="scene-title">序章・Day 1　傍晚</span>
+      <span class="scene-l" id="scene-loc">📍 鐵霧城・碼頭</span>
+    </div>
+    <div class="story-scroll" id="story-scroll">
+      <div id="story-content"></div>
+      <div id="scroll-anchor"></div>
+      <button class="scroll-top-btn" id="scroll-top-btn" onclick="document.getElementById('story-scroll').scrollTop=0" title="回到頂部">▲</button>
+    </div>
+    <div class="choices-wrap">
+      <div class="ch-label">＊ 行動選擇 ＊</div>
+      <div class="ch-grid" id="ch-grid"></div>
+      <div class="free-row" id="free-row">
+        <button id="dice-btn" onclick="openDiceModal()" title="素質判定" style="display:none;padding:.4rem .55rem;background:rgba(201,168,76,.12);border:1px solid var(--goldd);border-radius:3px;color:var(--gold);cursor:pointer;font-size:.85rem;flex-shrink:0;transition:all .2s;animation:pulse .9s infinite alternate;">🎲</button>
+        <button id="shop-btn" onclick="reopenShop()" title="商店" style="display:none;padding:.4rem .55rem;background:rgba(100,180,100,.12);border:1px solid rgba(100,180,100,.5);border-radius:3px;color:rgba(130,200,130,.9);cursor:pointer;font-size:.85rem;flex-shrink:0;">🏪</button>
+        <input class="free-inp" id="free-inp" placeholder="輸入自由行動… （密技：@錢）"/>
+        <button class="free-send" onclick="sendFree()">送出</button>
+      </div>
+    </div>
+  </div>
+  <div class="panel-side" id="panel-side">
+    <div class="p-tabs">
+      <button class="ptab ac" onclick="switchTab(this,'p','party')">同伴</button>
+      <button class="ptab" onclick="switchTab(this,'p','stars')">星辰</button>
+      <button class="ptab" onclick="switchTab(this,'p','inv')">道具</button>
+      <button class="ptab" onclick="switchTab(this,'p','quest')">任務</button>
+      <button class="ptab" onclick="switchTab(this,'p','intel')">情報</button>
+      <button class="ptab" onclick="switchTab(this,'p','log')">劇誌</button>
+    </div>
+    <div class="p-body">
+      <div class="ptc ac" id="p-party"></div>
+      <div class="ptc" id="p-stars"></div>
+      <div class="ptc" id="p-inv"></div>
+      <div class="ptc" id="p-quest"></div>
+      <div class="ptc" id="p-intel"></div>
+      <div class="ptc" id="p-log"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MOBILE DRAWER -->
+<div class="drawer-ov" id="drawer-ov" onclick="closeDrawer()"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-hrow" onclick="toggleDrawer()">
+    <div class="drawer-handle"></div>
+    <div class="drawer-peek">
+      <span class="drawer-lbl">✦ 星辰面板</span>
+      <span class="drawer-gold" id="drawer-gold">🪙 銀8・銅135</span>
+    </div>
+  </div>
+  <div class="drawer-tabs">
+    <button class="dtab ac" onclick="switchTab(this,'d','party')">同伴</button>
+    <button class="dtab" onclick="switchTab(this,'d','stars')">星辰</button>
+    <button class="dtab" onclick="switchTab(this,'d','inv')">道具</button>
+    <button class="dtab" onclick="switchTab(this,'d','quest')">任務</button>
+    <button class="dtab" onclick="switchTab(this,'d','intel')">情報</button>
+    <button class="dtab" onclick="switchTab(this,'d','log')">劇誌</button>
+  </div>
+  <div class="drawer-body">
+    <div class="dtc ac" id="d-party"></div>
+    <div class="dtc" id="d-stars"></div>
+    <div class="dtc" id="d-inv"></div>
+    <div class="dtc" id="d-quest"></div>
+    <div class="dtc" id="d-intel"></div>
+    <div class="dtc" id="d-log"></div>
+  </div>
+</div>
+
+<!-- PWA Install Prompt -->
+<div id="pwa-install" style="display:none;position:fixed;bottom:1.2rem;left:50%;transform:translateX(-50%);z-index:998;background:var(--bg2);border:1px solid var(--brdb);border-radius:6px;padding:.5rem 1rem;display:none;align-items:center;gap:.6rem;box-shadow:0 4px 20px rgba(0,0,0,.5);">
+  <span style="font-size:.72rem;color:var(--sil);">✦ 安裝為 App</span>
+  <button id="pwa-install-btn" style="font-size:.68rem;padding:.28rem .6rem;background:rgba(201,168,76,.15);border:1px solid var(--goldd);border-radius:3px;color:var(--gold);cursor:pointer;font-family:'Noto Serif TC',serif;">安裝</button>
+  <button onclick="document.getElementById('pwa-install').style.display='none'" style="font-size:.8rem;background:none;border:none;color:var(--sild);cursor:pointer;">✕</button>
+</div>
+
+<script src="js/app.js"></script>
+<script>
+// PWA Service Worker Registration
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').then(reg=>{
+    reg.addEventListener('updatefound',()=>{
+      const w=reg.installing;
+      w.addEventListener('statechange',()=>{
+        if(w.state==='activated')showToast('✦ 已更新至最新版本','ok');
+      });
+    });
+  }).catch(e=>console.warn('SW registration failed:',e));
+}
+// PWA Install Prompt
+let _deferredPrompt;
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault();_deferredPrompt=e;
+  document.getElementById('pwa-install').style.display='flex';
+});
+document.getElementById('pwa-install-btn')?.addEventListener('click',async()=>{
+  if(!_deferredPrompt)return;
+  _deferredPrompt.prompt();
+  const r=await _deferredPrompt.userChoice;
+  if(r.outcome==='accepted')showToast('✦ 已安裝到裝置','ok');
+  _deferredPrompt=null;
+  document.getElementById('pwa-install').style.display='none';
+});
+</script>
+</body>
+</html>
+</content>
+</invoke>
