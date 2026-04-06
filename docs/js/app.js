@@ -216,7 +216,14 @@ const SYS=`你是西方奇幻版水滸傳文字RPG故事引擎。靈感來源：
 【二元抉擇】重要選擇應有真正的道德困境：救一城百姓 vs 追擊叛徒、接受招安換和平 vs 堅持戰鬥求正義。沒有明確正確答案。
 【決鬥與軍戰】重要對手用cb觸發決鬥（對話暗示出招方向）；大規模衝突用敘述描寫軍戰，結果受已招募星辰的專長影響。
 【稱號系統】每位星辰都有二字稱號（如「霜刃」「醉風」「鐵算」），反映其身份與命運。新角色登場時必須給予稱號。
-【文風】乾燥、克制、偶有黑色幽默。不濫情。角色用行動表達感情，不用獨白。允許荒誕——命運本身就是最大的荒誕。
+【文風】帶刺的幽默與冷面笑匠。嚴肅的世界觀配上不正經的日常。範例風格：
+  ・戰鬥描寫像武俠，日常對話像吐槽漫才。
+  ・NPC可以荒謬（收稅的騎士怕蜘蛛、劍聖其實是路癡），但荒謬背後有人性。
+  ・艾爾法的面無表情本身就是笑點——全世界都在混亂，她永遠一臉「嗯」。
+  ・橘子的系統翻譯是吐槽擔當，翻譯內容可以比原話犀利十倍。
+  ・在危機場景中穿插荒誕小細節（決鬥前對手鞋帶鬆了、密談時有人打呼）。
+  ・不用刻意搞笑。最好的幽默是角色認真做蠢事，或蠢角色做認真事。
+  ・悲劇場景不加幽默——知道什麼時候該收。
 
 ═══ 主角設定 ═══
 艾爾法😒（天魁星）：不求領導，被推上位。她的原則不是為了英雄主義，是因為「做不到視而不見」。沉默寡言，面無表情下藏著固執的善良。體內沉眠的星力=命運強加的枷鎖。
@@ -229,7 +236,12 @@ const SYS=`你是西方奇幻版水滸傳文字RPG故事引擎。靈感來源：
 1. 只輸出純JSON。違反=失敗。
 2. nv每段60-80字，1-3段。
 3. 橘子台詞：sp="橘子🐈😒" ln="喵——"，緊接{sp:"系統",ln:"〔翻譯〕"}。
-4. ch提供3-4個策略各異的選項。每個選項應代表不同的價值取向（正義/實利/謹慎/冒險）。
+4. ch提供3-4個策略各異的選項。規則：
+  ・每個選項代表不同價值取向（正義/實利/謹慎/冒險/幽默）。
+  ・選項文字要有個性，不要「調查周圍」這種白開水。好的選項像角色會說的話。
+  ・h欄位用於提示後果方向（「可能觸發戰鬥」「需要口才」「橘子會有反應」），不要留空。
+  ・至少一個選項帶點幽默或意外感（「把乾糧遞給她——反正也不好吃」）。
+  ・永遠保留一個「問橘子」或「觀察」類的安全選項，讓不確定的玩家有退路。
 5. 每個角色有固定emoji，全程不換。
 6.【最高優先】玩家行動必須如實執行。未指定互動時，禁止安排同伴主動發言。
 7. 同伴只在：(a)玩家主動互動、(b)劇情危機、(c)選項後果時才發言。
@@ -249,6 +261,8 @@ const SYS=`你是西方奇幻版水滸傳文字RPG故事引擎。靈感來源：
 21. shop：進入商店填此欄。{id:"唯一id",name:"商店名",baseKey:"general/blacksmith/inn/apothecary",newItems:[只填新商品]}。
 22. sp：星辰感知。108星{"num":N,"type":"天罡/地煞","star":"星名","name":"稱呼","hint":"","special":false}；星外{"id":"sky_father/shadow_king","special":true,"status":"heard","hint":""}。
 23. nm：新成員加入。{id,name,star,type,num,title,emoji,desc,portrait,stats:{武力,知力,統率,魅力,幸運},tl:[{n,s,d}],eq:{武器,防具,飾品},baseLv}。每位新成員必須有二字稱號作為title的一部分。
+24. 格式化指令結束。
+25. 簡單戰鬥（路遇小怪、攔路強盜）用cb觸發本地骰子，不要在nv中描述完整戰鬥過程。boss戰和劇情戰鬥才需要詳細描寫。
 
 【絕對規則・資料同步】違反＝系統崩潰：
 A. 凡敘述涉及金幣收支，gd必須填對應數值。禁止只在nv/dl提及而gd留{g:0,s:0,c:0}。
@@ -259,6 +273,7 @@ E. 凡敘述涉及任務變動，qt必須填。
 F. 凡敘述涉及時間推進，tm必須填。
 G. nv/dl的文字描述≠數值生效。只有JSON欄位才能改變遊戲狀態。
 H. 讀取【背景數值】作為當前真實狀態，不要自行推算或記憶舊值。
+I. 標記為【UI互動】的訊息是玩家在介面上點擊按鈕產生的旁白（如翻肚、餵魚、聊天）。這些只是背景資訊，用於豐富角色認知。絕對不要因為UI互動而推進場景、改變地點、觸發事件或跳過玩家正在進行的對話。下一次回應必須延續UI互動發生前的劇情脈絡。
 `;
 
 
@@ -295,22 +310,30 @@ function apiHit429(){
   showToast(`⏳ API 限速，${Math.ceil(next/1000)}秒後自動重試`,'err');
 }
 
+let _sysPromptSent=false;
+let _lastSentGold=null;
+const SYS_SHORT='繼續用之前的規則。只輸出JSON。保持角色性格與世界觀一致。欄位格式同前。cb用於戰鬥骰子。gd/iv/hp/fa/qt/tm必須與敘述同步。';
 async function callAPI(action){
   if(!CFG.key){document.getElementById('api-modal').classList.add('open');throw new Error('請先設定 API 金鑰');}
   await apiGate();
-  // 每次呼叫附上當前遊戲狀態快照，確保 AI 知道真實數值（不依賴文字推算）
-  const inv=getInv();
+  // 壓縮狀態快照：只發送變化的資料
   const partySnap=allParty().filter(m=>m.id!=='orange').map(m=>{
     const hp=getHP(m.id);const job=getJob(m.id);
     return `${m.name}/${job||'?'}/HP${hp.cur}`;
   }).join(',')+'；橘子HP'+getHP('orange').cur+'/好感'+getFavor('orange');
-  const goldSnap=`金${G.gold.gold}・銀${G.gold.silver}・銅${G.gold.copper}`;
-  const questSnap=(G.quests||[]).filter(q=>q.status==='active').map(q=>q.title).join('、')||'無';
-  const favorSnap=allParty().filter(m=>m.id!=='alfar').map(m=>`${m.name}好感${getFavor(m.id)}`).join(',');
-  const invSnap=(()=>{const iv=getInv();const items=iv.items.map(i=>i.n+(i.q||'')).join(',');return items||'無';})();
-  const flipSnap=G.bellyFlipCount>0?` | 翻肚累計:${G.bellyFlipCount}次`:'';
-  const stateNote=`【背景數值・此為真實狀態・必須據此填寫JSON欄位】時間:${getTimeContext()} | 持有金幣:${goldSnap} | 隊員:${partySnap} | 好感:${favorSnap}${flipSnap} | 道具:${invSnap} | 任務:${questSnap}`;
+  const goldStr=`金${G.gold.gold}・銀${G.gold.silver}・銅${G.gold.copper}`;
+  const goldSnap=goldStr!==_lastSentGold?goldStr:'';
+  _lastSentGold=goldStr;
+  const activeQuests=(G.quests||[]).filter(q=>q.status==='active');
+  const questSnap=`任務${activeQuests.length}件`;
+  const invItems=getInv().items||[];
+  const invSnap=`道具${invItems.length}件`;
+  const flipSnap=G.bellyFlipCount>0?`|翻肚${G.bellyFlipCount}`:'';
+  let stateNote=`【狀態】${getTimeContext()}|${goldSnap?'金:'+goldSnap+'|':''}隊:${partySnap}${flipSnap}|${invSnap}|${questSnap}`;
+  if(stateNote.length>150)stateNote=stateNote.slice(0,147)+'…';
   G.history.push({role:'user',content:`${stateNote}\n${action}`});
+  // 首次呼叫送完整 SYS，之後送精簡版（省 ~2000 tokens）
+  const sysToSend=_sysPromptSent?SYS_SHORT:SYS;
   let res;
   try{
     res=await fetch('https://api.anthropic.com/v1/messages',{
@@ -321,13 +344,14 @@ async function callAPI(action){
         'anthropic-version':'2023-06-01',
         'anthropic-dangerous-direct-browser-access':'true',
       },
-      body:JSON.stringify({model:CFG.model,max_tokens:CFG.tokens,system:SYS,messages:G.history})
+      body:JSON.stringify({model:CFG.model,max_tokens:CFG.tokens,system:sysToSend,messages:G.history})
     });
   }catch(e){
     apiDone();G.history.pop();
     if(isCorsErr(e)){document.getElementById('cors-modal').classList.add('open');}
     throw new Error(isCorsErr(e)?'網路/CORS 錯誤（請用本地伺服器）':('網路錯誤：'+e.message));
   }
+  _sysPromptSent=true;
   if(!res.ok){
     apiDone();G.history.pop();
     if(res.status===429){apiHit429();throw new Error('請求過於頻繁，已啟動冷卻');}
@@ -355,7 +379,7 @@ async function callAPI(action){
     resR=await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
       headers:{'Content-Type':'application/json','x-api-key':CFG.key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:CFG.model,max_tokens:CFG.tokens,system:SYS,messages:histForRetry})
+      body:JSON.stringify({model:CFG.model,max_tokens:CFG.tokens,system:sysToSend,messages:histForRetry})
     });
   }catch(e){apiDone();throw new Error('重試失敗：'+e.message);}
   apiDone();
@@ -384,16 +408,17 @@ function scrollD(){const s=document.getElementById('story-scroll');setTimeout(()
 // 本地事件推入 history 的輔助函式：合併連續同類事件，避免膨脹
 function pushLocalEvent(msg){
   const emptyJson='{"st":"'+G.sceneTitle+'","sl":"'+G.sceneLoc+'","nv":[],"dl":[],"sm":null,"gd":{"g":0,"s":0,"c":0},"ch":[],"nm":null,"cb":null,"iv":null,"sp":null,"shop":null,"fa":null,"hp":null,"qt":null,"tm":null,"rp":null,"info":null,"relic":null,"clue":null,"or":null,"job":null}';
-  // 若上一組也是系統事件，合併內容而非新增
+  const tagged='【UI互動・純背景資訊・不推進劇情・不改變場景】'+msg;
+  // 若上一組也是 UI 互動，合併
   if(G.history.length>=2){
     const lastU=G.history[G.history.length-2];
     const lastA=G.history[G.history.length-1];
-    if(lastU.role==='user'&&lastU.content.startsWith('【系統事件')&&lastA.role==='assistant'){
+    if(lastU.role==='user'&&lastU.content.startsWith('【UI互動')&&lastA.role==='assistant'){
       lastU.content+='\n'+msg;
       return;
     }
   }
-  G.history.push({role:'user',content:msg});
+  G.history.push({role:'user',content:tagged});
   G.history.push({role:'assistant',content:emptyJson});
 }
 
@@ -980,7 +1005,7 @@ function renderChoices(arr,doSave=true){
   fb.onclick=()=>{const r=document.getElementById('free-row');r.classList.toggle('open');if(r.classList.contains('open'))document.getElementById('free-inp').focus();};
   g.appendChild(fb);
 }
-function renderFallback(){renderChoices([{t:'繼續聆聽對方說明',h:''},{t:'詢問傷勢和來歷',h:'（讀心）'},{t:'提議調查霧刃幫',h:''}]);}
+function renderFallback(){renderChoices([{t:'「⋯⋯繼續說。」',h:'等對方把話說完'},{t:'環顧四周，確認沒有人在偷聽',h:'謹慎行動'},{t:'低頭看橘子——她通常知道些什麼',h:'橘子感知'},{t:'什麼都不做。沉默有時候是最好的回答',h:'觀望'}]);}
 function sendFree(){
   const v=document.getElementById('free-inp').value.trim();
   if(!v)return;
@@ -3341,13 +3366,13 @@ function initStory(){
   opening.forEach(e=>appendEntryToDOM(e));
   G.history=[
     {role:'user',content:'故事開始。場景：鐵霧城碼頭傍晚。艾爾法是被解僱的城衛（因釋放被扣糧食），身邊只有一隻五銅幣買來的布偶貓橘子。一名受傷的紅髮女人找上門，說霧刃幫搶了她一封「牽扯很多人命」的信，她需要認識山路的人幫忙。橘子判斷她「說真話但沒說完全部」。請繼續並給出行動選項。'},
-    {role:'assistant',content:'{"st":"序章・逼上梁山 Day 1","sl":"📍 鐵霧城・碼頭","nv":["紅髮女人在等待回答。霧越來越濃，山口方向隱約傳來犬吠——追兵可能不遠。"],"dl":[],"sm":null,"gd":{"g":0,"s":0,"c":0},"ch":[{"t":"答應幫忙，但要求先說清楚信的內容","h":"（知力判定・可能觸發讀心）"},{"t":"拒絕。你有你的麻煩，我有我的","h":"（冷漠路線）"},{"t":"先帶她躲起來再說——追兵可能已經到了","h":"（實際路線）"},{"t":"問橘子的看法","h":"（橘子感知）"}],"nm":null,"cb":null,"iv":null,"sp":null,"shop":null,"fa":null,"hp":null,"qt":null,"tm":null,"rp":null,"info":null,"relic":null,"clue":null,"or":null,"job":null}'}
+    {role:'assistant',content:'{"st":"序章・逼上梁山 Day 1","sl":"📍 鐵霧城・碼頭","nv":["紅髮女人在等待回答。霧越來越濃，山口方向隱約傳來犬吠——追兵可能不遠。"],"dl":[],"sm":null,"gd":{"g":0,"s":0,"c":0},"ch":[{"t":"「信裡寫了什麼？先說清楚，我再決定。」","h":"冷靜・可能觸發讀心"},{"t":"「不關我的事。」轉身繼續啃乾糧","h":"冷漠・但橘子可能不同意"},{"t":"拉她蹲進貨箱後面——遠處的犬吠近了","h":"實際・時間緊迫"},{"t":"低頭看橘子。橘子通常比她更清楚該怎麼做","h":"橘子感知・安全選項"}],"nm":null,"cb":null,"iv":null,"sp":null,"shop":null,"fa":null,"hp":null,"qt":null,"tm":null,"rp":null,"info":null,"relic":null,"clue":null,"or":null,"job":null}'}
   ];
   const initChoices=[
-    {t:'答應幫忙，但要求先說清楚信的內容',h:'（知力判定）'},
-    {t:'拒絕。你有你的麻煩，我有我的',h:'（冷漠路線）'},
-    {t:'先帶她躲起來再說——追兵快到了',h:'（實際路線）'},
-    {t:'問橘子的看法',h:'（橘子感知）'}
+    {t:'「信裡寫了什麼？先說清楚，我再決定。」',h:'冷靜・可能觸發讀心'},
+    {t:'「不關我的事。」轉身繼續啃乾糧',h:'冷漠・但橘子可能不同意'},
+    {t:'拉她蹲進貨箱後面——遠處的犬吠近了',h:'實際・時間緊迫'},
+    {t:'低頭看橘子。橘子通常比她更清楚該怎麼做',h:'橘子感知・安全選項'}
   ];
   renderChoices(initChoices);
   saveGame();
@@ -3403,6 +3428,56 @@ function autoCombat(cb){
         const msg=`【骰子判定結果】${cb.desc||''}：投出${raw}，加值+${mod}，合計${total}（難度${diff}）。結果：${grade}。${success?'成功，請依成功後果繼續劇情。':'失敗，請依失敗後果繼續劇情。'}`;
         sendChoice(msg);
       },1800);
+    }
+  },70);
+}
+
+// ═══ LOCAL COMBAT (no API needed for basic encounters) ═══
+function localCombat(enemyName,difficulty){
+  difficulty=difficulty||10;
+  const char=getCharData('alfar');
+  const statVal=char?.stats['武力']||0;
+  const mod=Math.floor(statVal/10);
+  const raw=Math.floor(Math.random()*20)+1;
+  const total=raw+mod;
+  const success=total>=difficulty;
+  const crit=raw===20,fumble=raw===1;
+  const grade=crit?'大成功！':fumble?'大失敗…':total>=difficulty+4?'完全成功':success?'成功':total>=difficulty-3?'失敗':'重大失敗';
+  const col=crit?'#f0d060':fumble?'#f06060':success?'#80d080':'#d08060';
+  // 計算傷害
+  const baseDmg=success?(crit?Math.floor(difficulty*1.5):Math.floor(difficulty*0.8)):0;
+  const takenDmg=success?0:(fumble?15:Math.max(3,8-Math.floor(mod/2)));
+  // 獎勵
+  const goldReward=success?Math.floor(difficulty*0.5+(crit?difficulty:0)):0;
+  const xpReward=success?Math.floor(difficulty*2):Math.floor(difficulty*0.5);
+  // 顯示戰鬥動畫
+  appendEntryToDOM({type:'sys',v:`⚔️ 遭遇 ${enemyName}！（難度 ${difficulty}）`});
+  const animDiv=mk('div','sentry');
+  animDiv.innerHTML=`<div class="s-sys" id="lc-anim-box" style="font-size:1.2rem;text-align:center;letter-spacing:.3em;">🎲 ？</div>`;
+  document.getElementById('story-content').appendChild(animDiv);scrollD();
+  let tick=0;
+  const anim=setInterval(()=>{
+    const fake=Math.floor(Math.random()*20)+1;
+    const box=document.getElementById('lc-anim-box');
+    if(box)box.textContent=`🎲 ${fake}`;
+    if(++tick>12){
+      clearInterval(anim);
+      const box2=document.getElementById('lc-anim-box');
+      if(box2)box2.innerHTML=`<span style="color:${col};font-size:1.6rem;font-weight:700">${raw}</span><span style="color:var(--sild);font-size:.72rem;"> +${mod}(武力) = </span><span style="color:${col};font-weight:700">${total}</span>　<span style="color:${col}">${grade}</span>`;
+      // 結果文字
+      if(success){
+        appendEntryToDOM({type:'sys',v:`✓ 擊敗 ${enemyName}！獲得 ${goldReward} 銅幣，經驗 +${xpReward}`});
+        if(goldReward>0)applyGold({g:0,s:0,c:goldReward});
+      }else{
+        appendEntryToDOM({type:'sys',v:`✗ ${enemyName} 的攻擊命中！受到 ${takenDmg} 點傷害`});
+        applyHPChange([{id:'alfar',delta:-takenDmg,reason:`${enemyName}攻擊（${grade}）`}]);
+      }
+      scrollD();saveGame();
+      // 呼叫 AI 進行敘事延續
+      setTimeout(()=>{
+        const msg=`【本地戰鬥結果】遭遇${enemyName}（難度${difficulty}）：投出${raw}+${mod}=${total}，${grade}。${success?`擊敗敵人，獲得${goldReward}銅幣。請簡短描述戰後情況並繼續劇情。`:`受到${takenDmg}傷害。請簡短描述受傷情況並繼續劇情。`}`;
+        sendChoice(msg);
+      },1500);
     }
   },70);
 }
@@ -3675,162 +3750,65 @@ function renderContinentMap(){
   document.getElementById('map-breadcrumb').textContent='艾爾薩大陸';
   document.getElementById('map-info').style.display='none';
   const container=document.getElementById('map-container');
-  container.style.height='400px';
+  container.style.height='450px';
+
+  const mapPrompt=encodeURIComponent('fantasy continent map, dark parchment style, top-down view, medieval cartography, kingdoms and forests and mountains, dark moody colors, no text, no labels, game map style');
+  const mapUrl=`https://image.pollinations.ai/prompt/${mapPrompt}?width=960&height=600&seed=42&nologo=true`;
 
   const cityCircles=Object.entries(MAP_CITIES).map(([id,c])=>{
     const isCur=id===curId;
     const col=isCur?'#c9a84c':'#8a8070';
-    const strokeCol=isCur?'#e8cc7a':'#a09080';
-    const glowR=c.size*3;
-    // 城牆圖示
-    const wallW=c.size*1.6,wallH=c.size*1.2;
+    const r=isCur?5:3.5;
     return`<g class="city-dot" data-city="${id}" style="cursor:pointer">
-      ${isCur?`<circle cx="${c.cx}" cy="${c.cy}" r="${glowR}" fill="url(#cityGlow)" opacity=".8"/><circle cx="${c.cx}" cy="${c.cy}" r="${c.size+6}" fill="none" stroke="rgba(201,168,76,.3)" stroke-width=".6" stroke-dasharray="2,2"><animate attributeName="r" values="${c.size+5};${c.size+9};${c.size+5}" dur="3s" repeatCount="indefinite"/></circle>`:``}
-      <rect x="${c.cx-wallW}" y="${c.cy-wallH}" width="${wallW*2}" height="${wallH*2}" rx="2" fill="rgba(${isCur?'30,25,15':'18,18,15'},.7)" stroke="${strokeCol}" stroke-width="${isCur?1.2:.8}"/>
-      <rect x="${c.cx-wallW+1.5}" y="${c.cy-wallH-2}" width="3" height="4" fill="${strokeCol}" rx=".5"/>
-      <rect x="${c.cx+wallW-4.5}" y="${c.cy-wallH-2}" width="3" height="4" fill="${strokeCol}" rx=".5"/>
-      <rect x="${c.cx-1.5}" y="${c.cy-wallH-3}" width="3" height="5" fill="${col}" rx=".5"/>
-      <circle cx="${c.cx}" cy="${c.cy}" r="2" fill="${col}" opacity=".6"/>
-      <text x="${c.cx}" y="${c.cy+wallH+11}" text-anchor="middle" font-size="${isCur?10:8.5}" fill="${col}" font-family="serif" font-weight="${isCur?'700':'400'}" ${isCur?'filter="url(#glow)"':''}>${c.name}</text>
-      ${isCur?`<text x="${c.cx}" y="${c.cy+wallH+21}" text-anchor="middle" font-size="7" fill="rgba(201,168,76,.6)" font-family="sans-serif">◉ 所在地</text>`:''}
-      <rect x="${c.cx-30}" y="${c.cy-wallH-10}" width="60" height="${wallH*2+35}" fill="transparent"/>
+      ${isCur?`<circle cx="${c.cx}" cy="${c.cy}" r="14" fill="none" stroke="rgba(201,168,76,.35)" stroke-width=".6" stroke-dasharray="2,2"><animate attributeName="r" values="12;16;12" dur="3s" repeatCount="indefinite"/></circle>`:''}
+      <circle cx="${c.cx}" cy="${c.cy}" r="${r+2}" fill="rgba(0,0,0,.5)"/>
+      <circle cx="${c.cx}" cy="${c.cy}" r="${r}" fill="${col}" opacity=".9">
+        ${isCur?'<animate attributeName="opacity" values=".7;1;.7" dur="2s" repeatCount="indefinite"/>':''}
+      </circle>
+      <text x="${c.cx}" y="${c.cy+14}" text-anchor="middle" font-size="${isCur?10:8.5}" fill="${col}" font-family="serif" font-weight="${isCur?'700':'400'}" stroke="rgba(0,0,0,.7)" stroke-width="2.5" paint-order="stroke">${c.name}</text>
+      ${isCur?`<text x="${c.cx}" y="${c.cy+24}" text-anchor="middle" font-size="7" fill="rgba(201,168,76,.6)" font-family="sans-serif" stroke="rgba(0,0,0,.6)" stroke-width="2" paint-order="stroke">◉ 所在地</text>`:''}
+      <rect x="${c.cx-30}" y="${c.cy-15}" width="60" height="45" fill="transparent"/>
     </g>`;
   }).join('');
 
   const routes=CITY_ROUTES.map(([a,b])=>{
     const ca=MAP_CITIES[a],cb=MAP_CITIES[b];
     if(!ca||!cb)return'';
-    // 微彎曲線讓道路更自然
     const mx=(ca.cx+cb.cx)/2+((Math.random()-.5)*20),my=(ca.cy+cb.cy)/2+((Math.random()-.5)*15);
-    return`<path d="M${ca.cx} ${ca.cy} Q${mx.toFixed(0)} ${my.toFixed(0)} ${cb.cx} ${cb.cy}" stroke="rgba(160,140,100,.15)" stroke-width="1.8" fill="none" stroke-linecap="round"/>
-    <path d="M${ca.cx} ${ca.cy} Q${mx.toFixed(0)} ${my.toFixed(0)} ${cb.cx} ${cb.cy}" stroke="rgba(201,168,76,.1)" stroke-width=".8" fill="none" stroke-dasharray="3,5" stroke-linecap="round"/>`;
+    return`<path d="M${ca.cx} ${ca.cy} Q${mx.toFixed(0)} ${my.toFixed(0)} ${cb.cx} ${cb.cy}" stroke="rgba(201,168,76,.15)" stroke-width="1.2" fill="none" stroke-linecap="round" stroke-dasharray="4,6"/>`;
   }).join('');
 
-  const kingdomShapes=KINGDOMS.map(k=>`
-    <path d="${k.path}" fill="${k.color}" stroke="${k.stroke}" stroke-width="1"/>
-    `).join('');
-
-  // 生成地形元素
-  const mountains=(()=>{
-    const peaks=[
-      // 霧山山脈（西側）
-      [72,155],[95,140],[118,148],[85,168],[108,162],[130,158],[142,145],[68,180],[150,170],
-      // 北方山嶺
-      [180,95],[200,88],[165,102],[215,100],
-      // 南荒邊境
-      [320,310],[345,305],[368,318],[390,312],[410,322],
-    ];
-    return peaks.map(([x,y])=>{
-      const h=12+Math.random()*10;const w=h*0.8;
-      const snow=y<120?`<path d="M${x} ${y-h+2} L${x-w*0.2} ${y-h+5} L${x+w*0.2} ${y-h+5}Z" fill="rgba(200,210,220,.15)"/>`:'';
-      return`<path d="M${x} ${y-h} L${x-w} ${y} L${x+w} ${y}Z" fill="rgba(25,28,18,${0.5+Math.random()*0.3})" stroke="rgba(50,55,30,.35)" stroke-width=".5"/>${snow}`;
-    }).join('');
-  })();
-  const forests=(()=>{
-    const groves=[
-      // 翠林域
-      {cx:255,cy:72,n:18,r:35,density:1.2},
-      // 霧山林地
-      {cx:140,cy:200,n:8,r:20,density:0.8},
-      // 東方疏林
-      {cx:490,cy:180,n:6,r:18,density:0.6},
-      // 南荒灌木
-      {cx:370,cy:340,n:5,r:15,density:0.5},
-    ];
-    return groves.map(g=>{
-      const trees=Array.from({length:g.n},(_,i)=>{
-        const a=i*(Math.PI*2/g.n)+Math.random()*0.5;
-        const d=Math.random()*g.r*g.density;
-        const tx=g.cx+Math.cos(a)*d,ty=g.cy+Math.sin(a)*d;
-        const s=4+Math.random()*5;
-        const shade=g.cy<100?'rgba(15,40,20,.7)':'rgba(10,30,15,.5)';
-        return`<circle cx="${tx.toFixed(1)}" cy="${ty.toFixed(1)}" r="${s.toFixed(1)}" fill="${shade}" stroke="rgba(20,50,25,.3)" stroke-width=".4"/>`;
-      }).join('');
-      return`<g opacity=".65">${trees}</g>`;
-    }).join('');
-  })();
-  const rivers=`
-    <path d="M220 95 Q235 130 255 165 Q275 200 295 230 Q310 255 330 280 Q345 300 365 320"
-      stroke="rgba(50,120,200,.25)" stroke-width="3" fill="none" stroke-linecap="round"/>
-    <path d="M295 230 Q320 240 350 235 Q380 228 410 235 Q440 242 470 238"
-      stroke="rgba(50,120,200,.18)" stroke-width="2" fill="none" stroke-linecap="round"/>
-    <path d="M255 165 Q230 175 210 190 Q195 205 185 225"
-      stroke="rgba(50,120,200,.15)" stroke-width="1.8" fill="none" stroke-linecap="round"/>
-    <!-- 湖泊 -->
-    <ellipse cx="295" cy="232" rx="8" ry="5" fill="rgba(40,100,180,.12)" stroke="rgba(50,120,200,.2)" stroke-width=".6"/>
-    <ellipse cx="530" cy="275" rx="12" ry="7" fill="rgba(40,100,180,.1)" stroke="rgba(50,120,200,.15)" stroke-width=".6"/>`;
-  // 海洋（東側與南側）
-  const ocean=`
-    <path d="M575 50 Q610 70 625 120 Q635 180 630 250 Q625 320 610 370 L640 400 L640 0 L580 0Z" fill="rgba(15,35,60,.5)"/>
-    <path d="M610 370 Q550 390 460 395 L640 400 L640 370Z" fill="rgba(15,35,60,.35)"/>
-    ${Array.from({length:8},(_,i)=>`<path d="M${585+Math.random()*40} ${60+i*42} q${8+Math.random()*5} ${-3-Math.random()*3} ${16+Math.random()*8} 0" stroke="rgba(60,130,200,.12)" stroke-width=".8" fill="none"/>`).join('')}
-    <text x="618" y="195" text-anchor="middle" font-size="9" fill="rgba(50,100,160,.2)" font-family="serif" transform="rotate(90,618,195)" letter-spacing="8">碧 藍 海</text>`;
-  // 裝飾性地標
-  const landmarks=`
-    <!-- 帝國廢墟標記 -->
-    <g opacity=".4" transform="translate(340,285)">
-      <rect x="-4" y="-6" width="8" height="6" fill="none" stroke="rgba(120,100,70,.5)" stroke-width=".6"/>
-      <line x1="-4" y1="-6" x2="0" y2="-10" stroke="rgba(120,100,70,.5)" stroke-width=".6"/>
-      <line x1="4" y1="-6" x2="0" y2="-10" stroke="rgba(120,100,70,.5)" stroke-width=".6"/>
-    </g>
-    <!-- 星象塔 -->
-    <g opacity=".35" transform="translate(315,148)">
-      <circle cx="0" cy="-8" r="3" fill="none" stroke="rgba(201,168,76,.5)" stroke-width=".5"/>
-      <line x1="0" y1="-5" x2="0" y2="2" stroke="rgba(201,168,76,.4)" stroke-width=".6"/>
-      <line x1="-3" y1="0" x2="3" y2="0" stroke="rgba(201,168,76,.3)" stroke-width=".5"/>
-    </g>`;
-  // 散布的小星星（命運之星主題）
-  const stars=Array.from({length:15},()=>{
-    const x=30+Math.random()*580,y=30+Math.random()*350;
-    const s=0.5+Math.random()*1;
-    return`<circle cx="${x.toFixed(0)}" cy="${y.toFixed(0)}" r="${s.toFixed(1)}" fill="rgba(201,168,76,${(0.05+Math.random()*0.1).toFixed(2)})"/>`;
-  }).join('');
-
-  const svgContinent=`<svg viewBox="0 0 640 400" width="100%" height="400" xmlns="http://www.w3.org/2000/svg" style="display:block">
+  const svgContinent=`<svg viewBox="0 0 640 400" width="100%" height="450" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" style="display:block">
   <defs>
-    <radialGradient id="sg" cx="45%" cy="45%" r="75%"><stop offset="0%" stop-color="#0c1a28"/><stop offset="60%" stop-color="#080e18"/><stop offset="100%" stop-color="#040810"/></radialGradient>
-    <pattern id="wv" width="60" height="30" patternUnits="userSpaceOnUse"><path d="M0 15 Q15 8 30 15 Q45 22 60 15" fill="none" stroke="rgba(30,80,140,.06)" stroke-width="0.5"/></pattern>
     <filter id="glow"><feGaussianBlur stdDeviation="2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-    <radialGradient id="cityGlow" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="rgba(201,168,76,.2)"/><stop offset="100%" stop-color="transparent"/></radialGradient>
   </defs>
-  <!-- 背景 -->
-  <rect width="640" height="400" fill="url(#sg)"/>
-  <rect width="640" height="400" fill="url(#wv)"/>
-  ${stars}
-  <!-- 海洋 -->
-  ${ocean}
-  <!-- 王國領地 -->
-  ${kingdomShapes}
-  <!-- 地形：山脈 -->
-  ${mountains}
-  <!-- 地形：森林 -->
-  ${forests}
-  <!-- 河流與湖泊 -->
-  ${rivers}
-  <!-- 地標 -->
-  ${landmarks}
+  <!-- Pollinations AI 背景 -->
+  <rect width="640" height="400" fill="#080e18"/>
+  <image href="${mapUrl}" x="0" y="0" width="640" height="400" preserveAspectRatio="xMidYMid slice" opacity=".85"/>
+  <!-- 半透明遮罩讓標記更清晰 -->
+  <rect width="640" height="400" fill="rgba(8,14,24,.25)"/>
   <!-- 道路 -->
   ${routes}
   <!-- 城市 -->
   ${cityCircles}
   <!-- 王國名稱 -->
-  <text x="125" y="265" text-anchor="middle" font-size="9" fill="rgba(120,140,180,.3)" font-family="serif" letter-spacing="3">霧山聯邦</text>
-  <text x="345" y="190" text-anchor="middle" font-size="9" fill="rgba(180,160,80,.25)" font-family="serif" letter-spacing="3">中央王國</text>
-  <text x="520" y="140" text-anchor="middle" font-size="9" fill="rgba(60,140,160,.25)" font-family="serif" letter-spacing="3">東海王國</text>
-  <text x="275" y="52" text-anchor="middle" font-size="8" fill="rgba(40,130,60,.3)" font-family="serif" letter-spacing="2">翠林域</text>
-  <text x="380" y="358" text-anchor="middle" font-size="9" fill="rgba(130,80,50,.25)" font-family="serif" letter-spacing="3">南　荒</text>
-  <text x="140" y="35" text-anchor="middle" font-size="7.5" fill="rgba(160,180,200,.2)" font-family="serif" letter-spacing="2">霜　嶺</text>
-  <text x="108" y="330" text-anchor="middle" font-size="7.5" fill="rgba(80,60,100,.2)" font-family="serif" letter-spacing="2">影沼地</text>
+  <text x="125" y="265" text-anchor="middle" font-size="9" fill="rgba(120,140,180,.4)" font-family="serif" letter-spacing="3" stroke="rgba(0,0,0,.6)" stroke-width="2.5" paint-order="stroke">霧山聯邦</text>
+  <text x="345" y="190" text-anchor="middle" font-size="9" fill="rgba(180,160,80,.35)" font-family="serif" letter-spacing="3" stroke="rgba(0,0,0,.6)" stroke-width="2.5" paint-order="stroke">中央王國</text>
+  <text x="520" y="140" text-anchor="middle" font-size="9" fill="rgba(60,140,160,.35)" font-family="serif" letter-spacing="3" stroke="rgba(0,0,0,.6)" stroke-width="2.5" paint-order="stroke">東海王國</text>
+  <text x="275" y="52" text-anchor="middle" font-size="8" fill="rgba(40,130,60,.4)" font-family="serif" letter-spacing="2" stroke="rgba(0,0,0,.5)" stroke-width="2" paint-order="stroke">翠林域</text>
+  <text x="380" y="358" text-anchor="middle" font-size="9" fill="rgba(130,80,50,.35)" font-family="serif" letter-spacing="3" stroke="rgba(0,0,0,.6)" stroke-width="2.5" paint-order="stroke">南　荒</text>
+  <text x="140" y="35" text-anchor="middle" font-size="7.5" fill="rgba(160,180,200,.3)" font-family="serif" letter-spacing="2" stroke="rgba(0,0,0,.5)" stroke-width="2" paint-order="stroke">霜　嶺</text>
+  <text x="108" y="330" text-anchor="middle" font-size="7.5" fill="rgba(80,60,100,.3)" font-family="serif" letter-spacing="2" stroke="rgba(0,0,0,.5)" stroke-width="2" paint-order="stroke">影沼地</text>
   <!-- 標題框 -->
   <g transform="translate(320,18)">
-    <rect x="-65" y="-10" width="130" height="18" rx="2" fill="rgba(0,0,0,.35)" stroke="rgba(201,168,76,.2)" stroke-width=".5"/>
-    <text x="0" y="3" text-anchor="middle" font-size="11" fill="rgba(201,168,76,.55)" font-family="serif" letter-spacing="4">艾爾薩大陸</text>
+    <rect x="-65" y="-10" width="130" height="18" rx="2" fill="rgba(0,0,0,.5)" stroke="rgba(201,168,76,.25)" stroke-width=".5"/>
+    <text x="0" y="3" text-anchor="middle" font-size="11" fill="rgba(201,168,76,.6)" font-family="serif" letter-spacing="4">艾爾薩大陸</text>
   </g>
-  <text x="320" y="393" text-anchor="middle" font-size="7.5" fill="rgba(100,100,80,.3)" font-family="sans-serif">點擊城市查看區域 · 黃色為當前位置</text>
+  <text x="320" y="393" text-anchor="middle" font-size="7.5" fill="rgba(100,100,80,.35)" font-family="sans-serif" stroke="rgba(0,0,0,.5)" stroke-width="2" paint-order="stroke">點擊城市查看區域 · 黃色為當前位置</text>
   <!-- 羅盤 -->
   <g transform="translate(608,40)">
-    <circle cx="0" cy="0" r="18" fill="rgba(0,0,0,.5)" stroke="rgba(201,168,76,.25)" stroke-width=".8"/>
-    <circle cx="0" cy="0" r="14" fill="none" stroke="rgba(201,168,76,.12)" stroke-width=".4"/>
+    <circle cx="0" cy="0" r="18" fill="rgba(0,0,0,.6)" stroke="rgba(201,168,76,.3)" stroke-width=".8"/>
+    <circle cx="0" cy="0" r="14" fill="none" stroke="rgba(201,168,76,.15)" stroke-width=".4"/>
     <path d="M0 -14 L2 -2 L0 2 L-2 -2Z" fill="rgba(201,168,76,.7)"/>
     <path d="M0 14 L2 2 L0 -2 L-2 2Z" fill="rgba(120,100,60,.4)"/>
     <text x="0" y="-6" text-anchor="middle" font-size="6.5" fill="rgba(201,168,76,.7)" font-family="serif" font-weight="600">N</text>
@@ -3839,8 +3817,16 @@ function renderContinentMap(){
     <text x="9" y="3" text-anchor="middle" font-size="5.5" fill="rgba(201,168,76,.35)" font-family="serif">E</text>
   </g>
 </svg>`;
-  container.innerHTML=svgContinent;
-  // 綁定點擊事件（避免SVG inline onclick的瀏覽器相容問題）
+  // 先顯示 loading placeholder，再插入 SVG
+  container.innerHTML=`<div class="map-bg-loading" id="map-loading"><div class="port-spin"></div><div class="port-txt">地圖繪製中…</div></div>`;
+  const tmpImg=new Image();
+  tmpImg.onload=()=>{document.getElementById('map-loading')?.remove();container.innerHTML=svgContinent;bindMapCityEvents(container);};
+  tmpImg.onerror=()=>{document.getElementById('map-loading')?.remove();container.innerHTML=svgContinent;bindMapCityEvents(container);};
+  tmpImg.src=mapUrl;
+  // 超時 fallback：8 秒後若仍在 loading 就直接顯示 SVG（圖片會在 SVG 內繼續載入）
+  setTimeout(()=>{if(document.getElementById('map-loading')){document.getElementById('map-loading').remove();container.innerHTML=svgContinent;bindMapCityEvents(container);}},8000);
+}
+function bindMapCityEvents(container){
   container.querySelectorAll('[data-city]').forEach(el=>{
     el.addEventListener('click',function(e){e.stopPropagation();showCityPanel(this.dataset.city);});
   });

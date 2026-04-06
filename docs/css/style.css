@@ -367,3 +367,25 @@ body::before{content:'';position:fixed;inset:0;background-image:
 }
 @media(min-width:768px){.drawer,.drawer-ov{display:none!important;}}
 @media(max-width:350px){.hdr-g{display:none;}.hdr-t{font-size:.82rem;}}
+
+/* ── MAP LOADING ── */
+.map-bg-loading{display:flex;flex-direction:column;align-items:center;justify-content:center;
+  height:450px;background:var(--bg3);gap:.6rem;
+  background-image:radial-gradient(ellipse at center,rgba(201,168,76,.04) 0%,transparent 70%);}
+.map-bg-loading .port-txt{color:var(--goldd);letter-spacing:.12em;animation:pulse 2s ease infinite;}
+
+/* ── PCARD HOVER GOLDEN GLOW ── */
+.pcard{transition:border-color .2s,box-shadow .3s;}
+.pcard:hover{border-color:var(--brdb);box-shadow:0 0 12px rgba(201,168,76,.12),0 0 3px rgba(201,168,76,.08);}
+
+/* ── SCENE BAR GRADIENT ANIMATION ── */
+@keyframes sceneShimmer{
+  0%{background-position:0% 50%;}
+  50%{background-position:100% 50%;}
+  100%{background-position:0% 50%;}
+}
+.scene-bar{background:linear-gradient(90deg,rgba(201,168,76,.05),rgba(201,168,76,.1),rgba(201,168,76,.05));
+  background-size:200% 100%;animation:sceneShimmer 8s ease infinite;}
+
+/* ── TITLE GLOW ── */
+.hdr-t{text-shadow:0 0 8px rgba(201,168,76,.25),0 0 2px rgba(232,204,122,.15);}
