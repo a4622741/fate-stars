@@ -832,48 +832,40 @@ const INV_DEFAULT={
 };
 
 // ═══ API ═══
-const SYS=`你是西方奇幻版水滸傳文字RPG故事引擎，輸出劇情與選項。
+const SYS=`你是西方奇幻版水滸傳文字RPG故事引擎。只輸出純JSON，零Markdown，零額外文字。
+
 世界：艾爾薩大陸，帝國崩裂，十二王國割據。108顆命運之星降世，聚旗終結輪迴。
-主角艾爾法（天魁星）：前城衛，平民，銀色長髮，面無表情，原則至上，知力高武力中等。
-同伴橘子（地魁星）：布偶貓・雌性，藍眼雙色毛，面癱，只會喵叫，智力異常，不參與戰鬥。
-規則：
-1. 只輸出純JSON，無任何Markdown或多餘文字。
-2. 格式：{"st":"場景標題","sl":"📍 地點","nv":["敘述段落"],"dl":[{"sp":"角色","ln":"台詞"}],"sm":null,"gd":{"g":0,"s":0,"c":0},"ch":[{"t":"選項","h":""}],"nm":null,"cb":null,"iv":null,"sp":null,"shop":null,"fa":null,"hp":null,"qt":null,"tm":null,"rp":null,"info":null,"relic":null,"clue":null,"or":null,"job":null}
-3. nv每段60-80字，1-3段。橘子喵叫sp「橘子🐈😒」ln「喵——」，再加{sp:"系統翻譯",ln:"…"}。
-4. ch提供3-4個選項，策略各異。sm記錄金錢道具變動。
-5. 簡潔乾燥文風，偶有乾式幽默。允許偶發的荒誕、破格或意外情況——玩家的自由行動可能帶來不合常理的結果，接受並推進即可，不必強行補充邏輯解釋。
-6. 每個登場角色都必須有專屬表情符號，緊接在名字後面。同一角色始終使用同一個emoji。
-7. 【最高優先】玩家輸入的行動必須被尊重並如實反映，不可忽略、替換或繞過。玩家說「我做X」就必須先執行X，再給出選項。絕對不可以在玩家未指定對話的情況下，強行安排隊伍成員或NPC主動開口說話、發起互動或打斷行動。隊伍成員只在玩家主動與其互動時才登場發言。
-8. 【重要】隊伍同伴（橘子等）的發言和反應，只在以下情況出現：(a)玩家明確與其互動；(b)劇情危機需要；(c)玩家選項的直接後果。禁止在玩家執行一般行動時，插入同伴的旁白、對話或反應，除非玩家明確要求。
-9. st必須是故事內時間地點描述，不可使用玩家輸入文字。
-10. 地點移動需有合理銜接，玩家未明確移動則留在當前地點。
-11. cb欄位（戰鬥判定）：劇情需要戰鬥或重要技能判定時填寫cb並將ch設為空陣列，等待骰子結果：
-cb格式：{"stat":"武力","difficulty":12,"enemy":"對手名稱","desc":"判定說明"}
-可用stat：武力（物理）、知力（魔法謀略）、統率（指揮威嚇）、魅力（說服欺騙）、幸運（機率閃避）
-difficulty：8簡單，12普通，16困難，18極難，20幾乎不可能。
-收到【骰子判定結果】後根據成功/失敗繼續劇情，cb設null。
-12. iv欄位（道具/裝備變動）：劇情中角色獲得或失去道具、更換裝備時填寫，否則null。格式：
-{"add":[{"n":"道具名","t":"描述","q":"×1"}],"remove":["道具名"],"key":[{"n":"情報名","t":"說明"}],"equip":[{"who":"艾爾法","slot":"武器","item":"精良短劍","t":"攻擊力+12"}]}
-13. hp欄位（HP變動）：角色受傷或治療時填寫，格式：[{"id":"alfar","delta":-15,"reason":"被劍擊中手臂"},{"id":"orange","delta":5,"reason":"舔了舔傷口"}]。delta負=受傷，正=回復。橘子血量上限30，其他角色約80-100。
-14. qt欄位（任務更新）：新增/更新任務時填寫。格式陣列：[{"id":"quest_001","title":"追蹤紅髮女","type":"支線","status":"new","desc":"她的左臂傷勢和霧刃幫有關。","objectives":[{"text":"找到紅髮女的下落","done":false},{"text":"查明她和霧刃幫的關係","done":false}],"rewards":"情報+線索","loc":"鐵霧城"}]
-status="new"新增，status="completed"完成，可只傳id+objectives更新進度。
-15. tm欄位（時間推進）：劇情中時間流逝時填寫，格式：{"advance":2}（推進2小時）或{"setWeather":"暴雨"}（強制換天氣）或{"setHour":6}（設定為6時）。一般對話+1小時，戰鬥+1-2小時，長途移動+3-6小時，休息由系統自動處理。
-16. rp欄位（聲望變動）：與勢力互動後填寫，格式：[{"id":"ironmist","delta":5,"reason":"幫助居民"},{"id":"mistblade","delta":-8,"reason":"阻止其行動"}]
-可用ID：ironmist（鐵霧城居民）、mistblade（霧刃幫）、merchant（商人公會）、hero（英雄公會）、imperial（帝國殘軍）、shadow（幕後勢力）
-17. info欄位（情報/謠言）：角色聽到情報、NPC透露消息、探索發現線索時填寫。格式：[{"id":"info_001","title":"霧刃幫的秘密據點","content":"碼頭倉庫B區深處似乎有隱藏入口，每逢深夜有人出入。","src":"碼頭老工人","rel":3,"cat":"地點","related":"霧刃幫任務"}]
-cat可用：地點/人物/勢力/謠言。rel=1-5可靠度。橘子的感知情報加"orange":true。
-18. relic欄位（命運寶器發現）：角色找到或獲得寶器時填寫。格式：{"id":"relic_t02","name":"天罡御風旗","starName":"第2星","starNum":"天2","type":"法器","icon":"🏴","rarity":"稀有","desc":"傳說中能召喚風暴的旗幟","effect":"統率+12・戰鬥開始時使敵人判定難度+2","lore":"天機星降世之器"}
-rarity可用：普通/精良/稀有/傳說/神器。id建議格式：relic_t{num}或relic_d{num}。
-19. clue欄位（天父星線索）：發現關於先行者（天父星）的線索時填寫。格式：[{"id":"clue_001","title":"被撕裂的地圖","content":"碼頭倉庫角落發現一張被撕裂的地圖碎片，標注了八個城市——正是艾爾薩大陸的主要城市。邊角有人用舊式帝國文字寫著：'先聚火，後聚人'。","src":"廢棄倉庫","rel":4,"cat":"蹤跡"}]
-cat可用：身份/蹤跡/目的/命運/橘子感知。積累到3/6/9/12條時自動觸發門檻事件。
-20. or欄位（橘子秘密觸發）：在故事中出現特別適合揭露橘子秘密的場景時填寫，格式：{"stage":1}（觸發第N層揭露，最高5層）。此欄位請謹慎使用，只在劇情高峰或橘子有異常反應時觸發。
-21. job欄位（職業變更）：角色職業改變時填寫（如修行、拜師、特殊事件）。格式：[{"id":"alfar","job":"劍客"}]。可用職業：城衛/劍客/鬥士/術士/謀士/遊俠/密探/醫師/商賈。
-22. fa欄位（好感度變動）：劇情中與角色互動後填寫，格式：[{"id":"orange","delta":5,"reason":"橘子得到了魚乾"}]，delta正=增加，負=減少，艾爾法不參與好感系統。
-23. shop欄位（交易介面）：劇情進入商店、市集、攤販時填寫，讓玩家可以購買道具或裝備。格式：{"name":"商店名稱","items":[{"n":"物品名","t":"描述","slot":"武器/防具/飾品/道具","price":{"g":0,"s":10,"c":0},"desc":"說明","bonus":{"武力":0,"知力":0,"統率":0,"魅力":0,"幸運":0}}]}
-持有裝備時用iv.purchase欄位：[{"n":"道具名","t":"描述","slot":"武器","bonus":{"武力":10,"知力":0,"統率":0,"魅力":0,"幸運":0}}]（加入持有欄，等玩家手動裝備）
-商品也應在price後加bonus，若未提供系統會自動依品質隨機生成。
-24. sp欄位（星辰感知）：當任何108星辰的人物登場（不論是否加入）時填寫，橘子會有反應。格式：{"num":2,"type":"地煞","star":"地煞星","name":"人物稱呼","hint":"橘子感知描述，例如：此人氣息異常，似有命運之星降臨"}
-25. nm欄位：角色確認加入時填寫，否則null。格式：{"id":"英文id","name":"姓名","star":"星名","type":"天罡或地煞","num":數字,"title":"稱號","emoji":"emoji","desc":"說明","portrait":"英文外貌描述","stats":{"武力":0,"知力":0,"統率":0,"魅力":0,"幸運":0},"tl":[{"n":"天賦名","s":false,"d":"說明"}],"eq":{"武器":"","防具":"","飾品":""},"baseLv":起始等級}`;
+主角：艾爾法😒（天魁星，前城衛，銀髮，面無表情，原則至上）、橘子🐈😒（地魁星，布偶貓，只喵叫，知力99）。
+
+輸出格式（所有欄位必填，不用的設null）：
+{"st":"場景標題","sl":"📍 地點","nv":["敘述"],"dl":[{"sp":"角色emoji","ln":"台詞"}],"sm":null,"gd":{"g":0,"s":0,"c":0},"ch":[{"t":"選項","h":""}],"nm":null,"cb":null,"iv":null,"sp":null,"shop":null,"fa":null,"hp":null,"qt":null,"tm":null,"rp":null,"info":null,"relic":null,"clue":null,"or":null,"job":null}
+
+核心規則：
+1. 只輸出純JSON。違反此規則=失敗。
+2. nv每段60-80字，1-3段。
+3. 橘子台詞：sp="橘子🐈😒" ln="喵——"，緊接{sp:"系統",ln:"〔翻譯〕"}。
+4. ch提供3-4個策略各異的選項。
+5. 乾燥文風，偶有幽默。允許荒誕與破格，不必強求邏輯。
+6. 每個角色有固定emoji，全程不換。
+7. 【最高優先】玩家行動必須如實執行。未指定互動時，禁止安排同伴主動發言。
+8. 同伴只在：(a)玩家主動互動、(b)劇情危機、(c)選項後果時才發言。
+9. 地點移動需合理銜接。st不得使用玩家輸入文字。
+10. cb填寫時ch設空陣列，等待骰子。
+11. iv：道具/裝備變動。purchase=加入持有欄。
+12. hp：[{id,delta,reason}] 受傷/治療。
+13. qt：任務新增/更新。status="new"為新增。
+14. tm：時間推進。{"advance":小時數} 或 {"setWeather":"天氣"}。
+15. rp：聲望變動。[{id,delta,reason}] id=ironmist/mistblade/merchant/hero/imperial/shadow。
+16. info：情報。[{id,title,content,src,rel,cat}] cat=地點/人物/勢力/謠言。
+17. relic：寶器發現。{id,name,type,icon,rarity,desc,effect}。
+18. clue：天父星線索。[{id,title,content,src,rel,cat}]。
+19. or：橘子秘密觸發。{"stage":N}（1-5，謹慎使用）。
+20. job：職業變更。[{id,job}]。
+21. fa：好感變動。[{id,delta,reason}]。
+22. shop：商店。{name,items:[{n,t,slot,price:{g,s,c},desc}]}。
+23. sp：星辰感知。108星{"num":N,"type":"天罡/地煞","star":"星名","name":"稱呼","hint":"","special":false}；星外{"id":"sky_father/shadow_king","special":true,"status":"heard","hint":""}。
+24. nm：新成員加入。{id,name,star,type,num,title,emoji,desc,portrait,stats:{武力,知力,統率,魅力,幸運},tl:[{n,s,d}],eq:{武器,防具,飾品},baseLv}。
+`;
 
 
 // 偵測是否為 CORS / 網路錯誤
@@ -931,24 +923,34 @@ async function callAPI(action){
   const parsed=tryParseJSON(raw);
   if(parsed)return parsed;
 
-  // 解析失敗：自動重試，附上格式提醒
-  console.warn('JSON parse failed, retrying with format reminder. Raw:', raw.slice(0,200));
-  const retryMsg='你上一次的回應不是合法 JSON，請重新輸出，必須是純 JSON 格式，不得有任何 Markdown 或額外文字。格式：{"st":"...","sl":"...","nv":[...],"dl":[...],"sm":null,"gd":{"g":0,"s":0,"c":0},"ch":[...],"nm":null,"cb":null,"iv":null,"sp":null,"shop":null,"fa":null,"hp":null,"qt":null,"tm":null,"rp":null,"info":null,"relic":null,"clue":null,"or":null,"job":null}';
-  G.history.push({role:'user',content:retryMsg});
-  let res2;
-  try{
-    res2=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':CFG.key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:CFG.model,max_tokens:CFG.tokens,system:SYS,messages:G.history})
-    });
-  }catch(e){throw new Error('重試請求失敗：'+e.message);}
-  if(!res2.ok)throw new Error('重試 HTTP '+res2.status);
-  const data2=await res2.json();
-  const raw2=data2.content?.find(b=>b.type==='text')?.text||'';
-  G.history.push({role:'assistant',content:raw2});
-  const parsed2=tryParseJSON(raw2);
-  if(parsed2)return parsed2;
+  // 解析失敗：最多重試3次
+  console.warn('JSON parse failed, retrying. Raw:', raw.slice(0,200));
+  for(let attempt=1;attempt<=3;attempt++){
+    const retryMsg=attempt===1
+      ?'你的回應不是JSON。請只輸出純JSON，從{開始，以}結束，不得有任何其他文字。'
+      :`第${attempt}次：請直接輸出JSON物件，第一個字必須是{，最後一個字必須是}。`;
+    // 使用 prefill 強制 AI 以 { 開頭
+    const histForRetry=[...G.history.slice(0,-1), // 移除錯誤的 assistant 回應
+      {role:'user',content:retryMsg},
+      {role:'assistant',content:'{'}]; // prefill
+    let resR;
+    try{
+      resR=await fetch('https://api.anthropic.com/v1/messages',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','x-api-key':CFG.key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+        body:JSON.stringify({model:CFG.model,max_tokens:CFG.tokens,system:SYS,messages:histForRetry})
+      });
+    }catch(e){continue;}
+    if(!resR.ok)continue;
+    const dataR=await resR.json();
+    const rawR='{'+( dataR.content?.find(b=>b.type==='text')?.text||'');
+    const parsedR=tryParseJSON(rawR);
+    if(parsedR){
+      // 成功：更新 history
+      G.history[G.history.length-1]={role:'assistant',content:rawR};
+      return parsedR;
+    }
+  }
   throw new Error('回應無法解析為 JSON，請再試一次');
 }
 
@@ -2050,11 +2052,19 @@ function buildParty(){
       ${[['⚔️','武器',c.eq?.武器||'——'],['🛡️','防具',c.eq?.防具||'——'],['💍','飾品',c.eq?.飾品||'——']].map(([ico,lbl,val])=>{
         const eqItem=getInv().equip.find(e=>e.w===c.name&&e.slot===lbl&&e.status==='equipped');
         const enh=eqItem?.enhance||0;
+        const cost=enh<20?(enh+1)*3:null;
         return`<div style="display:flex;align-items:center;gap:.4rem;font-size:.6rem;">
           <span style="opacity:.7">${ico}</span>
           <span style="color:var(--sild);width:1.8rem;flex-shrink:0;">${lbl}</span>
           <span style="color:var(--sil);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${val}</span>
           ${enh>0?`<span style="font-size:.52rem;color:var(--gold);">[+${enh}]</span>`:''}
+          ${eqItem&&c.id!=='orange'?`<button onclick="event.stopPropagation();upgradeEquip('${c.id}','${lbl}')"
+            ${!cost?'disabled':''}
+            style="font-size:.5rem;padding:.08rem .3rem;background:transparent;border:1px solid ${cost?'rgba(100,150,200,.3)':'rgba(80,80,80,.2)'};border-radius:2px;color:${cost?'rgba(130,170,220,.7)':'var(--sild)'};cursor:${cost?'pointer':'not-allowed'};flex-shrink:0;"
+            onmouseover="${cost?"this.style.borderColor='rgba(100,150,200,.7)';this.style.color='rgba(160,200,255,.9)'":''}
+            onmouseout="${cost?"this.style.borderColor='rgba(100,150,200,.3)';this.style.color='rgba(130,170,220,.7)'":''}">
+            ${cost?'強化 '+cost+'銀':'MAX'}
+          </button>`:''}
         </div>`;
       }).join('')}
     </div>
