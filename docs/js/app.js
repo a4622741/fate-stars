@@ -152,7 +152,7 @@ const PARTY=[
    eq:{武器:'——',防具:'——（拒絕配戴）',飾品:'——'}},
 ];
 const TGS=['天罡星','天機星','天閒星','天勇星','天雄星','天猛星','天威星','天英星','天貴星','天富星','天滿星','天孤星','天傷星','天立星','天捷星','天暗星','天佑星','天空星','天速星','天異星','天殺星','天微星','天究星','天退星','天壽星','天劍星','天平星','天罪星','天損星','天敗星','天牢星','天慧星','天暴星','天哭星','天巧星'];
-const DSS=['地煞星','地勇星','地傑星','地雄星','地威星','地英星','地奇星','地猛星','地文星','地正星','地闊星','地闔星','地強星','地暗星','地輔星','地會星','地佐星','地祐星','地靈星','地獸星','地微星','地慧星','地暴星','地然星','地猖星','地狂星','地飛星','地走星','地巧星','地明星','地進星','地退星','地滿星','地遂星','地周星','地隱星','地異星','地理星','地俊星','地樂星','地捷星','地速星','地鎮星','地禽星','地刑星','地壯星','地劣星','地健星','地耗星','地賊星','地囚星','地孤星','地角星','地短星','地魔星','地妖星','地幽星','地伏星','地僻星','地空星','地全星','地缺星','地殺星','地哭星','地損星','地破星','地平星','地奴星','地察星'];
+const DSS=['地煞星','地勇星','地傑星','地雄星','地威星','地英星','地奇星','地猛星','地文星','地正星','地闊星','地闔星','地強星','地暗星','地輔星','地會星','地佐星','地祐星','地靈星','地獸星','地微星','地慧星','地暴星','地然星','地猖星','地狂星','地飛星','地走星','地巧星','地明星','地進星','地退星','地滿星','地遂星','地周星','地隱星','地異星','地理星','地俊星','地樂星','地捷星','地速星','地鎮星','地禽星','地刑星','地壯星','地劣星','地健星','地耗星','地賊星','地狗星','地囚星','地孤星','地角星','地短星','地魔星','地妖星','地幽星','地伏星','地僻星','地空星','地全星','地缺星','地殺星','地哭星','地損星','地破星','地平星','地奴星','地察星','地惡星'];
 const TIANGANG=[{num:1,star:'天魁星',name:'艾爾法',status:'recruited',id:'alfar'},...TGS.map((s,i)=>({num:i+2,star:s,name:'?',status:'unknown'}))];
 const DISHAT=[{num:1,star:'地魁星',name:'橘子',status:'recruited',id:'orange'},{num:2,star:'地煞星',name:'?',status:'contact',cN:'紅髮女',hint:'霧刃幫相關・左臂有傷・缺口彎刀'},...DSS.slice(1).map((s,i)=>({num:i+3,star:s,name:'?',status:'unknown'}))];
 // INV 初始資料（新遊戲時使用）
@@ -2107,7 +2107,7 @@ function buildStars(){
   const sD=f==='all'||f==='地煞'||f==='recruited'||f==='unknown';
   const showSp=f==='all'||f==='special';
   const tot=[...TIANGANG,...DISHAT].filter(s=>s.status==='recruited').length;
-  let h=`<div class="sfrow">${[['all','全部'],['天罡','天罡36'],['地煞','地煞72'],['special','星外'],['recruited','已招募'],['unknown','未現身']].map(([k,l])=>`<button class="sfb ${f===k?'ac':''}" onclick="G.starFilter='${k}';renderBoth('stars')">${l}</button>`).join('')}</div><div class="rcnt">招募 <span>${tot}</span> / 108</div>`;
+  let h=`<div class="sfrow">${[['all','全部'],['天罡','天罡36'],['地煞','地煞72'],['special','星外'],['recruited','已招募'],['unknown','未現身']].map(([k,l])=>`<button class="sfb ${f===k?'ac':''}" onclick="G.starFilter='${k}';markDirty('stars');renderBoth('stars')">${l}</button>`).join('')}</div><div class="rcnt">招募 <span>${tot}</span> / 108</div>`;
   if(showSp){
     h+=`<div class="sdiv">⚜ 星外關鍵人物 ⚜</div><div class="sgrid">`;
     h+=SPECIAL_CHARS.map(sp=>{
@@ -2628,7 +2628,7 @@ function buildIntel(){
   const filter=G.intelFilter||'全部';
   const filtered=filter==='全部'?items:filter==='橘子'?items.filter(i=>i.orange||i.cat==='橘子'):items.filter(i=>i.cat===filter);
 
-  const filterRow=`<div class="sfrow" style="flex-wrap:wrap;">${INTEL_CATS.map(cat=>`<button class="sfb ${(G.intelFilter||'全部')===cat?'ac':''}" onclick="G.intelFilter='${cat}';renderBoth('intel')" style="${cat==='橘子'?'color:rgba(180,140,220,.8);':''}">${cat}</button>`).join('')}</div>`;
+  const filterRow=`<div class="sfrow" style="flex-wrap:wrap;">${INTEL_CATS.map(cat=>`<button class="sfb ${(G.intelFilter||'全部')===cat?'ac':''}" onclick="G.intelFilter='${cat}';markDirty('intel');renderBoth('intel')" style="${cat==='橘子'?'color:rgba(180,140,220,.8);':''}">${cat}</button>`).join('')}</div>`;
 
   if(!filtered.length) return filterRow+`<div style="padding:1.2rem .8rem;text-align:center;color:var(--sild);font-size:.7rem;">
     ${items.length?'此分類無情報':'尚無情報<br><span style="font-size:.6rem;opacity:.6">與NPC對話、探索地點可獲得情報<br>橘子有時會提供獨特的感知情報</span>'}
