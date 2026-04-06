@@ -2637,9 +2637,116 @@ function applyIntelUpdate(infoArr){
   (Array.isArray(infoArr)?infoArr:[infoArr]).forEach(item=>addIntel(item));
 }
 
-function buildLog(){return G.log.map(s=>`<div class="log-entry"><div class="log-sec">${s.sec}</div><div class="log-loc">📍 ${s.loc}</div>${s.lines.map(l=>l.t==='sys'?`<div class="log-sys2">${l.v}</div>`:`<div class="log-txt">${l.v}</div>`).join('')}</div>`).join('');}
+function buildLog(){
+  const lore=`
+  <div style="margin-bottom:1rem;">
+    <div style="font-size:.7rem;color:var(--gold);letter-spacing:.12em;text-align:center;padding:.5rem 0;border-bottom:1px solid var(--brd);margin-bottom:.6rem;">✦ 世界觀・艾爾薩大陸 ✦</div>
+    <div style="font-size:.66rem;color:var(--sild);line-height:1.8;padding:0 .2rem;">
+      <p style="margin-bottom:.5rem;color:#7a8fa0;">帝國曆 1077 年，統治艾爾薩大陸六百年的聖赫倫帝國在一夜之間崩裂。皇帝暴斃，宮廷內亂，十二位總督各據一方自立為王。大陸陷入戰火與混亂。</p>
+      <div style="font-size:.58rem;color:var(--goldd);letter-spacing:.08em;margin:.5rem 0 .3rem;">⚜ 十二王國時代</div>
+      <p style="margin-bottom:.4rem;">帝國崩裂後第三年。十二王國割據，邊境戰爭不斷。貿易中斷，匪盜橫行。底層百姓在苛政與戰亂間掙扎求存——義人無處容身，正義被踐踏為塵。</p>
+      <div style="font-size:.58rem;color:var(--goldd);letter-spacing:.08em;margin:.5rem 0 .3rem;">✦ 108 命運之星</div>
+      <p style="margin-bottom:.4rem;">帝國崩裂之夜，天象異變，108 顆流星劃過艾爾薩上空。占星師記錄下這一刻：「命運之星降世，聚者終結輪迴，散者萬劫不復。」這 108 顆星分為<span style="color:var(--gold);">天罡三十六星</span>（將領、英雄、智者）與<span style="color:var(--gold);">地煞七十二星</span>（工匠、商人、密探、學者）。</p>
+      <div style="font-size:.58rem;color:rgba(180,140,220,.8);letter-spacing:.08em;margin:.5rem 0 .3rem;">⚜ 天父星・先行者</div>
+      <p style="margin-bottom:.4rem;">最初感知到星辰降世的人。他召集了最早的同伴，踏上聚星之路——卻在途中倒下。他的名字已被遺忘，但他留下的線索與未竟之志，成為後繼者的遺產。如同水滸梁山的晁蓋，他是開路人，不是完成者。</p>
+      <div style="font-size:.58rem;color:var(--goldd);letter-spacing:.08em;margin:.5rem 0 .3rem;">✦ 逼上梁山</div>
+      <p style="margin-bottom:.4rem;">艾爾法並非英雄。她只是一個因堅持「糧食應該分給飢餓的人」而被解僱的城衛。橘子也只是一隻五枚銅幣的貓。但命運選中了她們——或者說，命運沒有給她們別的選擇。108 顆星辰，每一顆背後都有一個「被逼上絕路」的故事。</p>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:.3rem;padding:.4rem .2rem;border-top:1px solid var(--brd);margin-top:.5rem;">
+      <span style="font-size:.52rem;padding:.1rem .35rem;border:1px solid rgba(100,130,180,.3);border-radius:2px;color:rgba(120,150,200,.7);">霧山聯邦</span>
+      <span style="font-size:.52rem;padding:.1rem .35rem;border:1px solid rgba(180,160,80,.3);border-radius:2px;color:rgba(200,180,100,.7);">中央王國</span>
+      <span style="font-size:.52rem;padding:.1rem .35rem;border:1px solid rgba(60,140,160,.3);border-radius:2px;color:rgba(80,160,180,.7);">東海王國</span>
+      <span style="font-size:.52rem;padding:.1rem .35rem;border:1px solid rgba(40,130,60,.3);border-radius:2px;color:rgba(60,160,80,.7);">翠林域</span>
+      <span style="font-size:.52rem;padding:.1rem .35rem;border:1px solid rgba(130,80,50,.3);border-radius:2px;color:rgba(160,100,70,.7);">南荒</span>
+      <span style="font-size:.52rem;padding:.1rem .35rem;border:1px solid rgba(120,60,80,.3);border-radius:2px;color:rgba(160,80,100,.7);">帝國殘域</span>
+    </div>
+  </div>`;
+  const entries=G.log.map(s=>`<div class="log-entry"><div class="log-sec">${s.sec}</div><div class="log-loc">📍 ${s.loc}</div>${s.lines.map(l=>l.t==='sys'?`<div class="log-sys2">${l.v}</div>`:`<div class="log-txt">${l.v}</div>`).join('')}</div>`).join('');
+  return lore+`<div style="font-size:.7rem;color:var(--gold);letter-spacing:.12em;text-align:center;padding:.5rem 0;border-bottom:1px solid var(--brd);margin-bottom:.6rem;">✦ 冒險紀錄 ✦</div>`+entries;
+}
 
-// ═══ QUEST SYSTEM ═══
+// ═══ HEADQUARTERS SYSTEM（據點系統）═══
+const HQ_UNLOCK_STARS=10; // 招募10人後解鎖
+const HQ_FACILITIES=[
+  {id:'hall',   name:'聚義廳',  icon:'🏛️', stars:10, desc:'據點核心。星辰之人在此集結、議事、宣誓。', effect:'解鎖據點系統、查看全員名冊'},
+  {id:'forge',  name:'鍛冶坊',  icon:'⚒️', stars:12, desc:'鐵匠星入駐後開放。裝備強化上限提升、可鑄造特殊武器。', effect:'強化上限 +20→+30・解鎖鑄造'},
+  {id:'kitchen', name:'炊煙閣', icon:'🍳', stars:15, desc:'廚師星入駐後開放。烹飪恢復HP、特殊料理增益。', effect:'料理系統・全員HP回復+25%'},
+  {id:'library', name:'藏星閣', icon:'📚', stars:18, desc:'學者星入駐後開放。解讀古文、研究星辰秘密。', effect:'情報解析・天父星線索加速'},
+  {id:'clinic',  name:'杏林堂', icon:'⚕️', stars:20, desc:'醫師星入駐後開放。治療傷病、調配藥劑。', effect:'休息HP回復+50%・解毒・復活'},
+  {id:'spy',     name:'暗鴉樓', icon:'🕵️', stars:22, desc:'密探星入駐後開放。情報網絡、暗中行動。', effect:'自動獲取情報・偵查敵情'},
+  {id:'market',  name:'星河商會',icon:'💰', stars:25, desc:'商賈星入駐後開放。專屬商店、貿易路線。', effect:'獨家商品・交易免稅'},
+  {id:'arena',   name:'試煉場', icon:'⚔️', stars:28, desc:'武將星入駐後開放。訓練、比武、切磋技藝。', effect:'訓練費用減半・解鎖連攜技'},
+  {id:'garden',  name:'星辰園', icon:'🌿', stars:30, desc:'園丁星入駐後開放。種植藥草、採集素材。', effect:'定期產出藥草・稀有素材'},
+  {id:'dock',    name:'聚星港', icon:'⛵', stars:35, desc:'航海星入駐後開放。遠洋貿易、海外探索。', effect:'解鎖海外區域・貿易收入'},
+  {id:'tower',   name:'命星塔', icon:'🔭', stars:50, desc:'集齊半數星辰後覺醒。觀測全大陸星辰動向。', effect:'全大陸星辰位置可見'},
+  {id:'throne',  name:'天命之座',icon:'👑', stars:108,desc:'108星齊聚。終結輪迴的最後一步。', effect:'???'},
+];
+
+function getHQUnlocked(){
+  const recruited=[...TIANGANG,...DISHAT].filter(s=>s.status==='recruited').length;
+  return recruited>=HQ_UNLOCK_STARS;
+}
+
+function getRecruitedCount(){
+  return [...TIANGANG,...DISHAT].filter(s=>s.status==='recruited').length;
+}
+
+function buildHQ(){
+  const recruited=getRecruitedCount();
+  const unlocked=recruited>=HQ_UNLOCK_STARS;
+  // 更新 tab 外觀
+  ['hq-tab-p','hq-tab-d'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el){
+      if(unlocked){el.style.opacity='1';el.style.color='';el.textContent='據點';}
+      else{el.style.opacity='.4';el.style.color='var(--sild)';el.textContent='據點🔒';}
+    }
+  });
+
+  if(!unlocked){
+    const progress=Math.round(recruited/HQ_UNLOCK_STARS*100);
+    return`<div style="padding:1.5rem .8rem;text-align:center;">
+      <div style="font-size:1.5rem;margin-bottom:.6rem;opacity:.3;">🏛️</div>
+      <div style="font-size:.82rem;color:var(--sild);margin-bottom:.8rem;">據點尚未建立</div>
+      <div style="font-size:.68rem;color:#6a7a8a;line-height:1.7;margin-bottom:1rem;">
+        當招募的星辰之人達到 <span style="color:var(--gold);">${HQ_UNLOCK_STARS}</span> 位時，<br>
+        你將獲得建立據點的機會——<br>
+        一個屬於108星的家。
+      </div>
+      <div style="margin:0 auto;max-width:200px;">
+        <div style="display:flex;justify-content:space-between;font-size:.58rem;color:var(--sild);margin-bottom:.3rem;">
+          <span>招募進度</span><span>${recruited} / ${HQ_UNLOCK_STARS}</span>
+        </div>
+        <div style="height:6px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden;">
+          <div style="width:${progress}%;height:100%;background:linear-gradient(90deg,var(--goldd),var(--gold));border-radius:3px;transition:width .5s;"></div>
+        </div>
+      </div>
+      <div style="margin-top:1.2rem;font-size:.6rem;color:rgba(120,100,80,.4);font-style:italic;">「聚星者，先聚人。」</div>
+    </div>`;
+  }
+
+  // 已解鎖：顯示據點設施
+  let h=`<div style="text-align:center;margin-bottom:.8rem;">
+    <div style="font-size:.78rem;color:var(--gold);letter-spacing:.12em;font-weight:700;">✦ 聚義據點 ✦</div>
+    <div style="font-size:.58rem;color:var(--sild);margin-top:.2rem;">星辰 ${recruited}/108 · 設施 ${HQ_FACILITIES.filter(f=>recruited>=f.stars).length}/${HQ_FACILITIES.length}</div>
+  </div>`;
+  h+=HQ_FACILITIES.map(f=>{
+    const available=recruited>=f.stars;
+    return`<div style="background:${available?'var(--bg3)':'rgba(20,20,25,.5)'};border:1px solid ${available?'var(--brd)':'rgba(60,60,70,.3)'};border-radius:4px;padding:.55rem .7rem;margin-bottom:.4rem;opacity:${available?'1':'.45'};${available?'cursor:pointer;':''}transition:all .2s;"
+      ${available?`onmouseover="this.style.borderColor='var(--brdb)'" onmouseout="this.style.borderColor='var(--brd)'"`:''}
+    >
+      <div style="display:flex;align-items:center;gap:.5rem;">
+        <span style="font-size:1.1rem;${available?'':'filter:grayscale(1);'}">${f.icon}</span>
+        <div style="flex:1;">
+          <div style="font-size:.72rem;color:${available?'var(--sil)':'var(--sild)'};font-weight:600;">${f.name}${!available?' 🔒':''}</div>
+          <div style="font-size:.58rem;color:${available?'var(--sild)':'rgba(80,80,90,.6)'};margin-top:.1rem;">${f.desc}</div>
+          ${available?`<div style="font-size:.55rem;color:#6ab46a;margin-top:.15rem;">⊕ ${f.effect}</div>`:`<div style="font-size:.55rem;color:rgba(100,90,70,.5);margin-top:.15rem;">需要 ${f.stars} 位星辰之人</div>`}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+  return h;
+}
 
 // ═══ QUEST SYSTEM ═══
 // quest: {id, title, type:'主線'|'支線'|'緊急', status:'active'|'completed'|'failed',
@@ -2760,6 +2867,7 @@ function renderBoth(tab){
     else if(tab==='log')h=buildLog();
     else if(tab==='quest')h=buildQuest();
     else if(tab==='intel')h=buildIntel();
+    else if(tab==='hq')h=buildHQ();
     else h='';
     if(cacheable.includes(tab)){_renderCache[tab]=h;_dirty[tab]=false;}
   }
@@ -3186,46 +3294,61 @@ function initStory(){
   G.storyData=[];
 
   const opening=[
-    {type:'sec',v:'序章・Day 1　早晨'},
-    {type:'narr',v:'鐵霧城的早晨聞起來像銹。這座城市靠近山口，終年霧不散，鐵礦場的煙塵混進霧裡，每一口呼吸都帶著金屬的鈍味。'},
-    {type:'narr',v:'艾爾法站在城衛隊宿舍門口，手裡捏著那張解僱通知書，讀了第三遍。'},
-    {type:'sys',v:'「茲通知：城衛三等雇兵艾爾法，因擅自釋放扣押貨物、干涉稅務官執務，即日起解除雇傭關係，押金沒收，勿再登門。」'},
-    {type:'dial',sp:'艾爾法😒',ln:'那批貨是糧食。那個老人的家裡有五個孩子。'},
-    {type:'narr',v:'沒有人回應她。宿舍的門在她身後關上了。'},
-    {type:'narr',v:'橘子坐在她腳邊，仰頭看她。'},
+    // ── 序幕：天象 ──
+    {type:'sec',v:'序幕'},
+    {type:'narr',v:'帝國曆 1077 年，深秋之夜。聖赫倫帝國末代皇帝駕崩的那個晚上，108 顆流星劃過艾爾薩大陸的天空。沒有人知道這意味著什麼。'},
+    {type:'narr',v:'三年後，帝國已成廢墟。十二位總督各據一方稱王，邊境燃起戰火，商路斷絕，盜匪橫行。在這個義人無處容身的時代——'},
+    {type:'narr',v:'命運選中了一個最不起眼的人。'},
+
+    // ── Day 1：被解僱 ──
+    {type:'sec',v:'序章・逼上梁山　Day 1　清晨'},
+    {type:'narr',v:'鐵霧城。霧山聯邦的工業重鎮，終年濃霧不散，空氣裡永遠帶著鐵鏽的味道。這座城市不歡迎理想主義者。'},
+    {type:'narr',v:'城衛隊宿舍的門在艾爾法身後關上。她手裡捏著一張紙，銀色的長髮在晨霧中顯得格外冷淡。'},
+    {type:'sys',v:'「茲通知：城衛三等雇兵艾爾法，因擅自釋放扣押糧食、干涉稅務官職務，即日解除雇傭，押金沒收。——代理城主 恩佐·卡羅」'},
+    {type:'narr',v:'她把通知書疊好，放進口袋。沒有憤怒，沒有委屈。只是那五個孩子的父親跪在地上求她的畫面，還留在眼底。'},
+    {type:'dial',sp:'橘子🐈😒',ln:'喵。'},
+    {type:'sys',v:'〔系統翻譯：你又做了多餘的事。〕'},
+    {type:'narr',v:'五枚銅幣買來的布偶貓蹲在腳邊，藍眼睛望著她。這隻貓從不撒嬌，從不示弱，只是一直在那裡。'},
+    {type:'dial',sp:'艾爾法😒',ln:'走吧。'},
+
+    // ── Day 1：求生 ──
+    {type:'sec',v:'序章　Day 1　上午'},
+    {type:'narr',v:'中央廣場。告示欄前擠滿了人——失業的礦工、逃難的農民、找活的傭兵。艾爾法擠到前排，瞇眼看公告。'},
+    {type:'sys',v:'【懸賞令】山口劫匪「霧刃幫」，已劫三支商隊。線索賞銀50，首領賞金5。——代理城主 恩佐·卡羅'},
+    {type:'sys',v:'【告示】徵募城衛・門檻提高：需持「良民證」及兩名現職城衛擔保。——城衛隊'},
+    {type:'narr',v:'良民證。艾爾法摸了摸口袋裡的解僱通知。回去的路已經堵死了。'},
     {type:'dial',sp:'橘子🐈😒',ln:'喵——'},
-    {type:'sys',v:'〔系統翻譯：接下來怎麼辦。〕'},
-    {type:'dial',sp:'艾爾法😒',ln:'找工作。'},
-    {type:'sec',v:'序章・Day 1　上午'},
-    {type:'narr',v:'中央廣場的告示欄前圍了一群人。艾爾法擠進去，瞇眼看公告。'},
-    {type:'sys',v:'【懸賞令】山口出沒劫匪「霧刃幫」，已劫奪三支商隊。凡能提供線索者賞銀幣50，凡能緝拿首領者賞金幣5。——鐵霧城代理城主　恩佐·卡羅'},
-    {type:'narr',v:'艾爾法把懸賞令的內容默記在腦子裡，轉身往港口走。'},
-    {type:'sec',v:'序章・Day 1　中午'},
-    {type:'narr',v:'倉庫裡的男人叫葛林，五十多歲，獨眼，手上繭厚得像樹皮。他打量艾爾法一眼。'},
-    {type:'dial',sp:'葛林',ln:'你做過粗活嗎？'},
-    {type:'dial',sp:'艾爾法😒',ln:'沒有。但我學很快。'},
-    {type:'dial',sp:'葛林',ln:'城衛出來的？'},
-    {type:'dial',sp:'艾爾法😒',ln:'被解僱的。'},
-    {type:'dial',sp:'葛林',ln:'誠實。我喜歡。幹活。'},
-    {type:'sys',v:'✦ 獲得搬運工資：銅幣 ×80　→　所持金：金0・銀8・銅135'},
-    {type:'sec',v:'序章・Day 1　傍晚'},
-    {type:'narr',v:'碼頭的霧在夕陽裡染成暗橙色。艾爾法坐在木樁上啃乾糧，一手捏著那張解僱通知書，讀完了第三遍。'},
-    {type:'narr',v:'橘子盤在她腳邊，仰頭看著山口方向一縷不散的炊煙。'},
+    {type:'sys',v:'〔系統翻譯：別站著了。餓了。〕'},
+
+    // ── Day 1：碼頭 ──
+    {type:'sec',v:'序章　Day 1　傍晚'},
+    {type:'narr',v:'碼頭區。葛林倉庫。一天的搬運工作結束，艾爾法領到八十枚銅幣——勉強夠兩天的乾糧。'},
+    {type:'narr',v:'她坐在碼頭的木樁上，霧在夕陽裡染成暗橙色。橘子蜷在她腳邊，耳朵忽然轉向山口方向。'},
     {type:'dial',sp:'橘子🐈😒',ln:'喵——'},
-    {type:'sys',v:'〔系統翻譯：山上有人，而且不止一個。〕'},
-    {type:'narr',v:'背後響起腳步聲，戒備而輕快。'},
-    {type:'dial',sp:'紅髮女人',ln:'哎，你是今天幫葛林卸貨的人嗎？'},
-    {type:'narr',v:'她站在三步之外：紅髮，左臂繃帶纏到手肘，腰間掛著一把缺口的彎刀。眼神很亮，是被人追過的那種警覺。'},
-    {type:'dial',sp:'紅髮女人',ln:'我聽說你以前是城衛。你認識這一帶的山路嗎？'},
-    {type:'dial',sp:'艾爾法😒',ln:'坐下來說。'},
+    {type:'sys',v:'〔系統翻譯：山上有人。不止一個。而且——有人在跑。〕'},
+    {type:'narr',v:'背後響起腳步聲。戒備的、急促的、帶傷的腳步聲。'},
+    {type:'narr',v:'紅髮。左臂繃帶纏到手肘。腰間一把缺口彎刀。眼神是被追殺過的人才有的那種鋒利。她站在三步之外，喘息未平，目光卻穩穩鎖著艾爾法。'},
+    {type:'dial',sp:'紅髮女人',ln:'你是今天幫葛林卸貨的那個前城衛？'},
+    {type:'dial',sp:'艾爾法😒',ln:'⋯⋯是。'},
+    {type:'dial',sp:'紅髮女人',ln:'我需要一個認識山路的人。霧刃幫劫了我的東西——不是錢，是一封信。那封信牽扯到很多人的命。'},
+    {type:'narr',v:'她的手在發抖。不是因為冷。'},
+    {type:'dial',sp:'紅髮女人',ln:'幫我，我付得起報酬。不幫，就當我沒來過。'},
+    {type:'narr',v:'橘子從艾爾法腳邊站起來，走向紅髮女人，在她靴子旁邊繞了一圈。然後坐下，望向艾爾法。'},
+    {type:'dial',sp:'橘子🐈😒',ln:'喵。'},
+    {type:'sys',v:'〔系統翻譯：這個人在說真話。但她沒有說完全部。〕'},
   ];
 
   opening.forEach(e=>appendEntryToDOM(e));
   G.history=[
-    {role:'user',content:'故事開始。場景：鐵霧城碼頭傍晚，艾爾法今天被解僱、到廣場看了霧刃幫懸賞、在葛林倉庫打工，現在一名神秘紅髮女人開口搭話。請繼續並給出行動選項。'},
-    {role:'assistant',content:'{"st":"序章・Day 1　傍晚","sl":"📍 鐵霧城・碼頭","nv":["碼頭的霧在夕陽裡染成暗橙色。一名紅髮女人帶著警覺的眼神走近。"],"dl":[{"sp":"紅髮女人","ln":"我聽說你以前是城衛。你認識這一帶的山路嗎？"}],"sm":null,"gd":{"g":0,"s":0,"c":0},"ch":[{"t":"詢問她的傷勢與來歷","h":"（讀心）"},{"t":"直接問霧刃幫的事","h":""},{"t":"說明自己的處境，試探合作意願","h":""},{"t":"保持沉默，讓她繼續說","h":""}],"nm":null,"cb":null,"iv":null,"sp":null,"shop":null,"fa":null,"hp":null,"qt":null,"tm":null,"rp":null,"info":null,"relic":null,"clue":null,"or":null,"job":null}'}
+    {role:'user',content:'故事開始。場景：鐵霧城碼頭傍晚。艾爾法是被解僱的城衛（因釋放被扣糧食），身邊只有一隻五銅幣買來的布偶貓橘子。一名受傷的紅髮女人找上門，說霧刃幫搶了她一封「牽扯很多人命」的信，她需要認識山路的人幫忙。橘子判斷她「說真話但沒說完全部」。請繼續並給出行動選項。'},
+    {role:'assistant',content:'{"st":"序章・逼上梁山 Day 1","sl":"📍 鐵霧城・碼頭","nv":["紅髮女人在等待回答。霧越來越濃，山口方向隱約傳來犬吠——追兵可能不遠。"],"dl":[],"sm":null,"gd":{"g":0,"s":0,"c":0},"ch":[{"t":"答應幫忙，但要求先說清楚信的內容","h":"（知力判定・可能觸發讀心）"},{"t":"拒絕。你有你的麻煩，我有我的","h":"（冷漠路線）"},{"t":"先帶她躲起來再說——追兵可能已經到了","h":"（實際路線）"},{"t":"問橘子的看法","h":"（橘子感知）"}],"nm":null,"cb":null,"iv":null,"sp":null,"shop":null,"fa":null,"hp":null,"qt":null,"tm":null,"rp":null,"info":null,"relic":null,"clue":null,"or":null,"job":null}'}
   ];
-  const initChoices=[{t:'詢問她的傷勢與來歷',h:'（讀心）'},{t:'直接問霧刃幫的事',h:''},{t:'說明自己的處境，試探合作意願',h:''},{t:'保持沉默，讓她繼續說',h:''}];
+  const initChoices=[
+    {t:'答應幫忙，但要求先說清楚信的內容',h:'（知力判定）'},
+    {t:'拒絕。你有你的麻煩，我有我的',h:'（冷漠路線）'},
+    {t:'先帶她躲起來再說——追兵快到了',h:'（實際路線）'},
+    {t:'問橘子的看法',h:'（橘子感知）'}
+  ];
   renderChoices(initChoices);
   saveGame();
 }
@@ -3413,119 +3536,78 @@ function confirmDiceResult(){
 }
 // 王國/領地
 const KINGDOMS=[
-  {id:'fog_mt',name:'霧山聯邦',color:'rgba(80,100,140,.18)',stroke:'rgba(100,130,180,.3)',path:'M60 80 Q100 40 200 60 Q240 55 260 90 Q240 150 220 200 Q200 240 180 260 Q150 280 110 260 Q80 240 65 210 Q45 170 55 130 Z'},
-  {id:'central',name:'中央王國',color:'rgba(140,120,60,.15)',stroke:'rgba(180,160,80,.25)',path:'M260 60 Q340 40 420 65 Q460 80 470 120 Q480 160 460 200 Q440 240 400 270 Q360 290 310 285 Q260 278 240 250 Q220 220 225 180 Q230 140 245 110 Z'},
-  {id:'east_sea',name:'東海王國',color:'rgba(40,100,120,.18)',stroke:'rgba(60,140,160,.3)',path:'M460 80 Q510 55 560 70 Q590 90 595 140 Q600 190 585 240 Q570 280 545 300 Q510 320 480 300 Q455 275 448 240 Q440 200 445 160 Q448 120 455 95 Z'},
-  {id:'forest',name:'翠林域',color:'rgba(30,100,50,.2)',stroke:'rgba(40,130,60,.3)',path:'M240 40 Q280 20 340 30 Q380 35 390 65 Q370 90 330 100 Q290 108 260 95 Q240 80 238 60 Z'},
-  {id:'wasteland',name:'南荒',color:'rgba(100,60,40,.15)',stroke:'rgba(130,80,50,.25)',path:'M280 290 Q340 280 410 290 Q450 300 460 330 Q445 365 400 375 Q350 385 300 370 Q265 355 268 325 Z'},
+  {id:'fog_mt',name:'霧山聯邦',color:'rgba(80,100,140,.18)',stroke:'rgba(100,130,180,.3)',path:'M40 70 Q80 30 190 55 Q240 50 260 85 Q245 150 225 200 Q210 245 185 265 Q150 290 100 270 Q60 250 45 210 Q30 170 35 120 Z'},
+  {id:'central',name:'中央王國',color:'rgba(140,120,60,.15)',stroke:'rgba(180,160,80,.25)',path:'M260 55 Q340 35 430 60 Q470 75 478 120 Q485 165 465 205 Q445 245 405 275 Q365 295 315 290 Q265 283 245 255 Q225 225 228 185 Q232 140 248 105 Z'},
+  {id:'east_sea',name:'東海王國',color:'rgba(40,100,120,.18)',stroke:'rgba(60,140,160,.3)',path:'M470 70 Q520 48 565 62 Q595 82 600 135 Q605 195 590 245 Q575 285 550 305 Q515 325 485 305 Q460 280 452 245 Q445 205 450 165 Q453 115 462 88 Z'},
+  {id:'forest',name:'翠林域',color:'rgba(30,100,50,.2)',stroke:'rgba(40,130,60,.3)',path:'M235 35 Q275 15 345 25 Q385 30 395 60 Q375 88 335 98 Q295 105 265 92 Q242 78 238 55 Z'},
+  {id:'wasteland',name:'南荒',color:'rgba(100,60,40,.15)',stroke:'rgba(130,80,50,.25)',path:'M275 285 Q345 275 420 285 Q460 295 470 335 Q455 370 410 382 Q355 392 300 378 Q260 362 262 330 Z'},
+  {id:'north_ice',name:'霜嶺',color:'rgba(140,160,180,.12)',stroke:'rgba(160,180,200,.2)',path:'M60 25 Q120 10 200 18 Q240 22 235 45 Q220 60 180 55 Q120 48 80 50 Q50 48 48 35 Z'},
+  {id:'shadow_marsh',name:'影沼地',color:'rgba(50,40,60,.2)',stroke:'rgba(80,60,100,.25)',path:'M100 270 Q130 290 155 310 Q170 340 160 365 Q140 380 110 375 Q75 360 60 335 Q50 310 60 290 Q75 275 90 272 Z'},
 ];
 
-// 城市資料
+// 城市資料（16座城市）
 const MAP_CITIES={
-  iron_fog:{
-    name:'鐵霧城',cx:175,cy:215,size:7,kingdom:'fog_mt',
-    desc:'霧山聯邦工業重城，終年霧不散。代理城主：恩佐·卡羅。',
-    keywords:['鐵霧城'],
-    pois:[
-      {name:'港口區・倉庫',icon:'⚓',type:'port',x:110,y:265,desc:'葛林🪵的倉庫，可接搬運工作。',waystation:false},
-      {name:'中央廣場',icon:'📋',type:'plaza',x:200,y:178,desc:'公告欄，懸賞令張貼處，情報集散地。',waystation:false},
-      {name:'城衛隊本部',icon:'🛡️',type:'guard',x:295,y:148,desc:'艾爾法前雇主，代理城主恩佐駐守。',waystation:false},
-      {name:'鐵鎚旅館',icon:'🍺',type:'inn',x:158,y:150,desc:'可休息・打聽情報・補給。',waystation:false},
-      {name:'武器修繕鋪',icon:'⚒️',type:'shop',x:255,y:245,desc:'裝備維修・輕型武器販賣。',waystation:false},
-      {name:'雜貨商行',icon:'🎒',type:'shop',x:328,y:218,desc:'乾糧・繃帶・基本補給品。',waystation:false},
-      {name:'霧山驛站',icon:'🐎',type:'waystation',x:225,y:310,desc:'可購買驛馬前往其他城市。出發條件：持有驛站令牌或銀幣10枚以上。',waystation:true},
-      {name:'霧刃幫據點',icon:'⚠️',type:'danger',x:385,y:290,desc:'位置不確定，山口附近活動。',waystation:false},
-    ]
-  },
-  iron_crown:{
-    name:'鐵冠城',cx:120,cy:120,size:5,kingdom:'fog_mt',
-    desc:'霧山聯邦北方要塞，守備嚴密，礦脈豐富。',
-    keywords:['鐵冠城'],
-    pois:[
-      {name:'要塞城門',icon:'🏰',type:'guard',x:200,y:160,desc:'戒備森嚴，入城需通關令。',waystation:false},
-      {name:'礦工聚落',icon:'⛏️',type:'district',x:300,y:240,desc:'採礦工人居住區，情報豐富。',waystation:false},
-      {name:'北驛',icon:'🐎',type:'waystation',x:370,y:170,desc:'可前往鐵霧城或銀月城方向。',waystation:true},
-    ]
-  },
-  silver_moon:{
-    name:'銀月城',cx:315,cy:148,size:8,kingdom:'central',
-    desc:'中央王國最大商業都市，各路英雄匯聚，情報市場繁盛。',
-    keywords:['銀月城'],
-    pois:[
-      {name:'月橋商街',icon:'🏪',type:'shop',x:160,y:170,desc:'各類商品・稀有道具・情報買賣。',waystation:false},
-      {name:'英雄公會',icon:'⚔️',type:'guild',x:250,y:230,desc:'接任務・懸賞・傭兵招募。',waystation:false},
-      {name:'銀月旅館',icon:'🍺',type:'inn',x:340,y:155,desc:'高級旅館，可打聽重要情報。',waystation:false},
-      {name:'中央驛站',icon:'🐎',type:'waystation',x:430,y:195,desc:'四通八達，可前往全大陸各城市。',waystation:true},
-      {name:'星象館',icon:'🔭',type:'special',x:310,y:290,desc:'古老星象機構，與108星辰有關聯？',waystation:false},
-    ]
-  },
-  rust_city:{
-    name:'鏽城',cx:340,cy:285,size:6,kingdom:'central',
-    desc:'前帝都廢墟，帝國崩裂後百廢待興，地下遺跡尚未探明。',
-    keywords:['鏽城','廢都'],
-    pois:[
-      {name:'廢墟廣場',icon:'🏚️',type:'ruins',x:200,y:165,desc:'帝都昔日中心，現滿目瘡痍。',waystation:false},
-      {name:'殘黨據點',icon:'⚠️',type:'danger',x:350,y:220,desc:'帝國殘黨盤據，危險。',waystation:false},
-      {name:'地下遺跡入口',icon:'🕳️',type:'special',x:290,y:295,desc:'深處有古代機關，未知寶藏。',waystation:false},
-      {name:'廢都驛',icon:'🐎',type:'waystation',x:150,y:250,desc:'破舊但仍運作，可低價前往南北各城。',waystation:true},
-    ]
-  },
-  east_port:{
-    name:'東港城',cx:510,cy:162,size:7,kingdom:'east_sea',
-    desc:'東海王國大港，海貿繁盛，各國船隻停泊，情報人員眾多。',
-    keywords:['東港城'],
-    pois:[
-      {name:'東港碼頭',icon:'⚓',type:'port',x:420,y:275,desc:'大型商港，可搭船前往海外。',waystation:false},
-      {name:'商人公會',icon:'💰',type:'guild',x:215,y:175,desc:'情報買賣・任務委託・走私線索。',waystation:false},
-      {name:'海鷗旅館',icon:'🍺',type:'inn',x:175,y:240,desc:'港口最大旅館，各路人馬聚集。',waystation:false},
-      {name:'武器鋪・波浪',icon:'⚔️',type:'shop',x:305,y:205,desc:'海軍規格武器・防具。',waystation:false},
-      {name:'東港驛站',icon:'🐎',type:'waystation',x:385,y:155,desc:'可前往銀月城或霧海關。',waystation:true},
-      {name:'情報屋',icon:'🕵️',type:'special',x:290,y:290,desc:'地下情報網，消息靈通。',waystation:false},
-    ]
-  },
-  fog_sea_pass:{
-    name:'霧海關',cx:538,cy:258,size:5,kingdom:'east_sea',
-    desc:'東海王國南端要塞，控制海上航路，走私活動猖獗。',
-    keywords:['霧海關'],
-    pois:[
-      {name:'關卡城門',icon:'🚧',type:'guard',x:200,y:155,desc:'嚴格盤查，需通行證。',waystation:false},
-      {name:'走私商人',icon:'🤫',type:'special',x:310,y:245,desc:'黑市交易，危險但有奇貨。',waystation:false},
-      {name:'南海驛',icon:'🐎',type:'waystation',x:380,y:195,desc:'可前往東港城或更南方。',waystation:true},
-    ]
-  },
-  jade_forest:{
-    name:'翠林城',cx:268,cy:80,size:5,kingdom:'forest',
-    desc:'翠林域精靈聚居地，外人不易進入，古老魔法力量瀰漫。',
-    keywords:['翠林城','翠林'],
-    pois:[
-      {name:'世界樹廣場',icon:'🌳',type:'special',x:250,y:180,desc:'翠林域中心，古老精靈議會所在。',waystation:false},
-      {name:'藥草市集',icon:'🌿',type:'shop',x:350,y:245,desc:'稀有藥草・解毒劑・精靈特產。',waystation:false},
-      {name:'林間驛',icon:'🐎',type:'waystation',x:160,y:210,desc:'精靈特供驛站，需取得通行許可。',waystation:true},
-    ]
-  },
-  dragon_valley:{
-    name:'龍牙砦',cx:415,cy:328,size:5,kingdom:'wasteland',
-    desc:'南荒廢棄要塞，傳說有古龍盤據，尋寶者與亡命之徒聚集。',
-    keywords:['龍牙砦','龍谷'],
-    pois:[
-      {name:'亡命者營地',icon:'🔥',type:'danger',x:215,y:180,desc:'各路強者聚集，強者為王。',waystation:false},
-      {name:'古龍遺跡',icon:'🐉',type:'special',x:320,y:250,desc:'傳說有古代龍族的寶庫，危機四伏。',waystation:false},
-      {name:'廢砦驛',icon:'🐎',type:'waystation',x:380,y:155,desc:'破舊驛站，仍可出發，但無保障。',waystation:true},
-    ]
-  },
+  // ═══ 霧山聯邦 ═══
+  iron_fog:{name:'鐵霧城',cx:175,cy:215,size:7,kingdom:'fog_mt',desc:'霧山聯邦工業重城，終年霧不散。代理城主：恩佐·卡羅。',keywords:['鐵霧城'],
+    pois:[{name:'港口區・倉庫',icon:'⚓',type:'port',x:110,y:265,desc:'葛林的倉庫，可接搬運工作。'},{name:'中央廣場',icon:'📋',type:'plaza',x:200,y:178,desc:'公告欄，懸賞令張貼處。'},{name:'城衛隊本部',icon:'🛡️',type:'guard',x:295,y:148,desc:'代理城主恩佐駐守。'},{name:'鐵鎚旅館',icon:'🍺',type:'inn',x:158,y:150,desc:'休息・打聽情報・補給。'},{name:'武器修繕鋪',icon:'⚒️',type:'shop',x:255,y:245,desc:'裝備維修・輕型武器。'},{name:'雜貨商行',icon:'🎒',type:'shop',x:328,y:218,desc:'乾糧・繃帶・基本補給。'},{name:'霧山驛站',icon:'🐎',type:'waystation',x:225,y:310,desc:'可購買驛馬前往其他城市。',waystation:true},{name:'霧刃幫據點',icon:'⚠️',type:'danger',x:385,y:290,desc:'山口附近活動，位置不確定。'}]},
+  iron_crown:{name:'鐵冠城',cx:120,cy:120,size:5,kingdom:'fog_mt',desc:'霧山聯邦北方要塞，守備嚴密，礦脈豐富。',keywords:['鐵冠城'],
+    pois:[{name:'要塞城門',icon:'🏰',type:'guard',x:200,y:160,desc:'戒備森嚴，需通關令。'},{name:'礦工聚落',icon:'⛏️',type:'district',x:300,y:240,desc:'採礦工人居住區。'},{name:'北驛',icon:'🐎',type:'waystation',x:370,y:170,desc:'前往鐵霧城或銀月城。',waystation:true}]},
+  grey_haven:{name:'灰港鎮',cx:90,cy:185,size:4,kingdom:'fog_mt',desc:'霧山聯邦西端漁港，海霧終年不散，走私猖獗。',keywords:['灰港'],
+    pois:[{name:'漁市場',icon:'🐟',type:'shop',x:180,y:180,desc:'鮮魚・海產・漁民消息。'},{name:'走私碼頭',icon:'🤫',type:'danger',x:320,y:260,desc:'夜間才開放，危險但有奇貨。'},{name:'灰港客棧',icon:'🍺',type:'inn',x:250,y:200,desc:'漁民與水手聚集。'}]},
+  // ═══ 中央王國 ═══
+  silver_moon:{name:'銀月城',cx:340,cy:148,size:8,kingdom:'central',desc:'中央王國最大商業都市，各路英雄匯聚，情報市場繁盛。',keywords:['銀月城'],
+    pois:[{name:'月橋商街',icon:'🏪',type:'shop',x:160,y:170,desc:'各類商品・稀有道具。'},{name:'英雄公會',icon:'⚔️',type:'guild',x:250,y:230,desc:'任務・懸賞・傭兵招募。'},{name:'銀月旅館',icon:'🍺',type:'inn',x:340,y:155,desc:'高級旅館。'},{name:'中央驛站',icon:'🐎',type:'waystation',x:430,y:195,desc:'四通八達。',waystation:true},{name:'星象館',icon:'🔭',type:'special',x:310,y:290,desc:'古老星象機構，與108星辰有關聯。'}]},
+  rust_city:{name:'鏽城',cx:360,cy:255,size:6,kingdom:'central',desc:'前帝都廢墟，帝國崩裂後百廢待興。',keywords:['鏽城','廢都'],
+    pois:[{name:'廢墟廣場',icon:'🏚️',type:'ruins',x:200,y:165,desc:'帝都昔日中心。'},{name:'殘黨據點',icon:'⚠️',type:'danger',x:350,y:220,desc:'帝國殘黨盤據。'},{name:'地下遺跡',icon:'🕳️',type:'special',x:290,y:295,desc:'古代機關，未知寶藏。'},{name:'廢都驛',icon:'🐎',type:'waystation',x:150,y:250,desc:'破舊但仍運作。',waystation:true}]},
+  golden_bridge:{name:'金橋城',cx:400,cy:178,size:5,kingdom:'central',desc:'中央王國東部商貿樞紐，連接東海與內陸的咽喉。',keywords:['金橋城','金橋'],
+    pois:[{name:'大橋市集',icon:'🏪',type:'shop',x:200,y:180,desc:'東西貨物交匯，物價公道。'},{name:'稅務署',icon:'📜',type:'guard',x:300,y:230,desc:'中央王國稅收重地。'},{name:'金橋驛',icon:'🐎',type:'waystation',x:380,y:170,desc:'前往銀月城或東港城。',waystation:true}]},
+  crown_peak:{name:'王冠峰',cx:290,cy:105,size:4,kingdom:'central',desc:'中央王國北境要塞，俯瞰翠林域與霧山聯邦交界。',keywords:['王冠峰'],
+    pois:[{name:'瞭望塔',icon:'🗼',type:'guard',x:250,y:180,desc:'可遠眺三國邊境。'},{name:'邊境商隊營地',icon:'🏕️',type:'shop',x:350,y:240,desc:'來往商隊補給站。'}]},
+  // ═══ 東海王國 ═══
+  east_port:{name:'東港城',cx:510,cy:155,size:7,kingdom:'east_sea',desc:'東海王國大港，海貿繁盛，情報人員眾多。',keywords:['東港城'],
+    pois:[{name:'東港碼頭',icon:'⚓',type:'port',x:420,y:275,desc:'大型商港，可搭船。'},{name:'商人公會',icon:'💰',type:'guild',x:215,y:175,desc:'情報・任務・走私線索。'},{name:'海鷗旅館',icon:'🍺',type:'inn',x:175,y:240,desc:'各路人馬聚集。'},{name:'武器鋪・波浪',icon:'⚔️',type:'shop',x:305,y:205,desc:'海軍規格武器。'},{name:'東港驛站',icon:'🐎',type:'waystation',x:385,y:155,desc:'前往銀月城或霧海關。',waystation:true},{name:'情報屋',icon:'🕵️',type:'special',x:290,y:290,desc:'地下情報網。'}]},
+  fog_sea_pass:{name:'霧海關',cx:545,cy:248,size:5,kingdom:'east_sea',desc:'東海王國南端要塞，控制海上航路。',keywords:['霧海關'],
+    pois:[{name:'關卡城門',icon:'🚧',type:'guard',x:200,y:155,desc:'嚴格盤查，需通行證。'},{name:'走私商人',icon:'🤫',type:'special',x:310,y:245,desc:'黑市交易。'},{name:'南海驛',icon:'🐎',type:'waystation',x:380,y:195,desc:'前往東港城或南方。',waystation:true}]},
+  coral_bay:{name:'珊瑚灣',cx:555,cy:180,size:4,kingdom:'east_sea',desc:'東海王國漁村，盛產珊瑚與珍珠，海盜出沒。',keywords:['珊瑚灣'],
+    pois:[{name:'珊瑚市場',icon:'🐚',type:'shop',x:220,y:200,desc:'珊瑚・珍珠・海產品。'},{name:'海盜暗礁',icon:'🏴‍☠️',type:'danger',x:350,y:270,desc:'海盜藏身處。'}]},
+  // ═══ 翠林域 ═══
+  jade_forest:{name:'翠林城',cx:290,cy:65,size:5,kingdom:'forest',desc:'翠林域精靈聚居地，外人不易進入。',keywords:['翠林城','翠林'],
+    pois:[{name:'世界樹廣場',icon:'🌳',type:'special',x:250,y:180,desc:'古老精靈議會所在。'},{name:'藥草市集',icon:'🌿',type:'shop',x:350,y:245,desc:'稀有藥草・精靈特產。'},{name:'林間驛',icon:'🐎',type:'waystation',x:160,y:210,desc:'需取得通行許可。',waystation:true}]},
+  elder_grove:{name:'古樹隱村',cx:335,cy:48,size:3,kingdom:'forest',desc:'翠林深處的隱匿聚落，居住著最古老的森民與隱士。',keywords:['古樹隱村','隱村'],
+    pois:[{name:'長老之廳',icon:'🧙',type:'special',x:260,y:200,desc:'古老智慧的守護者。'},{name:'禁忌書庫',icon:'📚',type:'special',x:350,y:250,desc:'收藏帝國時代的禁書。'}]},
+  // ═══ 南荒 ═══
+  dragon_valley:{name:'龍牙砦',cx:415,cy:328,size:5,kingdom:'wasteland',desc:'南荒廢棄要塞，尋寶者與亡命之徒聚集。',keywords:['龍牙砦','龍谷'],
+    pois:[{name:'亡命者營地',icon:'🔥',type:'danger',x:215,y:180,desc:'強者為王。'},{name:'古龍遺跡',icon:'🐉',type:'special',x:320,y:250,desc:'古代龍族寶庫。'},{name:'廢砦驛',icon:'🐎',type:'waystation',x:380,y:155,desc:'破舊驛站。',waystation:true}]},
+  sand_gate:{name:'沙門城',cx:320,cy:340,size:4,kingdom:'wasteland',desc:'南荒北境的關城，是進入荒野的最後補給站。',keywords:['沙門城','沙門'],
+    pois:[{name:'最後補給站',icon:'🎒',type:'shop',x:220,y:190,desc:'南荒專用補給品。'},{name:'沙門酒館',icon:'🍺',type:'inn',x:310,y:240,desc:'冒險者情報交換。'},{name:'沙門驛',icon:'🐎',type:'waystation',x:380,y:180,desc:'前往龍牙砦或鏽城。',waystation:true}]},
+  // ═══ 霜嶺 ═══
+  frost_keep:{name:'霜守堡',cx:150,cy:38,size:4,kingdom:'north_ice',desc:'北方極寒之地的孤堡，帝國時代的邊防遺址，現由流亡騎士團駐守。',keywords:['霜守堡','霜嶺'],
+    pois:[{name:'騎士團營房',icon:'🛡️',type:'guard',x:220,y:180,desc:'流亡騎士團，紀律嚴明。'},{name:'冰窖倉庫',icon:'❄️',type:'shop',x:320,y:230,desc:'寒帶特產・皮毛・凍肉。'},{name:'霜嶺驛',icon:'🐎',type:'waystation',x:380,y:200,desc:'前往鐵冠城。條件惡劣。',waystation:true}]},
+  // ═══ 影沼地 ═══
+  shadow_marsh:{name:'影沼鎮',cx:115,cy:310,size:4,kingdom:'shadow_marsh',desc:'西南沼澤中的隱秘聚落，瘴氣瀰漫，藥師與亡命之徒藏身於此。',keywords:['影沼鎮','影沼'],
+    pois:[{name:'沼澤藥鋪',icon:'🧪',type:'shop',x:220,y:190,desc:'稀有毒藥與解藥。'},{name:'暗渡口',icon:'🛶',type:'special',x:320,y:260,desc:'通往不為人知的水路。'},{name:'影沼驛',icon:'🐎',type:'waystation',x:360,y:180,desc:'前往鐵霧城或灰港鎮。',waystation:true}]},
 };
 
 // 驛站連線（城市間可通行的路線）
 const CITY_ROUTES=[
-  ['iron_fog','iron_crown'],
-  ['iron_fog','silver_moon'],
-  ['iron_crown','silver_moon'],
-  ['silver_moon','east_port'],
-  ['silver_moon','rust_city'],
-  ['silver_moon','jade_forest'],
-  ['east_port','fog_sea_pass'],
-  ['rust_city','dragon_valley'],
-  ['iron_fog','rust_city'],
+  // 霧山聯邦內部
+  ['iron_fog','iron_crown'],['iron_fog','grey_haven'],['grey_haven','shadow_marsh'],
+  // 霧山→中央
+  ['iron_fog','silver_moon'],['iron_crown','crown_peak'],['iron_crown','silver_moon'],
+  // 中央王國內部
+  ['silver_moon','crown_peak'],['silver_moon','golden_bridge'],['silver_moon','rust_city'],['golden_bridge','rust_city'],
+  // 中央→東海
+  ['golden_bridge','east_port'],['silver_moon','east_port'],
+  // 東海王國內部
+  ['east_port','fog_sea_pass'],['east_port','coral_bay'],['coral_bay','fog_sea_pass'],
+  // 翠林域
+  ['silver_moon','jade_forest'],['crown_peak','jade_forest'],['jade_forest','elder_grove'],
+  // 南荒
+  ['rust_city','sand_gate'],['sand_gate','dragon_valley'],['fog_sea_pass','dragon_valley'],
+  // 霜嶺
+  ['iron_crown','frost_keep'],
+  // 影沼
+  ['iron_fog','shadow_marsh'],['shadow_marsh','sand_gate'],
 ];
 
 // 偵測當前所在城市
@@ -3597,69 +3679,164 @@ function renderContinentMap(){
 
   const cityCircles=Object.entries(MAP_CITIES).map(([id,c])=>{
     const isCur=id===curId;
-    const col=isCur?'#c9a84c':'#707060';
-    const strokeCol=isCur?'#e8cc7a':'#907060';
+    const col=isCur?'#c9a84c':'#8a8070';
+    const strokeCol=isCur?'#e8cc7a':'#a09080';
+    const glowR=c.size*3;
+    // 城牆圖示
+    const wallW=c.size*1.6,wallH=c.size*1.2;
     return`<g class="city-dot" data-city="${id}" style="cursor:pointer">
-      ${isCur?`<circle cx="${c.cx}" cy="${c.cy}" r="${c.size+8}" fill="rgba(201,168,76,.12)" stroke="rgba(201,168,76,.35)" stroke-width="1"/>`:``}
-      <circle cx="${c.cx}" cy="${c.cy}" r="${c.size}" fill="${col}" stroke="${strokeCol}" stroke-width="${isCur?2:1.5}"/>
-      <text x="${c.cx}" y="${c.cy+c.size+12}" text-anchor="middle" font-size="${isCur?10:8.5}" fill="${col}" font-family="serif" font-weight="${isCur?'600':'400'}">${c.name}</text>
-      ${isCur?`<text x="${c.cx}" y="${c.cy+c.size+22}" text-anchor="middle" font-size="7.5" fill="rgba(201,168,76,.55)" font-family="sans-serif">◉ 當前</text>`:''}
-      <rect cx="${c.cx}" cy="${c.cy}" x="${c.cx-30}" y="${c.cy-c.size-15}" width="60" height="${c.size+30}" fill="transparent"/>
+      ${isCur?`<circle cx="${c.cx}" cy="${c.cy}" r="${glowR}" fill="url(#cityGlow)" opacity=".8"/><circle cx="${c.cx}" cy="${c.cy}" r="${c.size+6}" fill="none" stroke="rgba(201,168,76,.3)" stroke-width=".6" stroke-dasharray="2,2"><animate attributeName="r" values="${c.size+5};${c.size+9};${c.size+5}" dur="3s" repeatCount="indefinite"/></circle>`:``}
+      <rect x="${c.cx-wallW}" y="${c.cy-wallH}" width="${wallW*2}" height="${wallH*2}" rx="2" fill="rgba(${isCur?'30,25,15':'18,18,15'},.7)" stroke="${strokeCol}" stroke-width="${isCur?1.2:.8}"/>
+      <rect x="${c.cx-wallW+1.5}" y="${c.cy-wallH-2}" width="3" height="4" fill="${strokeCol}" rx=".5"/>
+      <rect x="${c.cx+wallW-4.5}" y="${c.cy-wallH-2}" width="3" height="4" fill="${strokeCol}" rx=".5"/>
+      <rect x="${c.cx-1.5}" y="${c.cy-wallH-3}" width="3" height="5" fill="${col}" rx=".5"/>
+      <circle cx="${c.cx}" cy="${c.cy}" r="2" fill="${col}" opacity=".6"/>
+      <text x="${c.cx}" y="${c.cy+wallH+11}" text-anchor="middle" font-size="${isCur?10:8.5}" fill="${col}" font-family="serif" font-weight="${isCur?'700':'400'}" ${isCur?'filter="url(#glow)"':''}>${c.name}</text>
+      ${isCur?`<text x="${c.cx}" y="${c.cy+wallH+21}" text-anchor="middle" font-size="7" fill="rgba(201,168,76,.6)" font-family="sans-serif">◉ 所在地</text>`:''}
+      <rect x="${c.cx-30}" y="${c.cy-wallH-10}" width="60" height="${wallH*2+35}" fill="transparent"/>
     </g>`;
   }).join('');
 
   const routes=CITY_ROUTES.map(([a,b])=>{
     const ca=MAP_CITIES[a],cb=MAP_CITIES[b];
     if(!ca||!cb)return'';
-    return`<line x1="${ca.cx}" y1="${ca.cy}" x2="${cb.cx}" y2="${cb.cy}" stroke="rgba(201,168,76,.18)" stroke-width="1.2" stroke-dasharray="5,4"/>`;
+    // 微彎曲線讓道路更自然
+    const mx=(ca.cx+cb.cx)/2+((Math.random()-.5)*20),my=(ca.cy+cb.cy)/2+((Math.random()-.5)*15);
+    return`<path d="M${ca.cx} ${ca.cy} Q${mx.toFixed(0)} ${my.toFixed(0)} ${cb.cx} ${cb.cy}" stroke="rgba(160,140,100,.15)" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+    <path d="M${ca.cx} ${ca.cy} Q${mx.toFixed(0)} ${my.toFixed(0)} ${cb.cx} ${cb.cy}" stroke="rgba(201,168,76,.1)" stroke-width=".8" fill="none" stroke-dasharray="3,5" stroke-linecap="round"/>`;
   }).join('');
 
   const kingdomShapes=KINGDOMS.map(k=>`
     <path d="${k.path}" fill="${k.color}" stroke="${k.stroke}" stroke-width="1"/>
     `).join('');
 
+  // 生成地形元素
+  const mountains=(()=>{
+    const peaks=[
+      // 霧山山脈（西側）
+      [72,155],[95,140],[118,148],[85,168],[108,162],[130,158],[142,145],[68,180],[150,170],
+      // 北方山嶺
+      [180,95],[200,88],[165,102],[215,100],
+      // 南荒邊境
+      [320,310],[345,305],[368,318],[390,312],[410,322],
+    ];
+    return peaks.map(([x,y])=>{
+      const h=12+Math.random()*10;const w=h*0.8;
+      const snow=y<120?`<path d="M${x} ${y-h+2} L${x-w*0.2} ${y-h+5} L${x+w*0.2} ${y-h+5}Z" fill="rgba(200,210,220,.15)"/>`:'';
+      return`<path d="M${x} ${y-h} L${x-w} ${y} L${x+w} ${y}Z" fill="rgba(25,28,18,${0.5+Math.random()*0.3})" stroke="rgba(50,55,30,.35)" stroke-width=".5"/>${snow}`;
+    }).join('');
+  })();
+  const forests=(()=>{
+    const groves=[
+      // 翠林域
+      {cx:255,cy:72,n:18,r:35,density:1.2},
+      // 霧山林地
+      {cx:140,cy:200,n:8,r:20,density:0.8},
+      // 東方疏林
+      {cx:490,cy:180,n:6,r:18,density:0.6},
+      // 南荒灌木
+      {cx:370,cy:340,n:5,r:15,density:0.5},
+    ];
+    return groves.map(g=>{
+      const trees=Array.from({length:g.n},(_,i)=>{
+        const a=i*(Math.PI*2/g.n)+Math.random()*0.5;
+        const d=Math.random()*g.r*g.density;
+        const tx=g.cx+Math.cos(a)*d,ty=g.cy+Math.sin(a)*d;
+        const s=4+Math.random()*5;
+        const shade=g.cy<100?'rgba(15,40,20,.7)':'rgba(10,30,15,.5)';
+        return`<circle cx="${tx.toFixed(1)}" cy="${ty.toFixed(1)}" r="${s.toFixed(1)}" fill="${shade}" stroke="rgba(20,50,25,.3)" stroke-width=".4"/>`;
+      }).join('');
+      return`<g opacity=".65">${trees}</g>`;
+    }).join('');
+  })();
+  const rivers=`
+    <path d="M220 95 Q235 130 255 165 Q275 200 295 230 Q310 255 330 280 Q345 300 365 320"
+      stroke="rgba(50,120,200,.25)" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <path d="M295 230 Q320 240 350 235 Q380 228 410 235 Q440 242 470 238"
+      stroke="rgba(50,120,200,.18)" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <path d="M255 165 Q230 175 210 190 Q195 205 185 225"
+      stroke="rgba(50,120,200,.15)" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+    <!-- 湖泊 -->
+    <ellipse cx="295" cy="232" rx="8" ry="5" fill="rgba(40,100,180,.12)" stroke="rgba(50,120,200,.2)" stroke-width=".6"/>
+    <ellipse cx="530" cy="275" rx="12" ry="7" fill="rgba(40,100,180,.1)" stroke="rgba(50,120,200,.15)" stroke-width=".6"/>`;
+  // 海洋（東側與南側）
+  const ocean=`
+    <path d="M575 50 Q610 70 625 120 Q635 180 630 250 Q625 320 610 370 L640 400 L640 0 L580 0Z" fill="rgba(15,35,60,.5)"/>
+    <path d="M610 370 Q550 390 460 395 L640 400 L640 370Z" fill="rgba(15,35,60,.35)"/>
+    ${Array.from({length:8},(_,i)=>`<path d="M${585+Math.random()*40} ${60+i*42} q${8+Math.random()*5} ${-3-Math.random()*3} ${16+Math.random()*8} 0" stroke="rgba(60,130,200,.12)" stroke-width=".8" fill="none"/>`).join('')}
+    <text x="618" y="195" text-anchor="middle" font-size="9" fill="rgba(50,100,160,.2)" font-family="serif" transform="rotate(90,618,195)" letter-spacing="8">碧 藍 海</text>`;
+  // 裝飾性地標
+  const landmarks=`
+    <!-- 帝國廢墟標記 -->
+    <g opacity=".4" transform="translate(340,285)">
+      <rect x="-4" y="-6" width="8" height="6" fill="none" stroke="rgba(120,100,70,.5)" stroke-width=".6"/>
+      <line x1="-4" y1="-6" x2="0" y2="-10" stroke="rgba(120,100,70,.5)" stroke-width=".6"/>
+      <line x1="4" y1="-6" x2="0" y2="-10" stroke="rgba(120,100,70,.5)" stroke-width=".6"/>
+    </g>
+    <!-- 星象塔 -->
+    <g opacity=".35" transform="translate(315,148)">
+      <circle cx="0" cy="-8" r="3" fill="none" stroke="rgba(201,168,76,.5)" stroke-width=".5"/>
+      <line x1="0" y1="-5" x2="0" y2="2" stroke="rgba(201,168,76,.4)" stroke-width=".6"/>
+      <line x1="-3" y1="0" x2="3" y2="0" stroke="rgba(201,168,76,.3)" stroke-width=".5"/>
+    </g>`;
+  // 散布的小星星（命運之星主題）
+  const stars=Array.from({length:15},()=>{
+    const x=30+Math.random()*580,y=30+Math.random()*350;
+    const s=0.5+Math.random()*1;
+    return`<circle cx="${x.toFixed(0)}" cy="${y.toFixed(0)}" r="${s.toFixed(1)}" fill="rgba(201,168,76,${(0.05+Math.random()*0.1).toFixed(2)})"/>`;
+  }).join('');
+
   const svgContinent=`<svg viewBox="0 0 640 400" width="100%" height="400" xmlns="http://www.w3.org/2000/svg" style="display:block">
   <defs>
-    <radialGradient id="sg" cx="50%" cy="50%" r="70%"><stop offset="0%" stop-color="#0a1828"/><stop offset="100%" stop-color="#040a12"/></radialGradient>
-    <pattern id="wv" width="60" height="30" patternUnits="userSpaceOnUse"><path d="M0 15 Q15 8 30 15 Q45 22 60 15" fill="none" stroke="rgba(30,80,140,.1)" stroke-width="0.7"/></pattern>
+    <radialGradient id="sg" cx="45%" cy="45%" r="75%"><stop offset="0%" stop-color="#0c1a28"/><stop offset="60%" stop-color="#080e18"/><stop offset="100%" stop-color="#040810"/></radialGradient>
+    <pattern id="wv" width="60" height="30" patternUnits="userSpaceOnUse"><path d="M0 15 Q15 8 30 15 Q45 22 60 15" fill="none" stroke="rgba(30,80,140,.06)" stroke-width="0.5"/></pattern>
+    <filter id="glow"><feGaussianBlur stdDeviation="2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <radialGradient id="cityGlow" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="rgba(201,168,76,.2)"/><stop offset="100%" stop-color="transparent"/></radialGradient>
   </defs>
+  <!-- 背景 -->
   <rect width="640" height="400" fill="url(#sg)"/>
   <rect width="640" height="400" fill="url(#wv)"/>
+  ${stars}
+  <!-- 海洋 -->
+  ${ocean}
+  <!-- 王國領地 -->
   ${kingdomShapes}
-  <!-- 山脈 -->
-  <g opacity=".55">
-    <path d="M80 170 L102 130 L124 170Z" fill="#1c1c0e" stroke="#2a2a14" stroke-width=".5"/>
-    <path d="M105 175 L130 132 L155 175Z" fill="#1c1c0e" stroke="#2a2a14" stroke-width=".5"/>
-    <path d="M132 172 L152 136 L172 172Z" fill="#181808" stroke="#2a2a14" stroke-width=".5"/>
-    <path d="M92 168 L108 138 L118 160Z" fill="#222210" opacity=".6"/>
-  </g>
-  <!-- 森林 -->
-  <g opacity=".5">
-    ${Array.from({length:10},(_,i)=>{const x=240+Math.cos(i*.9)*28,y=75+Math.sin(i*1.2)*16;return`<circle cx="${x.toFixed(0)}" cy="${y.toFixed(0)}" r="11" fill="#091a0c" stroke="#0e2512" stroke-width=".5"/>`;}).join('')}
-  </g>
-  <!-- 河流 -->
-  <path d="M220 110 Q250 145 270 175 Q295 210 315 250 Q330 275 355 295" stroke="rgba(40,100,180,.3)" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <!-- 地形：山脈 -->
+  ${mountains}
+  <!-- 地形：森林 -->
+  ${forests}
+  <!-- 河流與湖泊 -->
+  ${rivers}
+  <!-- 地標 -->
+  ${landmarks}
   <!-- 道路 -->
   ${routes}
   <!-- 城市 -->
   ${cityCircles}
   <!-- 王國名稱 -->
-  <text x="125" y="265" text-anchor="middle" font-size="8" fill="rgba(120,140,180,.35)" font-family="serif">霧山聯邦</text>
-  <text x="305" y="240" text-anchor="middle" font-size="8" fill="rgba(180,160,80,.3)" font-family="serif">中央王國</text>
-  <text x="530" y="215" text-anchor="middle" font-size="8" fill="rgba(60,140,160,.3)" font-family="serif">東海王國</text>
-  <text x="270" y="58" text-anchor="middle" font-size="7.5" fill="rgba(40,130,60,.35)" font-family="serif">翠林域</text>
-  <text x="390" y="365" text-anchor="middle" font-size="8" fill="rgba(130,80,50,.3)" font-family="serif">南荒</text>
-  <!-- 標題 -->
-  <text x="320" y="24" text-anchor="middle" font-size="13" fill="rgba(201,168,76,.45)" font-family="serif" letter-spacing="3">艾爾薩大陸</text>
-  <text x="320" y="390" text-anchor="middle" font-size="8.5" fill="rgba(100,100,80,.35)" font-family="sans-serif">點擊城市查看區域 · 黃色為當前位置</text>
+  <text x="125" y="265" text-anchor="middle" font-size="9" fill="rgba(120,140,180,.3)" font-family="serif" letter-spacing="3">霧山聯邦</text>
+  <text x="345" y="190" text-anchor="middle" font-size="9" fill="rgba(180,160,80,.25)" font-family="serif" letter-spacing="3">中央王國</text>
+  <text x="520" y="140" text-anchor="middle" font-size="9" fill="rgba(60,140,160,.25)" font-family="serif" letter-spacing="3">東海王國</text>
+  <text x="275" y="52" text-anchor="middle" font-size="8" fill="rgba(40,130,60,.3)" font-family="serif" letter-spacing="2">翠林域</text>
+  <text x="380" y="358" text-anchor="middle" font-size="9" fill="rgba(130,80,50,.25)" font-family="serif" letter-spacing="3">南　荒</text>
+  <text x="140" y="35" text-anchor="middle" font-size="7.5" fill="rgba(160,180,200,.2)" font-family="serif" letter-spacing="2">霜　嶺</text>
+  <text x="108" y="330" text-anchor="middle" font-size="7.5" fill="rgba(80,60,100,.2)" font-family="serif" letter-spacing="2">影沼地</text>
+  <!-- 標題框 -->
+  <g transform="translate(320,18)">
+    <rect x="-65" y="-10" width="130" height="18" rx="2" fill="rgba(0,0,0,.35)" stroke="rgba(201,168,76,.2)" stroke-width=".5"/>
+    <text x="0" y="3" text-anchor="middle" font-size="11" fill="rgba(201,168,76,.55)" font-family="serif" letter-spacing="4">艾爾薩大陸</text>
+  </g>
+  <text x="320" y="393" text-anchor="middle" font-size="7.5" fill="rgba(100,100,80,.3)" font-family="sans-serif">點擊城市查看區域 · 黃色為當前位置</text>
   <!-- 羅盤 -->
-  <g transform="translate(610,38)">
-    <circle cx="0" cy="0" r="16" fill="rgba(0,0,0,.45)" stroke="rgba(201,168,76,.28)" stroke-width="1"/>
-    <text x="0" y="-5" text-anchor="middle" font-size="8" fill="rgba(201,168,76,.65)" font-family="serif">北</text>
-    <text x="0" y="12" text-anchor="middle" font-size="8" fill="rgba(201,168,76,.45)" font-family="serif">南</text>
-    <text x="-11" y="4" text-anchor="middle" font-size="8" fill="rgba(201,168,76,.45)" font-family="serif">西</text>
-    <text x="11" y="4" text-anchor="middle" font-size="8" fill="rgba(201,168,76,.45)" font-family="serif">東</text>
-    <path d="M0 -12 L2.5 0 L0 4 L-2.5 0Z" fill="rgba(201,168,76,.75)"/>
+  <g transform="translate(608,40)">
+    <circle cx="0" cy="0" r="18" fill="rgba(0,0,0,.5)" stroke="rgba(201,168,76,.25)" stroke-width=".8"/>
+    <circle cx="0" cy="0" r="14" fill="none" stroke="rgba(201,168,76,.12)" stroke-width=".4"/>
+    <path d="M0 -14 L2 -2 L0 2 L-2 -2Z" fill="rgba(201,168,76,.7)"/>
+    <path d="M0 14 L2 2 L0 -2 L-2 2Z" fill="rgba(120,100,60,.4)"/>
+    <text x="0" y="-6" text-anchor="middle" font-size="6.5" fill="rgba(201,168,76,.7)" font-family="serif" font-weight="600">N</text>
+    <text x="0" y="12" text-anchor="middle" font-size="5.5" fill="rgba(201,168,76,.35)" font-family="serif">S</text>
+    <text x="-9" y="3" text-anchor="middle" font-size="5.5" fill="rgba(201,168,76,.35)" font-family="serif">W</text>
+    <text x="9" y="3" text-anchor="middle" font-size="5.5" fill="rgba(201,168,76,.35)" font-family="serif">E</text>
   </g>
 </svg>`;
   container.innerHTML=svgContinent;
