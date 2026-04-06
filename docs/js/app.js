@@ -3123,6 +3123,21 @@ function importSave(){
 }
 
 function closeSettings(){document.getElementById('settings-modal').classList.remove('open');}
+async function clearAppCache(){
+  closeSettings();
+  showToast('🔄 正在清除快取…','inf');
+  try{
+    const keys=await caches.keys();
+    await Promise.all(keys.map(k=>caches.delete(k)));
+    const regs=await navigator.serviceWorker.getRegistrations();
+    await Promise.all(regs.map(r=>r.unregister()));
+    showToast('✓ 快取已清除，正在重新載入…','ok');
+    setTimeout(()=>location.reload(true),800);
+  }catch(e){
+    showToast('清除失敗：'+e.message,'err');
+    location.reload(true);
+  }
+}
 function applyCustomPortrait(id){
   const inp=document.getElementById(`port-url-${id}`);
   if(!inp)return;
@@ -3859,6 +3874,15 @@ function showCityPanel(cityId){
 }
 
 // 區域地圖
+const REGION_PROMPTS={
+  fog_mt:'dark medieval industrial city in thick fog, iron foundry, cobblestone streets, lanterns in mist, top-down bird eye view city map, dark fantasy, no text',
+  central:'grand medieval city with marble bridges and golden domes, marketplace, fantasy kingdom capital, top-down map view, warm lighting, no text',
+  east_sea:'medieval port city with ships and docks, lighthouse, coastal town, seagulls, top-down map view, blue tones, dark fantasy, no text',
+  forest:'elven forest city built in ancient trees, glowing mushrooms, mystical, ethereal green light, top-down map view, dark fantasy, no text',
+  wasteland:'ruined desert fortress, crumbling walls, sand dunes, dragon bones, desolate, top-down map view, dark warm tones, no text',
+  north_ice:'frozen northern fortress, snow covered battlements, aurora borealis, icy mountains, top-down map view, blue cold tones, no text',
+  shadow_marsh:'dark swamp village on stilts, poisonous mist, dead trees, eerie purple light, top-down map view, dark fantasy, no text',
+};
 function renderRegionMap(cityId){
   const city=MAP_CITIES[cityId];
   if(!city)return;
@@ -3868,37 +3892,45 @@ function renderRegionMap(cityId){
   container.style.height='420px';
 
   const iconColors={port:'#4488cc',plaza:'#c9a84c',guard:'#cc8844',inn:'#44aa66',shop:'#aa6644',guild:'#8844aa',danger:'#cc4444',waystation:'#c9a84c',special:'#88aacc',ruins:'#887755',district:'#778899'};
+  const regionPrompt=REGION_PROMPTS[city.kingdom]||'dark medieval fantasy city, top-down map view, moody lighting, no text';
+  const bgUrl=`https://image.pollinations.ai/prompt/${encodeURIComponent(regionPrompt)}?width=810&height=630&seed=${cityId.length*7+42}&nologo=true`;
 
   container.innerHTML=`<svg viewBox="0 0 540 420" width="100%" height="420" xmlns="http://www.w3.org/2000/svg" style="display:block">
-  <defs><pattern id="rg" width="36" height="36" patternUnits="userSpaceOnUse"><path d="M 36 0 L 0 0 0 36" fill="none" stroke="rgba(201,168,76,.05)" stroke-width=".5"/></pattern></defs>
-  <rect width="540" height="420" fill="#07100a"/>
-  <rect width="540" height="420" fill="url(#rg)"/>
-  <!-- 城市範圍 -->
-  <ellipse cx="270" cy="210" rx="195" ry="150" fill="rgba(12,25,14,.85)" stroke="rgba(201,168,76,.12)" stroke-width="1"/>
+  <defs>
+    <filter id="rglow"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <!-- AI 背景 -->
+  <rect width="540" height="420" fill="#070e14"/>
+  <image href="${bgUrl}" x="0" y="0" width="540" height="420" preserveAspectRatio="xMidYMid slice" opacity=".35"
+    onerror="this.style.display='none'"/>
+  <!-- 半透明覆蓋層 -->
+  <rect width="540" height="420" fill="rgba(8,14,20,.45)"/>
   <!-- 城牆 -->
-  <rect x="115" y="95" width="310" height="230" rx="10" fill="none" stroke="rgba(201,168,76,.2)" stroke-width="1.8" stroke-dasharray="7,4"/>
-  <!-- 道路 -->
-  <line x1="270" y1="95" x2="270" y2="325" stroke="rgba(201,168,76,.1)" stroke-width="10"/>
-  <line x1="120" y1="210" x2="420" y2="210" stroke="rgba(201,168,76,.1)" stroke-width="10"/>
+  <rect x="80" y="70" width="380" height="280" rx="12" fill="none" stroke="rgba(201,168,76,.2)" stroke-width="2" stroke-dasharray="8,5"/>
+  <!-- 十字道路 -->
+  <line x1="270" y1="70" x2="270" y2="350" stroke="rgba(201,168,76,.08)" stroke-width="12" stroke-linecap="round"/>
+  <line x1="80" y1="210" x2="460" y2="210" stroke="rgba(201,168,76,.08)" stroke-width="12" stroke-linecap="round"/>
   <!-- POIs -->
   ${city.pois.map((poi,i)=>{
     const col=iconColors[poi.type]||'#888';
     const isWS=poi.waystation;
     return`<g data-poi="${cityId}:${i}" style="cursor:pointer">
       <circle cx="${poi.x}" cy="${poi.y}" r="24" fill="transparent"/>
-      <circle cx="${poi.x}" cy="${poi.y}" r="20" fill="rgba(0,0,0,.55)" stroke="${col}" stroke-width="${isWS?2:1.5}" ${isWS?'stroke-dasharray="0"':''}/>
-      ${isWS?`<circle cx="${poi.x}" cy="${poi.y}" r="24" fill="none" stroke="rgba(201,168,76,.25)" stroke-width="1"/>`:``}
+      <circle cx="${poi.x}" cy="${poi.y}" r="20" fill="rgba(0,0,0,.6)" stroke="${col}" stroke-width="${isWS?2:1.5}"/>
+      ${isWS?`<circle cx="${poi.x}" cy="${poi.y}" r="24" fill="none" stroke="rgba(201,168,76,.3)" stroke-width="1"><animate attributeName="r" values="22;26;22" dur="3s" repeatCount="indefinite"/></circle>`:``}
       <text x="${poi.x}" y="${poi.y+1}" text-anchor="middle" dominant-baseline="middle" font-size="15">${poi.icon}</text>
-      <text x="${poi.x}" y="${poi.y+28}" text-anchor="middle" font-size="8.5" fill="${col}" font-family="sans-serif">${poi.name.length>5?poi.name.slice(0,5)+'…':poi.name}</text>
+      <text x="${poi.x}" y="${poi.y+30}" text-anchor="middle" font-size="9" fill="${col}" font-family="serif" paint-order="stroke" stroke="rgba(0,0,0,.7)" stroke-width="3">${poi.name.length>6?poi.name.slice(0,6)+'…':poi.name}</text>
     </g>`;
   }).join('')}
-  <!-- 城市名 -->
-  <text x="270" y="26" text-anchor="middle" font-size="14" fill="rgba(201,168,76,.6)" font-family="serif" letter-spacing="2">${city.name}</text>
-  <text x="270" y="408" text-anchor="middle" font-size="8" fill="rgba(100,100,80,.3)" font-family="sans-serif">點擊地點查看說明</text>
+  <!-- 標題 -->
+  <g filter="url(#rglow)">
+    <text x="270" y="30" text-anchor="middle" font-size="16" fill="rgba(201,168,76,.7)" font-family="serif" letter-spacing="4" paint-order="stroke" stroke="rgba(0,0,0,.6)" stroke-width="4">${city.name}</text>
+  </g>
+  <text x="270" y="410" text-anchor="middle" font-size="8" fill="rgba(100,100,80,.35)" font-family="sans-serif">點擊地點查看說明</text>
   <!-- 返回 -->
   <g data-action="back" style="cursor:pointer">
-    <rect x="12" y="12" width="62" height="20" rx="3" fill="rgba(0,0,0,.5)" stroke="rgba(201,168,76,.28)" stroke-width="1"/>
-    <text x="43" y="25" text-anchor="middle" font-size="9" fill="rgba(201,168,76,.6)" font-family="sans-serif">◀ 大陸圖</text>
+    <rect x="12" y="12" width="68" height="22" rx="4" fill="rgba(0,0,0,.6)" stroke="rgba(201,168,76,.3)" stroke-width="1"/>
+    <text x="46" y="27" text-anchor="middle" font-size="9.5" fill="rgba(201,168,76,.7)" font-family="sans-serif">◀ 大陸圖</text>
   </g>
 </svg>`;
   // 綁定點擊事件

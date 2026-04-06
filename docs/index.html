@@ -12,7 +12,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="assets/icon-192.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="assets/icon-192.svg">
-<link rel="stylesheet" href="css/style.css?v=3">
+<link rel="stylesheet" href="css/style.css?v=4">
 </head>
 <body>
 
@@ -111,6 +111,12 @@
       <div style="font-size:.62rem;color:var(--sild);margin-bottom:.38rem;" id="history-stat">—</div>
       <button class="sbn p" onclick="compressHistory()" id="compress-btn" style="width:100%;margin-bottom:.4rem;">✦ 整理記憶（壓縮故事歷史）</button>
       <div style="font-size:.6rem;color:var(--sild);line-height:1.55;">對話累積過長時使用。</div>
+    </div>
+    <hr class="s-divider">
+    <div class="s-row">
+      <div class="s-lbl">應用程式</div>
+      <button class="sbn p" onclick="clearAppCache()" style="width:100%;margin-bottom:.4rem;">🔄 清除快取並重新載入</button>
+      <div style="font-size:.6rem;color:var(--sild);line-height:1.55;">更新後畫面沒變化時使用。會清除 Service Worker 快取並強制重載（遊戲存檔不受影響）。</div>
     </div>
     <hr class="s-divider">
     <div class="s-row">
@@ -276,7 +282,7 @@
   <button onclick="document.getElementById('pwa-install').style.display='none'" style="font-size:.8rem;background:none;border:none;color:var(--sild);cursor:pointer;">✕</button>
 </div>
 
-<script src="js/app.js?v=3"></script>
+<script src="js/app.js?v=4"></script>
 <script>
 // PWA Service Worker Registration
 if('serviceWorker' in navigator){
