@@ -508,25 +508,31 @@ const BGM={
     const tid=setTimeout(()=>{if(this._lid===id)this._play();},ms-300);
     this._timers.push(tid);
   },
-  _kill(){
-    // 完全銷毀 AudioContext，確保所有音符停止
+  _silence(){
+    // 停止循環 + 斷開音訊節點（已排程的振盪器會播完但聽不到）
     this._lid++;
     this._timers.forEach(t=>clearTimeout(t));this._timers=[];
-    if(this.ctx){try{this.ctx.close();}catch(_){}}
-    this.ctx=null;this.master=null;this._bus=null;
+    if(this.master){try{this.master.disconnect();}catch(_){}}
+  },
+  _reconnect(){
+    // 重新連接 master 到 destination
+    if(this.master&&this.ctx){try{this.master.connect(this.ctx.destination);}catch(_){}}
   },
   start(){
-    this._kill(); // 先清掉舊的
     this.init();
     if(!this.ctx)return;
+    if(this.ctx.state==='suspended')this.ctx.resume();
+    this._silence(); // 停掉舊的
+    this._reconnect(); // 重新接上
     this.playing=true;
+    if(this.master)this.master.gain.setValueAtTime(this.vol,this.ctx.currentTime);
     this._play();
     this._updateUI(true);
     localStorage.setItem('fate_bgm','1');
   },
   stop(){
     this.playing=false;
-    this._kill();
+    this._silence();
     this._updateUI(false);
     localStorage.setItem('fate_bgm','0');
   },
@@ -536,7 +542,7 @@ const BGM={
     this.mood=mood;
     localStorage.setItem('fate_bgm_mood',mood);
     const sel=document.getElementById('bgm-mood');if(sel)sel.value=mood;
-    if(this.playing){this.start();} // 重建播放
+    if(this.playing){this._silence();this._reconnect();if(this.master)this.master.gain.setValueAtTime(this.vol,this.ctx.currentTime);this._play();}
   },
   setVolume(v){
     this.vol=Math.max(0,Math.min(1,v));
