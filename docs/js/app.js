@@ -508,21 +508,25 @@ const BGM={
     const tid=setTimeout(()=>{if(this._lid===id)this._play();},ms-300);
     this._timers.push(tid);
   },
+  _kill(){
+    // 完全銷毀 AudioContext，確保所有音符停止
+    this._lid++;
+    this._timers.forEach(t=>clearTimeout(t));this._timers=[];
+    if(this.ctx){try{this.ctx.close();}catch(_){}}
+    this.ctx=null;this.master=null;this._bus=null;
+  },
   start(){
+    this._kill(); // 先清掉舊的
     this.init();
     if(!this.ctx)return;
-    if(this.ctx.state==='suspended')this.ctx.resume();
-    this.playing=true;this._lid++;
-    if(this.master)this.master.gain.value=this.vol;
+    this.playing=true;
     this._play();
     this._updateUI(true);
     localStorage.setItem('fate_bgm','1');
   },
   stop(){
-    this.playing=false;this._lid++;
-    this._timers.forEach(t=>clearTimeout(t));this._timers=[];
-    // 立即靜音（停止所有已排程的音符）
-    if(this.master)this.master.gain.setValueAtTime(0,this.ctx.currentTime);
+    this.playing=false;
+    this._kill();
     this._updateUI(false);
     localStorage.setItem('fate_bgm','0');
   },
@@ -532,13 +536,7 @@ const BGM={
     this.mood=mood;
     localStorage.setItem('fate_bgm_mood',mood);
     const sel=document.getElementById('bgm-mood');if(sel)sel.value=mood;
-    if(this.playing){
-      // 先靜音舊的，再播新的
-      this._lid++;this._timers.forEach(t=>clearTimeout(t));this._timers=[];
-      if(this.master){this.master.gain.setValueAtTime(0,this.ctx.currentTime);
-        setTimeout(()=>{if(this.playing&&this.master){this.master.gain.setValueAtTime(this.vol,this.ctx.currentTime);this._play();}},300);
-      }
-    }
+    if(this.playing){this.start();} // 重建播放
   },
   setVolume(v){
     this.vol=Math.max(0,Math.min(1,v));
