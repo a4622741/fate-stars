@@ -4246,10 +4246,11 @@ function closeDrawer(){G.drawerOpen=false;document.getElementById('drawer').clas
 function applyResp(){const m=window.innerWidth<768;document.getElementById('drawer-btn').style.display=m?'':'none';document.getElementById('panel-btn').style.display=m?'none':'';}
 
 async function syncAll(){
+  if(G.thinking){showToast('AI 回應中，請稍候','inf');return;}
   markAllDirty();
   Object.keys(_renderCache).forEach(k=>delete _renderCache[k]);
   updateGold();updateTimeDisplay();updateShopBtn();
-  ['party','stars','inv','quest','intel','log'].forEach(tab=>renderBoth(tab));
+  ['party','stars','inv','quest','intel','log','guild','activities'].forEach(tab=>renderBoth(tab));
   if(G.currentChoices?.length)renderChoices(G.currentChoices,false);
   document.getElementById('scene-title').textContent=G.sceneTitle||'';
   document.getElementById('scene-loc').textContent=G.sceneLoc||'';
@@ -4260,6 +4261,7 @@ async function syncAll(){
   showToast('✦ 前端已同步，正在校正AI記憶…','inf');
   // ── 向 AI 發送完整狀態快照，讓 AI 校正認知 ──
   if(!CFG.key){showToast('✦ 前端已同步（未設定金鑰，跳過AI校正）','ok');return;}
+  G.thinking=true;setDis(true);
   try{
     const inv=getInv();
     const partyDetail=allParty().map(m=>{
@@ -4269,26 +4271,28 @@ async function syncAll(){
     }).join('；');
     const itemList=inv.items.map(i=>i.n+(i.q||'')).join(',');
     const questList=(G.quests||[]).filter(q=>q.status==='active').map(q=>q.title).join(',');
+    const guildList=Object.entries(G.guilds||{}).filter(([,v])=>v?.joined).map(([id,v])=>`${GUILDS[id]?.name||id}(${GUILDS[id]?.ranks[v.rank]||'?'})`).join(',');
     const repList=Object.entries(G.rep).filter(([k,v])=>!k.startsWith('_')&&!k.startsWith('bond')&&v!==0).map(([k,v])=>`${k}:${v}`).join(',');
-    const stateMsg=`【系統同步・校正AI記憶】以下為遊戲當前真實狀態，請據此校正你的記憶，然後以當前場景繼續提供選項。
+    const stateMsg=`【系統同步・校正AI記憶】以下為遊戲當前真實狀態，請據此校正你的記憶，然後以JSON格式繼續當前場景並給出3-4個行動選項。
 時間：${getTimeContext()}
 金幣：金${G.gold.gold}・銀${G.gold.silver}・銅${G.gold.copper}
 隊伍：${partyDetail}
 道具：${itemList||'無'}
 任務：${questList||'無'}
+工會：${guildList||'無'}
 聲望：${repList||'無'}
-翻肚累計：${G.bellyFlipCount||0}次
-橘子秘密階段：${G.orangeStage||0}/5
-場景：${G.sceneTitle} / ${G.sceneLoc}
-請確認已校正，然後以JSON格式繼續當前場景並給出3-4個行動選項。`;
+場景：${G.sceneTitle} / ${G.sceneLoc}`;
     const th=addThink();
     const d=await callAPI(stateMsg);
     th.remove();
-    renderResp(d);
+    // 同步不推進劇情：只取選項，忽略敘述
+    if(d.ch?.length)renderChoices(d.ch);
+    else renderFallback();
     showToast('✦ AI記憶已校正・全部同步完成','ok');
   }catch(e){
     showToast('前端已同步，AI校正失敗：'+e.message,'err');
   }
+  G.thinking=false;setDis(false);
 }
 window.addEventListener('resize',applyResp);
 
