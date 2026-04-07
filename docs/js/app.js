@@ -225,11 +225,13 @@ const SYS=`你是西方奇幻版水滸傳文字RPG故事引擎。靈感來源：
 【據點成長】隨招募人數增加，玩家的據點（未來建立）從廢墟成長為城鎮。非戰鬥星辰經營據點：鐵匠強化武器、廚師恢復HP、密探提供情報、學者解讀古文。
 【內部張力】108人不會永遠和諧。鷹派vs鴿派、理想vs現實、接受招安vs繼續抗爭——這些矛盾構成故事深度。
 【星辰登場流程】星辰之人登場時不一定立刻知道真名。流程：
-  ① 初遇：橘子感知到星辰氣息→sp填name:"???"＋hint描述外貌特徵＋cN暫稱。星辰錄顯示「？？？」。
-  ② 認識：交流互動後得知真名→再次sp填真名。星辰錄自動更新。
-  ③ 抉擇：劇情自然發展到「是否招募」的分歧點。在ch選項中明確提供「邀請加入」vs「各走各路」等選擇，讓玩家決定。
-  ④ 加入：玩家選擇招募且對方同意→nm觸發入隊。加入後顯示隊伍編成畫面。
+  ① 初遇：橘子感知到星辰氣息→sp填name:"???"＋hint描述外貌特徵＋cN暫稱。星辰錄顯示「？？？」。橘子必須在dl中用對話主動告知玩家：「這傢伙身上有星辰氣息——是○○星（天罡/地煞第N星）。」並描述感知到的特徵。
+  ② 認識：交流互動後得知真名→再次sp填真名。星辰錄自動更新。橘子會補充評論此人的性格或實力。
+  ③ 抉擇：劇情自然發展到「是否招募」的分歧點。在ch選項中明確提供「邀請加入隊伍」vs「各走各路」等選擇，讓玩家決定。這是必經步驟，不可跳過。
+  ④ 加入隊伍：玩家選擇招募且對方同意→nm觸發入隊。加入後顯示隊伍編成畫面。
+  ⑤ 據點安排（有據點後）：隊伍人數增多後，非戰鬥型星辰或玩家指派的角色可留守據點。ch選項應提供「隨隊冒險」vs「留守據點」的選擇。
   不是每個星辰都願意加入——有些需要多次接觸、完成任務、或特定條件。拒絕加入的星辰保持contact狀態，未來仍有機會。
+【據點發展】隨招募人數增加（約5-8人後），劇情應自然引導玩家建立據點。據點從廢墟→村落→城鎮逐步成長。非戰鬥星辰經營據點：鐵匠強化武器、廚師恢復HP、密探提供情報、學者解讀古文。據點是108星的家。
 【命運vs自由意志】石碑上刻著108個名字，暗示一切是天定。但玩家的選擇決定結局走向——全員招募=希望結局，殘缺=悲劇結局（呼應水滸傳）。
 【二元抉擇】重要選擇應有真正的道德困境：救一城百姓 vs 追擊叛徒、接受招安換和平 vs 堅持戰鬥求正義。沒有明確正確答案。
 【決鬥與軍戰】重要對手用cb觸發決鬥（對話暗示出招方向）；大規模衝突用敘述描寫軍戰，結果受已招募星辰的專長影響。
@@ -493,8 +495,12 @@ function handleStarPresence(sp){
   }else{
     // 108星辰——橘子有反應
     const starInfo=sp.num?`第${sp.num}星・${sp.star||''}`:sp.star||'星辰之人';
-    appendEntryToDOM({type:'dial',sp:'橘子🐈😒',ln:'喵——'});
-    appendEntryToDOM({type:'sys',v:`〔橘子感知：${sp.hint||`此人身上有${starInfo}的氣息。`}〕`});
+    const typeLabel=sp.type||'';
+    const dispName=(!sp.name||sp.name==='?'||sp.name==='???')?(sp.cN||'？？？'):sp.name;
+    // 橘子主動告知星辰身份
+    appendEntryToDOM({type:'dial',sp:'橘子🐈😒',ln:`喵！這傢伙身上有星辰氣息——${typeLabel}${starInfo}。${sp.hint||''}`});
+    if(dispName!=='？？？')appendEntryToDOM({type:'sys',v:`✦ 橘子感知 ✦ ${dispName} ═ ${typeLabel}・${starInfo}`});
+    else appendEntryToDOM({type:'sys',v:`✦ 橘子感知 ✦ 身份未明的星辰之人 ═ ${typeLabel}・${starInfo}`});
     // 更新星辰錄
     const arr=sp.type==='天罡'?TIANGANG:DISHAT;
     const star=arr.find(s=>s.num===sp.num);
@@ -510,9 +516,8 @@ function handleStarPresence(sp){
       if(sp.cN&&sp.cN!==star.cN){star.cN=sp.cN;changed=true;}
       if(changed){renderBoth('stars');saveGame();}
     }
-    showToast(`橘子感知：${starInfo}`,'ok');
+    showToast(`橘子感知：${typeLabel}${starInfo}`,'ok');
     // 自動加入情報板
-    const dispName=(!sp.name||sp.name==='?'||sp.name==='???')?(sp.cN||'？？？'):sp.name;
     addIntel({id:'orange_star_'+sp.num,title:`第${sp.num}星・${dispName}`,content:sp.hint||`橘子感知到此人身上有${starInfo}的氣息。`,src:'橘子感知',rel:4,cat:'人物',orange:true,related:`${sp.type}第${sp.num}星`});
   }
 }
@@ -885,6 +890,10 @@ function addNewMember(m){
   const star=arr.find(s=>s.num===m.num);
   if(star){star.status='recruited';star.name=m.name;star.id=m.id;}
   joinParty(m.id);
+  // 入隊公告
+  const starLabel=m.type&&m.num?`${m.type}第${m.num}星・${m.star||''}`:'';
+  appendEntryToDOM({type:'sys',v:`\n✦═══════════════════════✦\n  ${m.emoji||'⚔️'} ${m.name}「${m.title||''}」加入了隊伍！\n  ${starLabel}\n✦═══════════════════════✦`});
+  showToast(`${m.name} 加入隊伍！`,'ok');
 
   renderChanged('party','stars');
 }
