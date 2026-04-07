@@ -64,7 +64,7 @@ function _doSave(){
       extraParty:G.extraParty,extraPcfg:G.extraPcfg,
       partyIds:G.partyIds,upgrade:G.upgrade,inv:getInv(),favor:G.favor,bellyFlipCount:G.bellyFlipCount||0,specialOv:G.specialOv||{},
       hp:G.hp,quests:G.quests,time:G.time,rep:G.rep,relics:G.relics,presetRelicOv:Object.fromEntries(Object.entries(PRESET_RELICS).filter(([k,v])=>v.status&&v.status!=='equipped').map(([k,v])=>[k,{status:v.status,effect:v.effect}])),founderClues:G.founderClues,orangeStage:G.orangeStage||0,intel:G.intel||[],lastShop:G.lastShop||null,inShop:G.inShop||false,shopCatalogs:G.shopCatalogs||{},
-      guilds:G.guilds||{},starOv,savedAt:Date.now(),
+      guilds:G.guilds||{},baseWorkers:G.baseWorkers||{},_lastCollect:G._lastCollect||null,_cookBuff:G._cookBuff||null,starOv,savedAt:Date.now(),
     };
     localStorage.setItem(SAVE_KEY,JSON.stringify(data));
     showSaveIndicator();
@@ -104,6 +104,9 @@ function loadGame(){
     G.inShop=data.inShop||false;
     G.shopCatalogs=data.shopCatalogs||{};
     G.guilds=data.guilds||{};
+    G.baseWorkers=data.baseWorkers||{};
+    G._lastCollect=data._lastCollect||null;
+    G._cookBuff=data._cookBuff||null;
     // 恢復星辰狀態
     if(data.starOv){
       Object.entries(data.starOv).forEach(([k,v])=>{
@@ -1589,6 +1592,283 @@ function trainChar(id,ev){
   renderChanged('party');saveGame();
   showToast(`${c.name} 獲得 3 點提升（消耗5銀）`,'ok');
 }
+// ═══ COOKING SYSTEM（料理系統）═══ 本地化，不呼叫AI
+const RECIPES=[
+  {id:'bread_soup',name:'麵包湯',icon:'🍞',ingredients:['乾糧','乾糧'],effect:{hp:15},desc:'簡單但暖胃。全隊HP+15。',diff:1},
+  {id:'grilled_fish',name:'烤魚定食',icon:'🐟',ingredients:['鮮魚','火種'],effect:{hp:25,favor:3},desc:'橘子的最愛。全隊HP+25，橘子好感+3。',diff:1},
+  {id:'herb_tea',name:'草藥茶',icon:'🍵',ingredients:['草藥','火種'],effect:{hp:10,cure:true},desc:'清除異常狀態。',diff:1},
+  {id:'meat_stew',name:'獵人燉肉',icon:'🍖',ingredients:['獸肉','草藥','火種'],effect:{hp:40,atk:3},desc:'全隊HP+40，下次戰鬥武力+3。',diff:2},
+  {id:'star_cake',name:'星辰糕',icon:'✦',ingredients:['星辰花','蜂蜜','乾糧'],effect:{hp:30,favor:8},desc:'傳說中的點心。全隊HP+30，全員好感+8。',diff:3},
+  {id:'iron_ration',name:'鐵壁口糧',icon:'🛡️',ingredients:['乾糧','獸肉','鹽'],effect:{hp:20,def:5},desc:'全隊HP+20，下次戰鬥防禦+5。',diff:2},
+  {id:'poison_cure',name:'解毒劑',icon:'💊',ingredients:['草藥','草藥'],effect:{cure:true,hp:5},desc:'解除毒素。HP+5。',diff:1},
+  {id:'feast',name:'滿漢全席',icon:'🎉',ingredients:['鮮魚','獸肉','草藥','蜂蜜'],effect:{hp:60,favor:5,atk:2,def:2},desc:'奢華大餐！全面提升。',diff:3},
+];
+function getCookable(){
+  const inv=getInv();const items=inv.items;
+  return RECIPES.filter(r=>{
+    const need={};r.ingredients.forEach(i=>{need[i]=(need[i]||0)+1;});
+    return Object.entries(need).every(([n,q])=>{const it=items.find(x=>x.n===n);const m=it?.q.match(/(\d+)/);return m&&parseInt(m[1])>=q;});
+  });
+}
+function cookRecipe(recipeId){
+  const r=RECIPES.find(x=>x.id===recipeId);if(!r)return;
+  const inv=getInv();
+  // 消耗食材
+  const need={};r.ingredients.forEach(i=>{need[i]=(need[i]||0)+1;});
+  Object.entries(need).forEach(([n,q])=>{
+    const it=inv.items.find(x=>x.n===n);if(!it)return;
+    const m=it.q.match(/(\d+)/);const cur=m?parseInt(m[1]):1;
+    if(cur<=q)inv.items=inv.items.filter(x=>x!==it);
+    else it.q='×'+(cur-q);
+  });
+  // 應用效果
+  if(r.effect.hp){const members=allParty();members.forEach(m=>{const hp=getHP(m.id);hp.cur=Math.min(hp.max,hp.cur+r.effect.hp);});}
+  if(r.effect.favor)allParty().forEach(m=>{if(getFavor(m.id)!==null)setFavor(m.id,r.effect.favor);});
+  if(r.effect.atk)G._cookBuff={atk:r.effect.atk,def:r.effect.def||0,turns:1};
+  if(r.effect.def&&!r.effect.atk)G._cookBuff={atk:0,def:r.effect.def,turns:1};
+  appendEntryToDOM({type:'sys',v:`${r.icon} 料理完成：${r.name} — ${r.desc}`});
+  showToast(`${r.name} 完成！`,'ok');
+  renderChanged('party','inv');saveGame();
+}
+function buildCookUI(){
+  const cookable=getCookable();
+  let h=`<div style="padding:.4rem .5rem .2rem;border-bottom:1px solid var(--brd);margin-bottom:.4rem;">
+    <div style="font-size:.62rem;color:var(--goldd);letter-spacing:.1em;font-weight:600;">🍳 料理</div>
+    <div style="font-size:.48rem;color:var(--sild);margin-top:.1rem;">消耗食材製作料理，效果立即生效。</div></div>`;
+  if(!cookable.length)h+='<div style="color:var(--sild);font-size:.55rem;text-align:center;padding:1.5rem;">目前沒有足夠食材的料理配方。</div>';
+  cookable.forEach(r=>{
+    h+=`<div style="background:var(--bg3);border:1px solid var(--brd);border-radius:3px;margin-bottom:.35rem;padding:.4rem .55rem;cursor:pointer;" onclick="cookRecipe('${r.id}')">
+      <div style="display:flex;align-items:center;gap:.4rem;">
+        <span style="font-size:1rem;">${r.icon}</span>
+        <div style="flex:1;"><div style="font-size:.65rem;color:var(--goldl);font-weight:600;">${r.name}</div>
+        <div style="font-size:.48rem;color:var(--sild);">${r.desc}</div></div>
+        <span style="font-size:.48rem;color:var(--sild);">${'★'.repeat(r.diff)}</span>
+      </div>
+      <div style="font-size:.45rem;color:var(--sild);margin-top:.2rem;">食材：${r.ingredients.join('＋')}</div>
+    </div>`;
+  });
+  // 全部配方一覽
+  h+=`<div style="font-size:.48rem;color:var(--sild);padding:.3rem 0 .15rem;border-top:1px solid var(--brd);margin-top:.3rem;">全部配方：</div>`;
+  RECIPES.forEach(r=>{const can=cookable.includes(r);
+    h+=`<div style="font-size:.48rem;color:${can?'var(--sil)':'rgba(255,255,255,.25)'};padding:.08rem 0;">${r.icon} ${r.name}（${r.ingredients.join('+')}）${can?'✓':''}</div>`;
+  });
+  return h;
+}
+
+// ═══ STAR RESONANCE（星辰共鳴・合技）═══ 本地化
+const RESONANCE=[
+  {ids:['alfar','orange'],name:'命運共振',icon:'⚓',desc:'艾爾法＋橘子：骰子判定+2',bonus:{dice:2}},
+];
+// 動態共鳴：同類型星辰3人以上觸發
+function getActiveResonance(){
+  const party=G.partyIds||[];const res=[];
+  // 固定共鳴
+  RESONANCE.forEach(r=>{if(r.ids.every(id=>party.includes(id)))res.push(r);});
+  // 動態：同職業3人
+  const jobCount={};party.forEach(id=>{const j=getJob(id);if(j)jobCount[j]=(jobCount[j]||0)+1;});
+  Object.entries(jobCount).forEach(([job,cnt])=>{
+    if(cnt>=3)res.push({name:`${job}連攜`,icon:JOBS[job]?.icon||'⚔️',desc:`${job}×${cnt}：該職業素質判定+${cnt}`,bonus:{dice:cnt}});
+  });
+  // 天罡3人
+  const tgCount=party.filter(id=>{const c=getCharData(id);return c?.type==='天罡';}).length;
+  if(tgCount>=3)res.push({name:'天罡之陣',icon:'✦',desc:`天罡${tgCount}人：全判定+1`,bonus:{dice:1}});
+  return res;
+}
+function getResonanceBonus(){return getActiveResonance().reduce((sum,r)=>sum+(r.bonus?.dice||0),0);}
+function buildResonanceHtml(){
+  const res=getActiveResonance();
+  if(!res.length)return'<div style="font-size:.5rem;color:var(--sild);padding:.3rem;">目前無共鳴效果。增加隊伍人數或特定組合以觸發。</div>';
+  return res.map(r=>`<div style="display:flex;align-items:center;gap:.4rem;padding:.25rem 0;border-bottom:1px solid rgba(255,255,255,.04);">
+    <span style="font-size:.85rem;">${r.icon}</span>
+    <div><div style="font-size:.58rem;color:var(--gold);font-weight:600;">${r.name}</div>
+    <div style="font-size:.48rem;color:var(--sild);">${r.desc}</div></div></div>`).join('');
+}
+
+// ═══ BOUNTY BOARD（懸賞板）═══ 本地生成，不呼叫AI
+const BOUNTY_TEMPLATES=[
+  {type:'討伐',targets:['野狼群','山賊','巨蜘蛛','哥布林巡邏隊','亡靈兵','食人花','石像鬼','盜匪頭目'],stat:'武力'},
+  {type:'護送',targets:['商人','難民','學者','貴族夫人','受傷騎士','醫藥箱','密信'],stat:'統率'},
+  {type:'採集',targets:['月光草','鐵礦石','星辰花','毒蘑菇樣本','古代碎片','龍骨化石','冰晶'],stat:'幸運'},
+  {type:'調查',targets:['廢棄礦坑','鬧鬼旅館','消失的村莊','走私路線','古代遺跡入口','失蹤的商隊'],stat:'知力'},
+  {type:'交涉',targets:['工匠公會糾紛','村民與領主矛盾','商會內鬥','傭兵團招募','盜賊團談判','邊境通行許可'],stat:'魅力'},
+];
+function generateBounties(){
+  const day=G.time?.day||1;const seed=day*7+13;
+  const bounties=[];
+  for(let i=0;i<4;i++){
+    const tmpl=BOUNTY_TEMPLATES[(seed+i*3)%BOUNTY_TEMPLATES.length];
+    const target=tmpl.targets[(seed+i*7)%tmpl.targets.length];
+    const diff=8+((seed+i*11)%10);
+    const reward={s:Math.floor(diff*0.8)+1,c:((seed+i)%10)*5};
+    bounties.push({id:`bounty_d${day}_${i}`,type:tmpl.type,target,stat:tmpl.stat,diff,reward,day});
+  }
+  return bounties;
+}
+function acceptBounty(idx){
+  const bounties=generateBounties();
+  const b=bounties[idx];if(!b)return;
+  // 本地骰子判定
+  const char=getCharData('alfar');
+  const statVal=char?.stats[b.stat]||0;
+  const mod=Math.floor(statVal/10)+getResonanceBonus();
+  const raw=Math.floor(Math.random()*20)+1;
+  const total=raw+mod;
+  const success=total>=b.diff;
+  const grade=raw===20?'大成功！':raw===1?'大失敗…':success?'成功':'失敗';
+  appendEntryToDOM({type:'sys',v:`📋 懸賞：${b.type}【${b.target}】（${b.stat}判定 難度${b.diff}）`});
+  appendEntryToDOM({type:'sys',v:`🎲 投出${raw} +${mod} = ${total}　→ ${grade}`});
+  if(success){
+    applyGold({g:0,s:b.reward.s,c:b.reward.c});
+    appendEntryToDOM({type:'sys',v:`✦ 懸賞完成！獲得 銀${b.reward.s}・銅${b.reward.c}`});
+    // 工會經驗
+    if(G.guilds?.adventurer?.joined)addGuildExp('adventurer',10+Math.floor(b.diff/3));
+    showToast('懸賞完成！','ok');
+  }else{
+    if(raw===1){applyHPChange([{id:'alfar',delta:-8,reason:'懸賞失敗受傷'}]);}
+    appendEntryToDOM({type:'sys',v:'✗ 懸賞失敗。' +(raw===1?'而且受傷了…':'')});
+    showToast('懸賞失敗','err');
+  }
+  advanceTime(2);
+  scrollD();saveGame();renderChanged('party','inv');
+}
+function buildBountyBoard(){
+  const bounties=generateBounties();
+  let h=`<div style="padding:.4rem .5rem .2rem;border-bottom:1px solid var(--brd);margin-bottom:.4rem;">
+    <div style="font-size:.62rem;color:var(--goldd);letter-spacing:.1em;font-weight:600;">📋 懸賞板</div>
+    <div style="font-size:.48rem;color:var(--sild);">每日更新。用${allParty()[0]?.name||'主角'}的素質進行判定。共鳴加成：+${getResonanceBonus()}</div></div>`;
+  bounties.forEach((b,i)=>{
+    h+=`<div style="background:var(--bg3);border:1px solid var(--brd);border-radius:3px;margin-bottom:.35rem;padding:.4rem .55rem;cursor:pointer;" onclick="acceptBounty(${i})">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div><div style="font-size:.62rem;color:var(--goldl);font-weight:600;">${b.type}：${b.target}</div>
+        <div style="font-size:.48rem;color:var(--sild);">${b.stat}判定・難度${b.diff}</div></div>
+        <div style="text-align:right;"><div style="font-size:.58rem;color:var(--gold);">銀${b.reward.s}・銅${b.reward.c}</div></div>
+      </div></div>`;
+  });
+  return h;
+}
+
+// ═══ BASE PRODUCTION（據點經營）═══ 本地化自動生產
+function getBaseWorkers(){return G.baseWorkers||(G.baseWorkers={});}
+function assignWorker(charId,facility){
+  const w=getBaseWorkers();
+  // 移除舊分配
+  Object.keys(w).forEach(f=>{if(w[f]===charId)delete w[f];});
+  if(facility)w[facility]=charId;
+  saveGame();renderChanged('party');
+}
+function collectProduction(){
+  const w=getBaseWorkers();const inv=getInv();const now=Date.now();
+  const last=G._lastCollect||now;
+  const hours=Math.min(24,Math.floor((now-last)/60000)); // 1分鐘=1遊戲小時
+  if(hours<1)return;
+  G._lastCollect=now;
+  const produced=[];
+  Object.entries(w).forEach(([facility,charId])=>{
+    const c=getCharData(charId);if(!c)return;
+    const job=getJob(charId);
+    const items={
+      鍛造坊:{n:'強化石',t:'裝備強化素材',rate:4},
+      食堂:{n:'便當',t:'全隊HP+20',rate:3},
+      煉藥房:{n:'草藥',t:'煉藥素材',rate:3},
+      商店:{n:'貿易券',t:'可兌換銀幣',rate:5},
+      工坊:{n:'布料',t:'裁縫素材',rate:4},
+      獵場:{n:'獸肉',t:'料理素材',rate:3},
+    };
+    const item=items[facility];if(!item)return;
+    const qty=Math.floor(hours/item.rate);if(qty<1)return;
+    const exist=inv.items.find(x=>x.n===item.n);
+    if(exist){const m=exist.q.match(/(\d+)/);exist.q='×'+((m?parseInt(m[1]):1)+qty);}
+    else inv.items.push({n:item.n,t:item.t,q:'×'+qty});
+    produced.push(`${item.n}×${qty}（${c.name}）`);
+  });
+  if(produced.length){
+    appendEntryToDOM({type:'sys',v:`🏗️ 據點生產收穫：${produced.join('、')}`});
+    showToast('據點生產收穫！','ok');
+    renderChanged('inv');saveGame();
+  }
+}
+
+// ═══ DICE GAMBLE（骰子賭博）═══ 純本地
+function openDiceGame(){
+  const bet=Math.min(G.gold.copper+G.gold.silver*10,50);
+  if(bet<5){showToast('至少需要銅5才能賭','err');return;}
+  const betAmount=Math.min(30,Math.floor(bet/2));
+  const playerDice=[Math.floor(Math.random()*6)+1,Math.floor(Math.random()*6)+1];
+  const dealerDice=[Math.floor(Math.random()*6)+1,Math.floor(Math.random()*6)+1];
+  const pTotal=playerDice[0]+playerDice[1];
+  const dTotal=dealerDice[0]+dealerDice[1];
+  appendEntryToDOM({type:'sys',v:`🎲 骰子賭局！下注 銅${betAmount}`});
+  appendEntryToDOM({type:'sys',v:`你的骰子：${playerDice[0]}＋${playerDice[1]}＝${pTotal}`});
+  appendEntryToDOM({type:'sys',v:`莊家骰子：${dealerDice[0]}＋${dealerDice[1]}＝${dTotal}`});
+  if(pTotal>dTotal){
+    applyGold({g:0,s:0,c:betAmount});
+    appendEntryToDOM({type:'sys',v:`✦ 你贏了！獲得 銅${betAmount}`});
+    showToast(`贏了 銅${betAmount}！`,'ok');
+  }else if(pTotal<dTotal){
+    applyGold({g:0,s:0,c:-betAmount});
+    appendEntryToDOM({type:'sys',v:`✗ 你輸了。失去 銅${betAmount}`});
+    showToast(`輸了 銅${betAmount}…`,'err');
+  }else{
+    appendEntryToDOM({type:'sys',v:'平手！退回賭注。'});
+    showToast('平手','inf');
+  }
+  scrollD();saveGame();
+}
+
+// ═══ FORTUNE TELLING（占卜系統）═══ 橘子星象占卜，本地化
+const FORTUNES=[
+  {text:'東方有一顆星正在墜落⋯⋯那裡可能有人在等。',hint:'往東探索可能遇到新星辰。',type:'star'},
+  {text:'血色的月亮——今晚不適合趕路。',hint:'夜間移動風險增加。',type:'warn'},
+  {text:'金幣的光芒指向北方市集。',hint:'北方城鎮可能有好交易。',type:'trade'},
+  {text:'兩顆星在靠近⋯⋯它們之間有未了的緣分。',hint:'隊伍中某對角色關係可能加深。',type:'bond'},
+  {text:'鐵與火的味道。匠人之星即將降世。',hint:'可能遇到生產職業的星辰。',type:'star'},
+  {text:'一個被遺忘的地方藏著古老的寶物。',hint:'探索遺跡可能發現寶器。',type:'relic'},
+  {text:'風向變了⋯⋯有人在暗處注視著你。',hint:'小心暗影勢力的動向。',type:'warn'},
+  {text:'星辰排列成弓的形狀。遠方有戰事。',hint:'軍事衝突可能即將發生。',type:'war'},
+  {text:'甜蜜的香氣⋯⋯橘子覺得今天適合吃魚。',hint:'餵橘子魚乾好感加倍。',type:'orange'},
+  {text:'三顆星圍繞著一座山——據點的位置就在那裡。',hint:'據點選址的線索。',type:'base'},
+  {text:'陰雲散去，明天會是晴天。',hint:'天氣好轉，適合遠行。',type:'weather'},
+  {text:'第七顆星⋯⋯不，是第七十二顆。地煞的氣息很近。',hint:'附近有地煞星辰。',type:'star'},
+];
+function doFortune(){
+  const day=G.time?.day||1;
+  const idx=(day*13+7)%FORTUNES.length;
+  const f=FORTUNES[idx];
+  appendEntryToDOM({type:'dial',sp:'橘子🐈😒',ln:'喵⋯⋯喵喵。'});
+  appendEntryToDOM({type:'dial',sp:'系統',ln:`〔翻譯：${f.text}〕`});
+  appendEntryToDOM({type:'sys',v:`🔮 占卜提示：${f.hint}`});
+  addIntel({id:'fortune_d'+day,title:'橘子占卜・Day'+day,content:f.text+'\n→ '+f.hint,src:'橘子占卜',rel:3,cat:'謠言',orange:true});
+  showToast('🔮 橘子占卜','ok');
+  scrollD();saveGame();
+}
+
+// ═══ ACTIVITIES TAB（活動面板）═══
+function buildActivities(){
+  let h='';
+  // 共鳴
+  h+=`<div style="padding:.4rem .5rem .2rem;border-bottom:1px solid var(--brd);margin-bottom:.4rem;">
+    <div style="font-size:.62rem;color:var(--goldd);letter-spacing:.1em;font-weight:600;">✦ 星辰共鳴</div></div>`;
+  h+=buildResonanceHtml();
+  // 懸賞板
+  h+=buildBountyBoard();
+  // 料理
+  h+=buildCookUI();
+  // 賭博
+  h+=`<div style="padding:.4rem .5rem .2rem;border-bottom:1px solid var(--brd);margin-top:.5rem;margin-bottom:.4rem;">
+    <div style="font-size:.62rem;color:var(--goldd);letter-spacing:.1em;font-weight:600;">🎲 骰子賭局</div>
+    <div style="font-size:.48rem;color:var(--sild);">在酒館試試手氣。自動下注銅幣。</div></div>
+    <button onclick="openDiceGame()" style="width:calc(100% - 1rem);margin:0 .5rem .5rem;padding:.45rem;background:var(--bg3);border:1px solid var(--brd);border-radius:3px;color:var(--goldl);font-size:.62rem;cursor:pointer;font-family:'Noto Serif TC',serif;">🎲 擲骰子！</button>`;
+  // 據點生產收穫
+  const workers=Object.keys(getBaseWorkers()).length;
+  if(workers>0){
+    h+=`<div style="padding:.4rem .5rem .2rem;border-bottom:1px solid var(--brd);margin-top:.3rem;margin-bottom:.4rem;">
+      <div style="font-size:.62rem;color:var(--goldd);letter-spacing:.1em;font-weight:600;">🏗️ 據點生產</div>
+      <div style="font-size:.48rem;color:var(--sild);">${workers} 名工人運作中</div></div>
+      <button onclick="collectProduction()" style="width:calc(100% - 1rem);margin:0 .5rem .5rem;padding:.45rem;background:var(--bg3);border:1px solid var(--brd);border-radius:3px;color:var(--goldl);font-size:.62rem;cursor:pointer;font-family:'Noto Serif TC',serif;">收穫生產物資</button>`;
+  }
+  return h;
+}
+
 // ═══ JOB / CLASS SYSTEM（職業系統）═══
 // 每個角色都有一個職業，影響素質加成、天賦偏向和特殊能力
 // 職業可在故事中透過 AI 的 job 欄位改變（升職、轉職、特殊事件）
@@ -2320,6 +2600,7 @@ function _buildPartyRoster(members,hasAlfar){
       <button class="pa hold" onclick="event.stopPropagation();pickUpOrange(event)">抱起🤍</button>
       <button class="pa chat" onclick="event.stopPropagation();chatOrange(event)">聊天💬</button>
       <button class="pa suggest" onclick="event.stopPropagation();askOrangeSuggest(event)">建議✦</button>
+      <button class="pa suggest" onclick="event.stopPropagation();doFortune()">占卜🔮</button>
     </div>`:''}`;
   }).join('');
 }
@@ -2373,6 +2654,7 @@ function _buildPartyDetail(members,hasAlfar){
           <button class="pa hold" onclick="pickUpOrange(event)">抱起🤍</button>
           <button class="pa chat" onclick="chatOrange(event)">聊天💬</button>
           <button class="pa suggest" onclick="askOrangeSuggest(event)">建議✦</button>
+          <button class="pa suggest" onclick="doFortune()">占卜🔮</button>
         `:''}
         ${c.id!=='orange'?`<button class="pa job" onclick="event.stopPropagation();openJobModal('${c.id}')">轉職⚔️</button>`:''}
         ${ug?`<button class="pa train" onclick="trainChar('${c.id}',event)" title="消耗5銀幣獲得3點提升點數">修煉（5銀）</button>`:''}
@@ -3546,7 +3828,7 @@ function applyQuestUpdate(qt){
 
 function renderBoth(tab){
   let h;
-  const cacheable=['stars','inv','quest','intel','wiki','hq','guild']; // party/log change often, skip cache
+  const cacheable=['stars','inv','quest','intel','wiki','hq','guild','activities']; // party/log change often, skip cache
   if(cacheable.includes(tab)&&!_dirty[tab]&&_renderCache[tab]){
     h=_renderCache[tab];
   }else{
@@ -3558,6 +3840,7 @@ function renderBoth(tab){
     else if(tab==='intel')h=buildIntel();
     else if(tab==='wiki')h=buildWiki();
     else if(tab==='guild')h=buildGuild();
+    else if(tab==='activities')h=buildActivities();
     else if(tab==='hq')h=buildHQ();
     else h='';
     if(cacheable.includes(tab)){_renderCache[tab]=h;}_dirty[tab]=false;
@@ -4110,9 +4393,13 @@ function autoCombat(cb){
   if(bondBonus>0){G.rep['_bond_dice_bonus']=0;appendEntryToDOM({type:'sys',v:`✦ 羈絆加成 +${bondBonus} 生效中`});}
   const autoSuccess=G.rep['_bond_auto_success']||0;
   if(autoSuccess)G.rep['_bond_auto_success']=0;
-  const mod=Math.floor(statVal/10)+bondBonus;
+  const resBonus=getResonanceBonus();
+  const cookAtk=G._cookBuff?.atk||0;if(G._cookBuff)G._cookBuff=null;
+  const mod=Math.floor(statVal/10)+bondBonus+resBonus+cookAtk;
   const enemy=cb.enemy||'敵人';
   const diff=cb.difficulty||12;
+  if(resBonus)appendEntryToDOM({type:'sys',v:`✦ 星辰共鳴加成 +${resBonus}`});
+  if(cookAtk)appendEntryToDOM({type:'sys',v:`🍳 料理加成 +${cookAtk}`});
   appendEntryToDOM({type:'sys',v:`⚔️ 戰鬥判定：${cb.desc||cb.stat+'判定'} ／ 難度 ${diff}`});
   scrollD();
   const animDiv=mk('div','sentry');
@@ -4787,7 +5074,8 @@ if(hasSave){
 }
 scrollD();
 BGM.restore();
-setTimeout(autoGeneratePortraits,2000); // 啟動後2秒開始生成頭像
+setTimeout(autoGeneratePortraits,2000);
+setTimeout(collectProduction,1000); // 啟動時自動收穫據點生產 // 啟動後2秒開始生成頭像
 if(!CFG.key)document.getElementById('api-modal').classList.add('open');
 document.getElementById('free-inp').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.isComposing)sendFree();});
 document.getElementById('api-inp').addEventListener('keydown',e=>{if(e.key==='Enter')saveKey();});
