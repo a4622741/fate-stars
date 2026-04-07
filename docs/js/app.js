@@ -4,7 +4,7 @@ const CFG={
   set key(v){localStorage.setItem('fate_key',v);},
   get model(){return localStorage.getItem('fate_model')||'claude-sonnet-4-20250514';},
   set model(v){localStorage.setItem('fate_model',v);},
-  get tokens(){return parseInt(localStorage.getItem('fate_tokens')||'1200');},
+  get tokens(){return parseInt(localStorage.getItem('fate_tokens')||'1000');},
   set tokens(v){localStorage.setItem('fate_tokens',String(v));},
 };
 
@@ -635,7 +635,7 @@ async function callAPI(action){
   _lastSentGold=goldStr;
   const _gSnap=Object.entries(G.guilds||{}).filter(([,v])=>v?.joined).map(([id,v])=>`${GUILDS[id]?.name||id}(${GUILDS[id]?.ranks[v.rank]||'?'})`).join(',');
   let stateNote=`【狀態】${getTimeContext()}|${goldSnap?goldSnap+'|':''}隊:${partySnap}|道具${(getInv().items||[]).length}|任務${(G.quests||[]).filter(q=>q.status==='active').length}${_gSnap?'|工會:'+_gSnap:''}`;
-  if(stateNote.length>300)stateNote=stateNote.slice(0,297)+'…';
+  if(stateNote.length>200)stateNote=stateNote.slice(0,197)+'…';
   G.history.push({role:'user',content:`${stateNote}\n${action}`});
   // 首次呼叫送完整 SYS，之後送精簡版（省 ~2000 tokens）
   const sysToSend=_sysPromptSent?SYS_SHORT:SYS;
@@ -674,26 +674,10 @@ async function callAPI(action){
   const parsed=tryParseJSON(raw);
   if(parsed)return parsed;
 
-  // 解析失敗：重試 1 次
-  console.warn('JSON parse failed, retrying. Raw:', raw.slice(0,200));
-  await apiGate();
-  const retryMsg='你的回應不是JSON。請只輸出純JSON，從{開始，以}結束，不得有任何其他文字。';
-  const histForRetry=[...G.history.slice(0,-1),{role:'user',content:retryMsg},{role:'assistant',content:'{'}];
-  let resR;
-  try{
-    resR=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':CFG.key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:CFG.model,max_tokens:CFG.tokens,system:sysToSend,messages:histForRetry})
-    });
-  }catch(e){apiDone();throw new Error('重試失敗：'+e.message);}
-  apiDone();apiReset429();
-  if(!resR.ok){if(resR.status===429)apiHit429();throw new Error('重試失敗');}
-  const dataR=await resR.json();
-  const rawR='{'+(dataR.content?.find(b=>b.type==='text')?.text||'');
-  const parsedR=tryParseJSON(rawR);
-  if(parsedR){G.history[G.history.length-1]={role:'assistant',content:rawR};return parsedR;}
-  throw new Error('回應無法解析為 JSON，請再試一次');
+  // 解析失敗：不自動重試（省token），讓玩家手動重試
+  console.warn('JSON parse failed. Raw:', raw.slice(0,200));
+  G.history.pop(); // 移除無效的assistant回應
+  throw new Error('AI 回應格式錯誤，請點重試');
 }
 
 function tryParseJSON(raw){
@@ -732,7 +716,7 @@ async function sendChoice(txt){
   // 如果有待發送的戰鬥結果，附加到玩家選擇前
   if(G._pendingCombatMsg){txt=G._pendingCombatMsg+'\n玩家選擇：'+txt;G._pendingCombatMsg=null;}
   // 自動壓縮：超過120條且為20的倍數時才嘗試
-  if(G.history.length>80&&!G.autoCompressing){
+  if(G.history.length>60&&!G.autoCompressing){
     G.autoCompressing=true;
     try{await autoCompressHistory();}finally{G.autoCompressing=false;}
   }
@@ -5023,8 +5007,8 @@ function doGoToPoi(cityId,poiName){
 const _shopRefreshCache={};
 async function silentShopRefresh(shopId,baseKey,poiName,cityId){
   if(!CFG.key)return;
-  // 同一商店 5 分鐘內不重複呼叫 API
-  if(_shopRefreshCache[shopId]&&Date.now()-_shopRefreshCache[shopId]<300000)return;
+  // 同一商店整個session只呼叫一次API
+  if(_shopRefreshCache[shopId])return;
   // 退避中或有其他請求進行中時跳過
   if(Date.now()<_apiThrottle.backoffUntil||_apiThrottle.pending>0)return;
   _shopRefreshCache[shopId]=Date.now();
