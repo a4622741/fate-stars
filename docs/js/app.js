@@ -635,7 +635,7 @@ function apiReset429(){_apiThrottle._429count=0;} // 成功呼叫後重置退避
 
 let _sysPromptSent=false;
 let _lastSentGold=null;
-const SYS_SHORT='繼續用之前的規則。只輸出JSON。保持角色性格與世界觀一致。欄位格式同前。cb用於戰鬥骰子。gd/iv/hp/fa/qt/tm必須與敘述同步。';
+const SYS_SHORT='續前規則。只輸出純JSON從{開始到}結束，零額外文字。橘子說喵→系統翻譯。ch給3-4選項。敘述涉及金幣→gd必填/道具→iv/HP→hp/好感→fa/任務→qt/時間→tm。欄位格式同前。';
 async function callAPI(action){
   if(!CFG.key){document.getElementById('api-modal').classList.add('open');throw new Error('請先設定 API 金鑰');}
   await apiGate();
@@ -686,11 +686,26 @@ async function callAPI(action){
   const parsed=tryParseJSON(raw);
   if(parsed)return parsed;
 
-  // 解析失敗：移除無效回應和對應的user訊息，讓玩家手動重試
-  console.warn('JSON parse failed. Raw:', raw.slice(0,200));
-  G.history.pop(); // 移除無效的assistant回應
-  G.history.pop(); // 移除對應的user訊息（重試時會重新push）
+  // 解析失敗：嘗試更激進的修復
+  console.warn('JSON parse failed, attempting repair. Raw:', raw.slice(0,300));
+  const repaired=tryRepairJSON(raw);
+  if(repaired){G.history[G.history.length-1]={role:'assistant',content:JSON.stringify(repaired)};return repaired;}
+  // 修復也失敗：移除無效回應，讓玩家手動重試
+  G.history.pop();G.history.pop();
   throw new Error('AI 回應格式錯誤，請點重試');
+}
+function tryRepairJSON(raw){
+  // 1. 移除前後非JSON文字
+  let s=raw.replace(/^[\s\S]*?(\{)/,'{').replace(/\}[\s\S]*$/,'}');
+  try{return JSON.parse(s);}catch(_){}
+  // 2. 修復常見問題：尾部逗號、缺少引號
+  s=s.replace(/,\s*([}\]])/g,'$1');
+  try{return JSON.parse(s);}catch(_){}
+  // 3. 嘗試截斷到最後一個完整的}
+  for(let i=s.length-1;i>0;i--){
+    if(s[i]==='}'){try{return JSON.parse(s.substring(0,i+1));}catch(_){}}
+  }
+  return null;
 }
 
 function tryParseJSON(raw){
@@ -1200,9 +1215,9 @@ function renderResp(d){
       G.inShop=false;
     }
   }
-  (Array.isArray(d.nv)?d.nv:d.nv?[d.nv]:[]).forEach(p=>appendEntryToDOM({type:'narr',v:p}));
-  (Array.isArray(d.dl)?d.dl:d.dl?[d.dl]:[]).forEach(dl=>appendEntryToDOM({type:'dial',sp:dl.sp,ln:dl.ln}));
-  if(d.sm)appendEntryToDOM({type:'sys',v:d.sm});
+  (Array.isArray(d.nv)?d.nv:d.nv?[d.nv]:[]).forEach(p=>{if(p)appendEntryToDOM({type:'narr',v:String(p)});});
+  (Array.isArray(d.dl)?d.dl:d.dl?[d.dl]:[]).forEach(dl=>{if(dl&&(dl.sp||dl.ln))appendEntryToDOM({type:'dial',sp:String(dl.sp||''),ln:String(dl.ln||'')});});
+  if(d.sm&&d.sm!=='null')appendEntryToDOM({type:'sys',v:String(d.sm)});
   if(d.gd)applyGold(d.gd);
   // 安全網：偵測敘述/系統訊息中有金幣描述但 gd 未填的情況
   if((!d.gd||(d.gd.g===0&&d.gd.s===0&&d.gd.c===0))){
@@ -1263,7 +1278,7 @@ function renderResp(d){
   tickBondCooldowns();
   if(d.fa){const _fa=Array.isArray(d.fa)?d.fa:[d.fa];_fa.forEach(f=>{if(f.id&&f.delta){setFavor(f.id,f.delta);const _n=getCharData(f.id)?.name||f.id;showToast(`${_n} 好感 ${f.delta>0?'+':''}${f.delta}`,f.delta>0?'ok':'inf');}});renderChanged('party');}
   scrollD();
-  G.log.push({sec:d.st||'',loc:(d.sl||'').replace('📍 ',''),lines:[...(Array.isArray(d.nv)?d.nv:d.nv?[d.nv]:[]).map(v=>({t:'txt',v})),...(Array.isArray(d.dl)?d.dl:d.dl?[d.dl]:[]).map(dl=>({t:'txt',v:`${dl.sp}：「${dl.ln}」`})),...(d.sm?[{t:'sys',v:d.sm}]:[]) ]});
+  G.log.push({sec:d.st||'',loc:(d.sl||'').replace('📍 ',''),lines:[...(Array.isArray(d.nv)?d.nv:d.nv?[d.nv]:[]).filter(Boolean).map(v=>({t:'txt',v:String(v)})),...(Array.isArray(d.dl)?d.dl:d.dl?[d.dl]:[]).filter(x=>x&&x.sp).map(dl=>({t:'txt',v:`${dl.sp||''}：「${dl.ln||''}」`})),...(d.sm&&d.sm!=='null'?[{t:'sys',v:String(d.sm)}]:[]) ]});
   if(G.log.length>200)G.log.splice(0,G.log.length-200);
   markDirty('log');
   // 每次 AI 回應後強制同步所有面板
