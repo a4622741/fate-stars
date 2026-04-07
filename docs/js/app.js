@@ -312,7 +312,7 @@ function isCorsErr(e){
 }
 
 // ═══ API 節流與退避 ═══
-const _apiThrottle={lastCall:0,minInterval:1500,backoffUntil:0,pending:0,maxConcurrent:1};
+const _apiThrottle={lastCall:0,minInterval:1200,backoffUntil:0,pending:0,maxConcurrent:1,_429count:0};
 function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
 async function apiGate(){
   // 429 退避中
@@ -321,8 +321,12 @@ async function apiGate(){
     showToast(`⏳ API 冷卻中（${Math.ceil(wait/1000)}秒）`,'inf');
     await sleep(wait);
   }
-  // 併發控制
-  while(_apiThrottle.pending>=_apiThrottle.maxConcurrent){await sleep(500);}
+  // 併發控制（含安全逾時，防止 pending 洩漏導致死鎖）
+  let waitCount=0;
+  while(_apiThrottle.pending>=_apiThrottle.maxConcurrent){
+    await sleep(500);
+    if(++waitCount>20){_apiThrottle.pending=0;break;} // 10秒逾時強制重置
+  }
   // 最小間隔
   const elapsed=Date.now()-_apiThrottle.lastCall;
   if(elapsed<_apiThrottle.minInterval)await sleep(_apiThrottle.minInterval-elapsed);
@@ -331,12 +335,13 @@ async function apiGate(){
 }
 function apiDone(){_apiThrottle.pending=Math.max(0,_apiThrottle.pending-1);}
 function apiHit429(){
-  // 指數退避：首次 15 秒，之後翻倍，最多 120 秒
-  const cur=_apiThrottle.backoffUntil>Date.now()?(_apiThrottle.backoffUntil-Date.now()):0;
-  const next=Math.min(120000,Math.max(15000,cur*2||15000));
+  // 指數退避：首次 8 秒，之後翻倍，最多 90 秒
+  _apiThrottle._429count++;
+  const next=Math.min(90000,8000*Math.pow(2,_apiThrottle._429count-1));
   _apiThrottle.backoffUntil=Date.now()+next;
-  showToast(`⏳ API 限速，${Math.ceil(next/1000)}秒後自動重試`,'err');
+  showToast(`⏳ API 限速，${Math.ceil(next/1000)}秒後可重試`,'err');
 }
+function apiReset429(){_apiThrottle._429count=0;} // 成功呼叫後重置退避計數
 
 let _sysPromptSent=false;
 let _lastSentGold=null;
@@ -385,13 +390,13 @@ async function callAPI(action){
   const data=await res.json();
   const raw=data.content?.find(b=>b.type==='text')?.text||'';
   G.history.push({role:'assistant',content:raw});
-  apiDone();
+  apiDone();apiReset429();
 
   // 嘗試解析 JSON
   const parsed=tryParseJSON(raw);
   if(parsed)return parsed;
 
-  // 解析失敗：重試 1 次（從 3 次降為 1 次以減少 API 呼叫）
+  // 解析失敗：重試 1 次
   console.warn('JSON parse failed, retrying. Raw:', raw.slice(0,200));
   await apiGate();
   const retryMsg='你的回應不是JSON。請只輸出純JSON，從{開始，以}結束，不得有任何其他文字。';
@@ -404,7 +409,7 @@ async function callAPI(action){
       body:JSON.stringify({model:CFG.model,max_tokens:CFG.tokens,system:sysToSend,messages:histForRetry})
     });
   }catch(e){apiDone();throw new Error('重試失敗：'+e.message);}
-  apiDone();
+  apiDone();apiReset429();
   if(!resR.ok){if(resR.status===429)apiHit429();throw new Error('重試失敗');}
   const dataR=await resR.json();
   const rawR='{'+(dataR.content?.find(b=>b.type==='text')?.text||'');
