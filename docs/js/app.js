@@ -1504,8 +1504,9 @@ function applyHPChange(changes){
   renderChanged('party');
   saveGame();
   if(heroDown){
+    G._heroDown=true;G._pendingCombatMsg=null;
     appendEntryToDOM({type:'sys',v:'⚠️ 艾爾法倒下了——橘子的星力開始暴走！'});
-    setTimeout(()=>sendChoice('【緊急事件】艾爾法HP歸零，陷入瀕死狀態。請觸發危機劇情：橘子星力暴走或同伴拼死保護，強制進入撤退/被救場景。艾爾法不會死亡但必須脫離戰鬥。'),1200);
+    setTimeout(()=>{G._heroDown=false;sendChoice('【緊急事件】艾爾法HP歸零，陷入瀕死狀態。請觸發危機劇情：橘子星力暴走或同伴拼死保護，強制進入撤退/被救場景。艾爾法不會死亡但必須脫離戰鬥。');},1500);
   }
 }
 
@@ -3662,6 +3663,7 @@ function autoCombat(cb){
       // 顯示戰鬥結果選項，讓玩家決定何時繼續
       const combatMsg=`【骰子判定結果】${cb.desc||''}：投出${raw}，加值+${mod}，合計${total}（難度${diff}）。結果：${grade}。${success?'成功，請依成功後果繼續劇情。':'失敗，請依失敗後果繼續劇情。'}`;
       setTimeout(()=>{
+        if(G._heroDown)return; // HP=0 危機劇情優先
         renderChoices(success?[
           {t:'乘勝追擊',h:'趁勢推進'},
           {t:'先確認隊伍狀況',h:'查看面板後再繼續'},
