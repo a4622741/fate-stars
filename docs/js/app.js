@@ -1137,7 +1137,7 @@ function showSwapModal(newId){
     <div style="display:flex;flex-direction:column;gap:.38rem;margin-bottom:.85rem;">
       ${G.partyIds.map(id=>{
         const c=getCharData(id);
-        return `<button onclick="doSwap('${newId}','${id}')" style="display:flex;align-items:center;gap:.7rem;background:var(--bg3);border:1px solid var(--brd);border-radius:3px;padding:.5rem .75rem;cursor:pointer;text-align:left;transition:all .2s;font-family:'Noto Serif TC',serif;"
+        return `<button onclick="doSwap('${escHtml(newId)}','${escHtml(id)}')" style="display:flex;align-items:center;gap:.7rem;background:var(--bg3);border:1px solid var(--brd);border-radius:3px;padding:.5rem .75rem;cursor:pointer;text-align:left;transition:all .2s;font-family:'Noto Serif TC',serif;"
           onmouseover="this.style.borderColor='var(--red)';this.style.background='rgba(204,68,68,.08)'"
           onmouseout="this.style.borderColor='var(--brd)';this.style.background='var(--bg3)'">
           <span style="font-size:1rem">${c?.emoji||'⚔️'}</span>
@@ -1376,7 +1376,7 @@ function applyGold(d){
   total=Math.max(0,total+delta);
   G.gold.gold=Math.floor(total/1000);
   G.gold.silver=Math.floor((total%1000)/10);
-  G.gold.copper=Math.floor(total)%10;
+  G.gold.copper=total%10;
   updateGold();
   markDirty('inv');
 }
@@ -1467,7 +1467,7 @@ function getPortrait(id){
   const src=getPortraitSrc(id);
   if(src){
     const esc=escHtml(id);
-    const cfg=PCFG[id]||G.extraPcfg?.[id]||{};
+    const cfg=PCFG[id]||(G.extraPcfg&&G.extraPcfg[id])||{};
     const fbEmoji=cfg.emoji||'⚔';
     const fbColor=cfg.color||'#c9a84c';
     const fbLabel=cfg.label||id;
@@ -1496,7 +1496,7 @@ function getFallbackPortrait(id){
 }
 
 function applyPortrait(el,src,id){
-  const cfg=PCFG[id]||G.extraPcfg?.[id]||{};
+  const cfg=PCFG[id]||(G.extraPcfg&&G.extraPcfg[id])||{};
   el.innerHTML=`<img src="${src}" style="width:100%;height:100%;object-fit:cover;object-position:center top;display:block;" alt="${escHtml(id||'portrait')}"
     onerror="this.onerror=null;var fb=this.parentNode.querySelector('[data-fb]');if(fb){fb.style.display='flex';this.style.display='none';}"/>
     <div style="position:absolute;inset:0;background:linear-gradient(to bottom,transparent 55%,var(--bg3) 100%);pointer-events:none;"></div>
@@ -2523,7 +2523,7 @@ function bondBarHtml(charId){
         const ready=cd<=0;
         return`<button onclick="event.stopPropagation();triggerBond('alfar','${charId}','${sk.id}')"
           style="font-size:.55rem;padding:.12rem .4rem;background:${ready?'rgba(201,168,76,.1)':'rgba(60,60,60,.3)'};border:1px solid ${ready?'rgba(201,168,76,.4)':'rgba(100,100,100,.3)'};border-radius:3px;color:${ready?'var(--goldd)':'var(--sild)'};cursor:${ready?'pointer':'not-allowed'};font-family:'Noto Serif TC',serif;"
-          title="${sk.desc}"
+          title="${escHtml(sk.desc)}"
           ${ready?`onmouseover="this.style.background='rgba(201,168,76,.2)'" onmouseout="this.style.background='rgba(201,168,76,.1)'"`:''}>
           ${sk.icon}${sk.name}${!ready?` (${cd})`:sk.type==='覺醒'?'★':''}
         </button>`;
@@ -3051,7 +3051,7 @@ function buildInv(){
       ${bText?`<div style="font-size:.58rem;color:#6ab46a;margin-top:.08rem">${bText}</div>`:''}
     </div>
     <div style="display:flex;flex-direction:column;gap:.25rem;align-items:flex-end;flex-shrink:0">
-      ${canUnequip&&i.slot?`<button onclick="event.stopPropagation();upgradeEquip(allParty().find(m=>m.name==='${i.w}')?.id||'alfar','${i.slot}')"
+      ${canUnequip&&i.slot?`<button onclick="event.stopPropagation();upgradeEquip(allParty().find(m=>m.name==='${escHtml(String(i.w).replace(/'/g,"\\\'"))}')?.id||'alfar','${escHtml(i.slot)}')"
         ${maxed?'disabled':''}
         style="font-size:.55rem;padding:.1rem .35rem;background:${maxed?'transparent':'rgba(201,168,76,.1)'};border:1px solid ${maxed?'rgba(100,100,100,.3)':'rgba(201,168,76,.4)'};border-radius:2px;color:${maxed?'var(--sild)':'var(--goldd)'};cursor:${maxed?'not-allowed':'pointer'};"
         title="${maxed?'已達+20上限':'強化費用：'+cost+'銀'}">
@@ -3874,7 +3874,7 @@ function openChar(id){
       <button onclick="openPortraitSettings('${id}')" style="font-size:.58rem;padding:.18rem .45rem;background:rgba(0,0,0,.5);border:1px solid rgba(201,168,76,.3);border-radius:2px;color:rgba(201,168,76,.7);cursor:pointer;">🖼 頭像設定</button>
     </div>
   </div>`;
-  document.getElementById('modal-inner').innerHTML=pHtml+`<div class="mtop"><div class="mscol"><div class="mtp">${c.type}</div><div class="mnm">第${c.num}星</div><div class="mst">${c.star}</div></div><div class="micol"><div class="mname">${c.name} <span style="font-size:.8rem">${c.emoji}</span></div><div class="msub2">${c.title}</div><div class="mstat r">✦ 已加入</div></div></div><div class="mbody"><div class="msec"><div class="msect">人物說明</div><div class="mdesc">${c.desc}</div></div><div class="msec"><div class="msect">素質數值</div><div style="padding-top:.18rem">${smini(c.stats,c.sn,c.id)}</div></div><div class="msec"><div class="msect">天賦技能</div>${c.tl.map(t=>`<div class="tarow"><span class="ta2 ${t.s?'sl':''}">${t.s?'【封印】':''}${t.n}</span><div class="tadesc">${t.d}</div></div>`).join('')}</div><div class="msec"><div class="msect">裝備</div>${Object.entries(c.eq).map(([k,v])=>`<div class="tr2"><span class="ts">${k}</span><span class="ti">${v}</span></div>`).join('')}</div>${id==='orange'?`<div class="msec"><div class="msect" style="color:rgba(180,140,220,.8);">⚓ 秘密・命運之錨</div>${getOrangeSecretHtml()}</div>`:''}</div>`;
+  document.getElementById('modal-inner').innerHTML=pHtml+`<div class="mtop"><div class="mscol"><div class="mtp">${escHtml(c.type)}</div><div class="mnm">第${c.num}星</div><div class="mst">${escHtml(c.star)}</div></div><div class="micol"><div class="mname">${escHtml(c.name)} <span style="font-size:.8rem">${c.emoji}</span></div><div class="msub2">${escHtml(c.title)}</div><div class="mstat r">✦ 已加入</div></div></div><div class="mbody"><div class="msec"><div class="msect">人物說明</div><div class="mdesc">${escHtml(c.desc)}</div></div><div class="msec"><div class="msect">素質數值</div><div style="padding-top:.18rem">${smini(c.stats,c.sn,c.id)}</div></div><div class="msec"><div class="msect">天賦技能</div>${c.tl.map(t=>`<div class="tarow"><span class="ta2 ${t.s?'sl':''}">${t.s?'【封印】':''}${escHtml(t.n)}</span><div class="tadesc">${escHtml(t.d)}</div></div>`).join('')}</div><div class="msec"><div class="msect">裝備</div>${Object.entries(c.eq).map(([k,v])=>`<div class="tr2"><span class="ts">${k}</span><span class="ti">${escHtml(v)}</span></div>`).join('')}</div>${id==='orange'?`<div class="msec"><div class="msect" style="color:rgba(180,140,220,.8);">⚓ 秘密・命運之錨</div>${getOrangeSecretHtml()}</div>`:''}</div>`;
   document.getElementById('detail-modal').classList.add('open');
 }
 function openStar(type,num){
@@ -3890,11 +3890,12 @@ function openStar(type,num){
       <div style="position:absolute;inset:0;background:linear-gradient(to bottom,transparent 50%,var(--bg2) 100%);pointer-events:none;"></div>
       <button onclick="openPortraitSettings('${s.id}')" style="position:absolute;bottom:.4rem;right:.5rem;font-size:.58rem;padding:.18rem .45rem;background:rgba(0,0,0,.5);border:1px solid rgba(201,168,76,.3);border-radius:2px;color:rgba(201,168,76,.7);cursor:pointer;">🖼 頭像設定</button>
     </div>`:'';
-    body=pHtml+(c?`<div class="msec"><div class="msect">人物說明</div><div class="mdesc">${c.desc}</div></div><div class="msec"><div class="msect">素質數值</div><div style="padding-top:.18rem">${smini(c.stats,c.sn,s.id)}</div></div>`:'')+'<div class="mnote2">→ 點擊「同伴」標籤查看完整資料</div>';
+    body=pHtml+(c?`<div class="msec"><div class="msect">人物說明</div><div class="mdesc">${escHtml(c.desc)}</div></div><div class="msec"><div class="msect">素質數值</div><div style="padding-top:.18rem">${smini(c.stats,c.sn,s.id)}</div></div>`:'')+'<div class="mnote2">→ 點擊「同伴」標籤查看完整資料</div>';
   }
-  else if(iC){body=`<div class="msec"><div class="msect">目擊情報</div><div class="mdesc">遭遇：${s.cN||'身份不明'}</div><div class="mnote2">${s.hint||'尚無情報'}</div></div><div class="msec"><div class="msect">素質數值</div><div class="mdesc" style="color:var(--sild);font-size:.68rem">尚未加入——數值未解鎖</div></div>`;}
+  else if(iC){body=`<div class="msec"><div class="msect">目擊情報</div><div class="mdesc">遭遇：${escHtml(s.cN||'身份不明')}</div><div class="mnote2">${escHtml(s.hint||'尚無情報')}</div></div><div class="msec"><div class="msect">素質數值</div><div class="mdesc" style="color:var(--sild);font-size:.68rem">尚未加入——數值未解鎖</div></div>`;}
   else{body=`<div class="msec"><div class="msect">星辰情報</div><div class="mdesc" style="color:var(--sild)">此星辰尚未降世，或尚未與主星相遇。</div><div class="mnote2">世界的某個角落，這顆星正在等待。</div></div>`;}
-  document.getElementById('modal-inner').innerHTML=`<div class="mtop"><div class="mscol"><div class="mtp">${type}</div><div class="mnm">第${num}星</div><div class="mst">${s.star}</div></div><div class="micol"><div class="mname">${iU?'？？':(s.name==='?'||s.name==='???')?(s.cN||'？？？'):s.name}</div><div class="msub2">${type}・第${num}星・${s.star}</div><div class="mstat ${sc}">${st}</div></div></div><div class="mbody">${body}</div>`;
+  const _dn=iU?'？？':(s.name==='?'||s.name==='???')?escHtml(s.cN||'？？？'):escHtml(s.name);
+  document.getElementById('modal-inner').innerHTML=`<div class="mtop"><div class="mscol"><div class="mtp">${escHtml(type)}</div><div class="mnm">第${num}星</div><div class="mst">${escHtml(s.star)}</div></div><div class="micol"><div class="mname">${_dn}</div><div class="msub2">${escHtml(type)}・第${num}星・${escHtml(s.star)}</div><div class="mstat ${sc}">${st}</div></div></div><div class="mbody">${body}</div>`;
   document.getElementById('detail-modal').classList.add('open');
 }
 function closeDOut(e){if(e.target===document.getElementById('detail-modal'))closeD();}
