@@ -64,7 +64,7 @@ function _doSave(){
       extraParty:G.extraParty,extraPcfg:G.extraPcfg,
       partyIds:G.partyIds,upgrade:G.upgrade,inv:getInv(),favor:G.favor,bellyFlipCount:G.bellyFlipCount||0,specialOv:G.specialOv||{},
       hp:G.hp,quests:G.quests,time:G.time,rep:G.rep,relics:G.relics,presetRelicOv:Object.fromEntries(Object.entries(PRESET_RELICS).filter(([k,v])=>v.status&&v.status!=='equipped').map(([k,v])=>[k,{status:v.status,effect:v.effect}])),founderClues:G.founderClues,orangeStage:G.orangeStage||0,intel:G.intel||[],lastShop:G.lastShop||null,inShop:G.inShop||false,shopCatalogs:G.shopCatalogs||{},
-      starOv,savedAt:Date.now(),
+      guilds:G.guilds||{},starOv,savedAt:Date.now(),
     };
     localStorage.setItem(SAVE_KEY,JSON.stringify(data));
     showSaveIndicator();
@@ -103,6 +103,7 @@ function loadGame(){
     G.lastShop=data.lastShop||null;
     G.inShop=data.inShop||false;
     G.shopCatalogs=data.shopCatalogs||{};
+    G.guilds=data.guilds||{};
     // 恢復星辰狀態
     if(data.starOv){
       Object.entries(data.starOv).forEach(([k,v])=>{
@@ -117,7 +118,7 @@ function loadGame(){
     const lastAst=G.history.filter(m=>m.role==='assistant').pop();
     if(lastAst&&!lastAst.content.trim().startsWith('{')){
       G.history.push({role:'user',content:'請以JSON格式繼續故事。'});
-      G.history.push({role:'assistant',content:'{"st":"繼續中","sl":"'+G.sceneLoc+'","nv":[],"dl":[],"sm":null,"gd":{"g":0,"s":0,"c":0},"ch":[],"nm":null,"cb":null,"iv":null,"sp":null,"shop":null,"fa":null,"hp":null,"qt":null,"tm":null,"rp":null,"info":null,"relic":null,"clue":null,"or":null,"job":null}'});
+      G.history.push({role:'assistant',content:'{"st":"繼續中","sl":"'+G.sceneLoc+'","nv":[],"dl":[],"sm":null,"gd":{"g":0,"s":0,"c":0},"ch":[],"nm":null,"cb":null,"iv":null,"sp":null,"shop":null,"fa":null,"hp":null,"qt":null,"tm":null,"rp":null,"info":null,"relic":null,"clue":null,"or":null,"job":null,"gu":null}'});
     }
     return true;
   }catch(e){console.warn('讀取存檔失敗:',e);return false;}
@@ -250,7 +251,7 @@ const SYS=`你是西方奇幻版水滸傳文字RPG故事引擎。靈感來源：
 橘子🐈😒（地魁星）：台詞永遠是「喵」系列，緊接系統翻譯（sp:"系統",ln:"〔翻譯〕"）。星辰感知時也一樣——橘子說「喵！」，系統翻譯說明星辰身份（如「〔翻譯：這傢伙是天罡第X星・○○星。〕」）。她看穿一切虛偽，對翻肚持強烈反對立場。知力99不是玩笑——她可能是108星中最接近真相的存在。
 
 ═══ 輸出格式（所有欄位必填，不用的設null；ch在cb戰鬥時設[]空陣列）═══
-{"st":"場景標題","sl":"📍 地點","nv":["敘述"],"dl":[{"sp":"角色emoji","ln":"台詞"}],"sm":null,"gd":{"g":0,"s":0,"c":0},"ch":[{"t":"選項","h":""}],"nm":null,"cb":null,"iv":null,"sp":null,"shop":null,"fa":null,"hp":null,"qt":null,"tm":null,"rp":null,"info":null,"relic":null,"clue":null,"or":null,"job":null}
+{"st":"場景標題","sl":"📍 地點","nv":["敘述"],"dl":[{"sp":"角色emoji","ln":"台詞"}],"sm":null,"gd":{"g":0,"s":0,"c":0},"ch":[{"t":"選項","h":""}],"nm":null,"cb":null,"iv":null,"sp":null,"shop":null,"fa":null,"hp":null,"qt":null,"tm":null,"rp":null,"info":null,"relic":null,"clue":null,"or":null,"job":null,"gu":null}
 
 ═══ 格式規則 ═══
 1. 只輸出純JSON。違反=失敗。
@@ -278,7 +279,8 @@ const SYS=`你是西方奇幻版水滸傳文字RPG故事引擎。靈感來源：
 16. relic：寶器發現。{id,name,type,icon,rarity,desc,effect}。每位星辰降世時攜帶一件命運寶器。
 17. clue：天父星線索。[{id,title,content,src,rel,cat}]。
 18. or：橘子秘密觸發。{"stage":N}（1-5，謹慎使用）。
-19. job：職業變更。[{id,job}]。
+19. job：職業變更。[{id,job}]。職業由劇情決定（拜師、工會晉升、重大事件），不是玩家自選。可用職業分四類：戰鬥系(城衛/劍客/鬥士/弓手/騎兵)、智謀系(術士/謀士/學者)、輔助系(遊俠/密探/醫師/吟遊詩人)、生產系(鐵匠/廚師/藥師/商賈/裁縫/建築師/獵人)。108星中有大量非戰鬥職業的星辰——鐵匠、廚師、學者等，他們同樣重要。
+19a. gu：工會事件。[{id:"adventurer/merchant/scholar/craft/shadow",action:"join/exp/rank",amount:數值}]。action=join加入工會，action=exp增加經驗（10-30），action=rank直接設定等級(0-5)。五大工會：冒險者(adventurer)、商人(merchant)、學院(scholar)、匠人(craft)、暗影(shadow)。劇情中遇到工會時自然觸發加入。
 20. fa：好感變動。[{id,delta,reason}]。
 21. shop：進入商店填此欄。{id:"唯一id",name:"商店名",baseKey:"general/blacksmith/inn/apothecary",newItems:[只填新商品]}。
 22. sp：星辰感知。108星{"num":N,"type":"天罡/地煞","star":"星名","name":"稱呼","hint":"線索描述","special":false}；星外{"id":"sky_father/shadow_king","special":true,"status":"heard","hint":""}。
@@ -425,7 +427,7 @@ function mk(tag,cls){const e=document.createElement(tag);if(cls)e.className=cls;
 function scrollD(){const s=document.getElementById('story-scroll');setTimeout(()=>s.scrollTop=s.scrollHeight,60);}
 
 // 本地事件推入 history 的輔助函式：合併連續同類事件，避免膨脹
-const _EMPTY_RESP='{"st":"—","sl":"—","nv":[],"dl":[],"sm":null,"gd":{"g":0,"s":0,"c":0},"ch":[],"nm":null,"cb":null,"iv":null,"sp":null,"shop":null,"fa":null,"hp":null,"qt":null,"tm":null,"rp":null,"info":null,"relic":null,"clue":null,"or":null,"job":null}';
+const _EMPTY_RESP='{"st":"—","sl":"—","nv":[],"dl":[],"sm":null,"gd":{"g":0,"s":0,"c":0},"ch":[],"nm":null,"cb":null,"iv":null,"sp":null,"shop":null,"fa":null,"hp":null,"qt":null,"tm":null,"rp":null,"info":null,"relic":null,"clue":null,"or":null,"job":null,"gu":null}';
 function pushLocalEvent(msg){
   const tagged='【UI互動・純背景資訊・不推進劇情・不改變場景】'+msg;
   // 若上一組也是 UI 互動，合併
@@ -973,6 +975,7 @@ function renderResp(d){
   if(d.clue)applyFounderClue(d.clue);
   if(d.or&&d.or.stage)revealOrangeSecret(d.or.stage);
   if(d.job)applyJobUpdate(d.job);
+  if(d.gu)applyGuildUpdate(d.gu);
   tickBondCooldowns();
   if(d.fa){const _fa=Array.isArray(d.fa)?d.fa:[d.fa];_fa.forEach(f=>{if(f.id&&f.delta){setFavor(f.id,f.delta);const _n=getCharData(f.id)?.name||f.id;showToast(`${_n} 好感 ${f.delta>0?'+':''}${f.delta}`,f.delta>0?'ok':'inf');}});renderChanged('party');}
   scrollD();
@@ -1308,7 +1311,7 @@ function trainChar(id,ev){
 // 職業可在故事中透過 AI 的 job 欄位改變（升職、轉職、特殊事件）
 
 const JOBS={
-  // 戰鬥系
+  // ── 戰鬥系 ──
   城衛:    {icon:'⚔️', color:'#6ab4c8', type:'戰鬥',
     bonus:{武力:5, 統率:5}, maxHPBonus:10,
     passive:'制式訓練：面對群體敵人時統率判定 +2',
@@ -1321,7 +1324,15 @@ const JOBS={
     bonus:{武力:8, 統率:3, 幸運:2}, maxHPBonus:20,
     passive:'強韌：HP上限額外+20，受到致命傷後有機率以1HP存活',
     desc:'以體魄和意志力著稱的近戰王者。'},
-  // 智謀系
+  弓手:    {icon:'🏹', color:'#7ab86a', type:'戰鬥',
+    bonus:{武力:7, 幸運:8}, maxHPBonus:0,
+    passive:'精準射擊：遠程攻擊判定 +3',
+    desc:'百步穿楊的遠程戰士，擅長伏擊與掩護。'},
+  騎兵:    {icon:'🐴', color:'#a0845c', type:'戰鬥',
+    bonus:{武力:6, 統率:8, 魅力:2}, maxHPBonus:15,
+    passive:'衝鋒：野外戰鬥首輪判定 +3',
+    desc:'馬背上的戰士，機動性與衝擊力兼備。'},
+  // ── 智謀系 ──
   術士:    {icon:'🔮', color:'#b48cdc', type:'智謀',
     bonus:{知力:12, 魅力:3}, maxHPBonus:-10,
     passive:'奧術洞察：知力判定難度降低2',
@@ -1330,8 +1341,12 @@ const JOBS={
     bonus:{知力:8, 魅力:5, 統率:3}, maxHPBonus:0,
     passive:'推演：每場戰鬥開始前可預知敵方弱點（附加1條情報）',
     desc:'善謀多算的軍師型人才，掌握戰局全貌。'},
-  // 輔助系
-  遊俠:    {icon:'🏹', color:'#6ab46a', type:'輔助',
+  學者:    {icon:'📖', color:'#8cb8d0', type:'智謀',
+    bonus:{知力:10, 魅力:5}, maxHPBonus:-5,
+    passive:'博學：解讀古文/密碼時自動成功',
+    desc:'飽讀詩書的知識寶庫，精通歷史、語言與古籍。'},
+  // ── 輔助系 ──
+  遊俠:    {icon:'🌿', color:'#6ab46a', type:'輔助',
     bonus:{幸運:10, 知力:5}, maxHPBonus:0,
     passive:'野外生存：移動時天氣懲罰減半',
     desc:'長年在荒野與城市間穿梭的自由者。'},
@@ -1343,16 +1358,182 @@ const JOBS={
     bonus:{知力:5, 魅力:8}, maxHPBonus:0,
     passive:'急救：休息回復HP+15%（累加至基礎40%）',
     desc:'精通醫術的治療者，是隊伍的生命保障。'},
-  商賈:    {icon:'💰', color:'var(--gold)', type:'輔助',
+  吟遊詩人:{icon:'🎵', color:'#d4a0d0', type:'輔助',
+    bonus:{魅力:12, 幸運:5}, maxHPBonus:0,
+    passive:'鼓舞：戰鬥時全隊士氣+1，好感獲取量 ×1.5',
+    desc:'用歌聲與故事連結人心的旅行藝人。'},
+  // ── 生產系 ──
+  鐵匠:    {icon:'🔨', color:'#c87850', type:'生產',
+    bonus:{武力:5, 知力:3}, maxHPBonus:5,
+    passive:'鍛造：可在據點強化裝備，強化費用 -30%',
+    desc:'熟悉金屬與火焰的匠人，能鍛造和修復武器防具。',
+    produce:'裝備強化・修復・製造'},
+  廚師:    {icon:'🍳', color:'#e8a040', type:'生產',
+    bonus:{魅力:5, 幸運:5}, maxHPBonus:0,
+    passive:'料理：休息時額外回復 HP+20%，可製作特殊料理道具',
+    desc:'用食物治癒身心的烹飪達人。',
+    produce:'料理・食材加工'},
+  藥師:    {icon:'🧪', color:'#50b888', type:'生產',
+    bonus:{知力:8, 幸運:3}, maxHPBonus:0,
+    passive:'調藥：可在據點製作回復藥與解毒劑，藥效 +50%',
+    desc:'精通草藥與煉藥術的專家，傷藥和毒藥都難不倒。',
+    produce:'藥品・毒藥・解毒劑'},
+  商賈:    {icon:'💰', color:'var(--gold)', type:'生產',
     bonus:{魅力:8, 幸運:5}, maxHPBonus:0,
-    passive:'砍價：所有商店交易九折',
-    desc:'長袖善舞的商人，擅長在各種場合獲取利益。'},
-  // 特殊
+    passive:'砍價：所有商店交易九折，可開設據點商店',
+    desc:'長袖善舞的商人，擅長在各種場合獲取利益。',
+    produce:'貿易・物資調度'},
+  裁縫:    {icon:'🧵', color:'#c89088', type:'生產',
+    bonus:{魅力:6, 知力:4}, maxHPBonus:0,
+    passive:'縫製：可製作防具與特殊服裝（偽裝/禮服）',
+    desc:'精通布料與設計的手藝人，從戰甲到禮服無所不能。',
+    produce:'防具・服裝・偽裝道具'},
+  建築師:  {icon:'🏗️', color:'#8888aa', type:'生產',
+    bonus:{統率:5, 知力:5}, maxHPBonus:0,
+    passive:'建造：據點擴建速度 ×2，可設計防禦工事',
+    desc:'精通建築與工程的專才，是據點發展的基石。',
+    produce:'據點建設・防禦工事'},
+  獵人:    {icon:'🐾', color:'#7a9050', type:'生產',
+    bonus:{武力:4, 幸運:8}, maxHPBonus:5,
+    passive:'採集：野外移動時自動獲取食材/素材，遭遇戰機率降低',
+    desc:'熟悉山林的獵手，追蹤、設陷阱、採集樣樣精通。',
+    produce:'狩獵・採集・陷阱'},
+  // ── 特殊 ──
   命運之錨: {icon:'⚓', color:'rgba(180,140,220,.9)', type:'特殊',
     bonus:{}, maxHPBonus:0,
     passive:'（封印中）',
     desc:'不是職業，是命運本身。'},
 };
+
+// ═══ GUILD SYSTEM（工會系統）═══
+const GUILDS={
+  adventurer:{name:'冒險者工會',icon:'⚔️',color:'#c8a46a',
+    desc:'接受委託、討伐魔獸、探索遺跡。大陸最大的戰鬥者組織。',
+    ranks:['見習','銅牌','銀牌','金牌','白金','傳說'],
+    benefits:['接受懸賞任務','免費使用訓練場','裝備修復折扣','獨家高階委託','工會專屬裝備','自由進出所有分部'],
+    reqJobs:['城衛','劍客','鬥士','弓手','騎兵','遊俠']},
+  merchant:{name:'商人工會',icon:'💰',color:'var(--gold)',
+    desc:'掌控大陸貿易網絡的商業組織。情報是最值錢的貨物。',
+    ranks:['學徒','行商','掌櫃','大商','巨賈','商王'],
+    benefits:['商店折扣 5%','解鎖走私商品','貿易路線情報','商店折扣 15%','開設據點商店','控制區域物價'],
+    reqJobs:['商賈','密探']},
+  scholar:{name:'學院工會',icon:'📖',color:'#8cb8d0',
+    desc:'追求知識的學者聯盟。收集、研究、保存帝國遺失的智慧。',
+    ranks:['旁聽生','研究員','講師','教授','院士','大賢者'],
+    benefits:['借閱古籍','解讀密文協助','研究古代遺物','獨家知識情報','解鎖禁書區','古代機關全解'],
+    reqJobs:['學者','術士','謀士','藥師']},
+  craft:{name:'匠人工會',icon:'🔨',color:'#c87850',
+    desc:'匯集各種手藝人的技術組織。製造、修復、建設無所不能。',
+    ranks:['學徒','工匠','師傅','名匠','宗師','神匠'],
+    benefits:['使用公共工坊','裝備強化折扣','製作中階道具','特殊素材取得','製作高階裝備','傳說級鍛造'],
+    reqJobs:['鐵匠','裁縫','建築師','廚師']},
+  shadow:{name:'暗影工會',icon:'🌙',color:'#666',
+    desc:'不存在於任何官方記錄的地下組織。情報、暗殺、走私。',
+    ranks:['線人','探子','影','暗刃','執行者','幽靈'],
+    benefits:['黑市通行證','竊聽情報','毒藥配方','暗殺委託','偽造身份文件','操控地下勢力'],
+    reqJobs:['密探','獵人']},
+};
+
+function getGuilds(){return G.guilds||(G.guilds={});}
+function getGuildRank(guildId){return getGuilds()[guildId]||{rank:0,exp:0,joined:false};}
+function joinGuild(guildId){
+  const guilds=getGuilds();
+  if(guilds[guildId]?.joined)return;
+  guilds[guildId]={rank:0,exp:0,joined:true,joinedDay:G.time?.day||1};
+  const g=GUILDS[guildId];
+  appendEntryToDOM({type:'sys',v:`✦ 加入了【${g.name}】！初始等級：${g.ranks[0]}`});
+  showToast(`加入 ${g.name}`,'ok');
+  renderChanged('guild');saveGame();
+}
+function addGuildExp(guildId,amount){
+  const guilds=getGuilds();
+  if(!guilds[guildId]?.joined)return;
+  const g=GUILDS[guildId];
+  const info=guilds[guildId];
+  info.exp=(info.exp||0)+amount;
+  const expPerRank=50;
+  const newRank=Math.min(g.ranks.length-1,Math.floor(info.exp/expPerRank));
+  if(newRank>info.rank){
+    info.rank=newRank;
+    appendEntryToDOM({type:'sys',v:`✦ ${g.icon} ${g.name} 晉升：${g.ranks[newRank]}！ — 解鎖：${g.benefits[newRank]}`});
+    showToast(`${g.name} 晉升 ${g.ranks[newRank]}！`,'ok');
+  }
+  renderChanged('guild');saveGame();
+}
+function applyGuildUpdate(gu){
+  if(!gu)return;
+  (Array.isArray(gu)?gu:[gu]).forEach(g=>{
+    if(g.id&&g.action==='join')joinGuild(g.id);
+    else if(g.id&&g.action==='exp'&&g.amount)addGuildExp(g.id,g.amount);
+    else if(g.id&&g.action==='rank'&&g.rank!=null){
+      const guilds=getGuilds();if(!guilds[g.id]?.joined)return;
+      const gd=GUILDS[g.id];
+      guilds[g.id].rank=Math.min(gd.ranks.length-1,g.rank);
+      appendEntryToDOM({type:'sys',v:`✦ ${gd.icon} ${gd.name} 等級設為：${gd.ranks[guilds[g.id].rank]}`});
+      renderChanged('guild');saveGame();
+    }
+  });
+}
+function buildGuild(){
+  const guilds=getGuilds();
+  const joined=Object.entries(GUILDS).filter(([id])=>guilds[id]?.joined);
+  const notJoined=Object.entries(GUILDS).filter(([id])=>!guilds[id]?.joined);
+  let h=`<div style="padding:.4rem .5rem .2rem;border-bottom:1px solid var(--brd);margin-bottom:.5rem;">
+    <div style="font-size:.62rem;color:var(--goldd);letter-spacing:.1em;font-weight:600;">GUILDS 工會</div>
+  </div>`;
+  if(joined.length){
+    joined.forEach(([id,g])=>{
+      const info=guilds[id];
+      const rankName=g.ranks[info.rank]||g.ranks[0];
+      const nextRank=info.rank<g.ranks.length-1?g.ranks[info.rank+1]:null;
+      const expPerRank=50;const pct=nextRank?Math.min(100,Math.round((info.exp%expPerRank)/expPerRank*100)):100;
+      // current benefits
+      const benefits=g.benefits.slice(0,info.rank+1);
+      h+=`<div style="background:var(--bg3);border:1px solid var(--brd);border-radius:3px;margin-bottom:.5rem;overflow:hidden;">
+        <div style="padding:.45rem .55rem;background:linear-gradient(135deg,rgba(201,168,76,.08),transparent);border-bottom:1px solid var(--brd);display:flex;align-items:center;gap:.4rem;">
+          <span style="font-size:1.1rem;">${g.icon}</span>
+          <div style="flex:1;">
+            <div style="font-size:.72rem;font-weight:700;color:${g.color};">${g.name}</div>
+            <div style="font-size:.5rem;color:var(--sild);">${g.desc}</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:.65rem;font-weight:600;color:var(--gold);">${rankName}</div>
+            <div style="font-size:.45rem;color:var(--sild);">Rank ${info.rank+1}/${g.ranks.length}</div>
+          </div>
+        </div>
+        ${nextRank?`<div style="padding:.3rem .55rem;display:flex;align-items:center;gap:.3rem;">
+          <span style="font-size:.45rem;color:var(--sild);width:2.5rem;flex-shrink:0;">→${nextRank}</span>
+          <div style="flex:1;height:4px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden;">
+            <div style="width:${pct}%;height:100%;background:${g.color};border-radius:2px;transition:width .4s;"></div>
+          </div>
+          <span style="font-size:.45rem;color:var(--sild);">${pct}%</span>
+        </div>`:'<div style="padding:.2rem .55rem;font-size:.48rem;color:var(--gold);">✦ 最高等級</div>'}
+        <div style="padding:.3rem .55rem .4rem;border-top:1px solid var(--brd);">
+          <div style="font-size:.48rem;color:var(--sild);margin-bottom:.2rem;">已解鎖特權：</div>
+          ${benefits.map((b,i)=>`<div style="font-size:.5rem;color:${i===info.rank?'var(--gold)':'var(--sil)'};padding:.06rem 0;">${i===info.rank?'★':'·'} ${b}</div>`).join('')}
+        </div>
+      </div>`;
+    });
+  }
+  if(notJoined.length){
+    h+=`<div style="font-size:.52rem;color:var(--sild);letter-spacing:.06em;padding:.2rem 0 .3rem;">未加入的工會</div>`;
+    notJoined.forEach(([id,g])=>{
+      h+=`<div style="background:var(--bg3);border:1px solid var(--brd);border-radius:3px;margin-bottom:.35rem;padding:.4rem .55rem;opacity:.65;">
+        <div style="display:flex;align-items:center;gap:.4rem;">
+          <span style="font-size:.9rem;">${g.icon}</span>
+          <div style="flex:1;">
+            <div style="font-size:.65rem;color:${g.color};font-weight:600;">${g.name}</div>
+            <div style="font-size:.48rem;color:var(--sild);margin-top:.05rem;">${g.desc}</div>
+          </div>
+          <span style="font-size:.42rem;color:var(--sild);border:1px solid var(--brd);border-radius:2px;padding:.1rem .3rem;">未加入</span>
+        </div>
+        <div style="font-size:.45rem;color:var(--sild);margin-top:.25rem;">相關職業：${g.reqJobs.join('、')}</div>
+      </div>`;
+    });
+  }
+  if(!joined.length&&!notJoined.length)h+='<div style="color:var(--sild);font-size:.6rem;text-align:center;padding:2rem;">尚未發現任何工會</div>';
+  return h;
+}
 
 // 職業附加的HP加成（整合進 getHP）
 function getJobHPBonus(id){
@@ -1394,50 +1575,46 @@ function getJobBonus(id){
 
 // 職業選擇 modal
 function openJobModal(id){
-  const c=getCharData(id);if(!c||c.id==='orange')return;
+  const c=getCharData(id);if(!c)return;
   const cur=getJob(id);
-  const jobTypes=[...new Set(Object.values(JOBS).map(j=>j.type))];
+  const curJob=cur?JOBS[cur]:null;
+  const jobTypes=['戰鬥','智謀','輔助','生產'];
   let html=`<div style="padding:.8rem 1rem;">
-    <div style="font-size:.75rem;color:var(--gold);margin-bottom:.6rem;font-weight:700">選擇職業──${c.name}</div>
-    <div style="font-size:.6rem;color:var(--sild);margin-bottom:.8rem">職業會影響素質加成、HP上限與被動能力。</div>`;
+    <div style="font-size:.75rem;color:var(--gold);margin-bottom:.3rem;font-weight:700">${c.name} 的職業</div>`;
+  if(curJob){
+    const bonusStr=Object.entries(curJob.bonus).filter(([,v])=>v).map(([k,v])=>`${k}${v>0?'+':''}${v}`).join(' ');
+    html+=`<div style="background:rgba(201,168,76,.1);border:1px solid var(--goldd);border-radius:4px;padding:.55rem .7rem;margin-bottom:.7rem;">
+      <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.25rem;">
+        <span style="font-size:1.2rem;">${curJob.icon}</span>
+        <div>
+          <div style="font-size:.78rem;font-weight:700;color:${curJob.color};">${cur}</div>
+          <div style="font-size:.5rem;color:var(--sild);">${curJob.type}系</div>
+        </div>
+      </div>
+      <div style="font-size:.55rem;color:var(--sil);margin-bottom:.2rem;">${curJob.desc}</div>
+      ${bonusStr?`<div style="font-size:.52rem;color:#6ab46a;">素質：${bonusStr}${curJob.maxHPBonus?'　HP上限'+(curJob.maxHPBonus>0?'+':'')+curJob.maxHPBonus:''}</div>`:''}
+      <div style="font-size:.52rem;color:rgba(200,180,100,.7);margin-top:.1rem;">⊕ ${curJob.passive}</div>
+      ${curJob.produce?`<div style="font-size:.52rem;color:#c87850;margin-top:.1rem;">⚒ 生產：${curJob.produce}</div>`:''}
+    </div>`;
+  }else{
+    html+=`<div style="font-size:.58rem;color:var(--sild);margin-bottom:.7rem;">尚未擁有職業。職業將在劇情中自然獲得或轉變。</div>`;
+  }
+  html+=`<div style="font-size:.58rem;color:var(--sild);margin-bottom:.5rem;border-top:1px solid var(--brd);padding-top:.5rem;">💡 職業由劇情決定。透過拜師、加入工會、或重大事件可觸發轉職。</div>
+    <div style="font-size:.52rem;color:var(--sild);margin-bottom:.4rem;">所有職業一覽：</div>`;
   jobTypes.forEach(type=>{
     const jobs=Object.entries(JOBS).filter(([,j])=>j.type===type);
-    html+=`<div style="margin-bottom:.6rem;"><div style="font-size:.55rem;color:var(--sild);letter-spacing:.08em;margin-bottom:.3rem;">${type}</div>
-    <div style="display:flex;flex-direction:column;gap:.25rem;">`;
+    html+=`<div style="margin-bottom:.5rem;"><div style="font-size:.5rem;color:var(--goldd);letter-spacing:.08em;margin-bottom:.2rem;">${type}系</div>
+    <div style="display:flex;flex-wrap:wrap;gap:.2rem;">`;
     jobs.forEach(([name,job])=>{
       if(name==='命運之錨')return;
       const isCur=cur===name;
-      const bonusStr=Object.entries(job.bonus).filter(([,v])=>v).map(([k,v])=>`${k}${v>0?'+':''}${v}`).join(' ');
-      html+=`<button onclick="confirmJobChange('${id}','${name}')"
-        style="text-align:left;padding:.4rem .6rem;background:${isCur?'rgba(201,168,76,.15)':'var(--bg3)'};border:1px solid ${isCur?'var(--goldd)':'var(--brd)'};border-radius:4px;cursor:pointer;width:100%;"
-        onmouseover="this.style.borderColor='var(--goldd)'"
-        onmouseout="this.style.borderColor='${isCur?'var(--goldd)':'var(--brd)'}'">
-        <div style="display:flex;align-items:center;gap:.5rem;">
-          <span style="font-size:.9rem">${job.icon}</span>
-          <div style="flex:1">
-            <div style="font-size:.68rem;color:${job.color};font-weight:600">${name}${isCur?' ◀ 當前':''}</div>
-            <div style="font-size:.55rem;color:var(--sild);margin-top:.05rem">${job.desc}</div>
-          </div>
-        </div>
-        ${bonusStr?`<div style="font-size:.52rem;color:#6ab46a;margin-top:.18rem">素質：${bonusStr}${job.maxHPBonus?'　HP上限'+(job.maxHPBonus>0?'+':'')+job.maxHPBonus:''}</div>`:''}
-        <div style="font-size:.52rem;color:rgba(200,180,100,.6);margin-top:.08rem">⊕ ${job.passive}</div>
-      </button>`;
+      html+=`<span style="font-size:.5rem;padding:.12rem .3rem;border:1px solid ${isCur?job.color:'var(--brd)'};border-radius:2px;color:${isCur?job.color:'var(--sild)'};background:${isCur?'rgba(201,168,76,.1)':'transparent'};" title="${job.desc}\n${job.passive}">${job.icon}${name}</span>`;
     });
     html+=`</div></div>`;
   });
   html+=`</div>`;
   document.getElementById('modal-inner').innerHTML=html;
   document.getElementById('detail-modal').classList.add('open');
-}
-
-function confirmJobChange(id, jobName){
-  const c=getCharData(id);
-  const prev=getJob(id);
-  setJob(id,jobName);
-  appendEntryToDOM({type:'sys',v:`⚔️ ${c?.name||id} 職業${prev?'轉換':'設定'}：${prev?prev+' → ':''}${jobName}　（${JOBS[jobName]?.passive||''}）`});
-  scrollD();
-  closeD();
-  showToast(`${c?.name} 職業：${jobName}`,'ok');
 }
 
 function applyJobUpdate(jobs){
@@ -3086,7 +3263,7 @@ function applyQuestUpdate(qt){
 
 function renderBoth(tab){
   let h;
-  const cacheable=['stars','inv','quest','intel','wiki','hq']; // party/log change often, skip cache
+  const cacheable=['stars','inv','quest','intel','wiki','hq','guild']; // party/log change often, skip cache
   if(cacheable.includes(tab)&&!_dirty[tab]&&_renderCache[tab]){
     h=_renderCache[tab];
   }else{
@@ -3097,6 +3274,7 @@ function renderBoth(tab){
     else if(tab==='quest')h=buildQuest();
     else if(tab==='intel')h=buildIntel();
     else if(tab==='wiki')h=buildWiki();
+    else if(tab==='guild')h=buildGuild();
     else if(tab==='hq')h=buildHQ();
     else h='';
     if(cacheable.includes(tab)){_renderCache[tab]=h;}_dirty[tab]=false;
@@ -3248,7 +3426,7 @@ async function autoCompressHistory(){
     if(!r.ok)return;
     const d=await r.json();
     const summary=d.content?.[0]?.text||'（歷史記錄已壓縮）';
-    G.history=[{role:'user',content:'【故事摘要】'+summary},{role:'assistant',content:'{"st":"繼續","sl":"'+G.sceneLoc+'","nv":[],"dl":[],"sm":null,"gd":{"g":0,"s":0,"c":0},"ch":[],"nm":null,"cb":null,"iv":null,"sp":null,"shop":null,"fa":null,"hp":null,"qt":null,"tm":null,"rp":null,"info":null,"relic":null,"clue":null,"or":null,"job":null}'},...toKeep];
+    G.history=[{role:'user',content:'【故事摘要】'+summary},{role:'assistant',content:'{"st":"繼續","sl":"'+G.sceneLoc+'","nv":[],"dl":[],"sm":null,"gd":{"g":0,"s":0,"c":0},"ch":[],"nm":null,"cb":null,"iv":null,"sp":null,"shop":null,"fa":null,"hp":null,"qt":null,"tm":null,"rp":null,"info":null,"relic":null,"clue":null,"or":null,"job":null,"gu":null}'},...toKeep];
     appendEntryToDOM({type:'sys',v:'✦ 故事記憶已自動整理（保留近期'+keepN/2+'輪）'});
     saveGame();
   }catch(e){if(gated)apiDone();console.warn('autoCompress failed:',e);}
@@ -3289,7 +3467,7 @@ async function compressHistory(){
     // 用摘要取代舊歷史
     G.history=[
       {role:'user',content:`【故事背景摘要】\n${summary}\n\n以上是目前為止的故事摘要，請以此為基礎繼續故事。`},
-      {role:'assistant',content:'{"st":"繼續","sl":"'+G.sceneLoc+'","nv":[],"dl":[],"sm":null,"gd":{"g":0,"s":0,"c":0},"ch":[],"nm":null,"cb":null,"iv":null,"sp":null,"shop":null,"fa":null,"hp":null,"qt":null,"tm":null,"rp":null,"info":null,"relic":null,"clue":null,"or":null,"job":null}'},
+      {role:'assistant',content:'{"st":"繼續","sl":"'+G.sceneLoc+'","nv":[],"dl":[],"sm":null,"gd":{"g":0,"s":0,"c":0},"ch":[],"nm":null,"cb":null,"iv":null,"sp":null,"shop":null,"fa":null,"hp":null,"qt":null,"tm":null,"rp":null,"info":null,"relic":null,"clue":null,"or":null,"job":null,"gu":null}'},
       ...toKeep
     ];
 
@@ -3602,7 +3780,7 @@ function initStory(){
   opening.forEach(e=>appendEntryToDOM(e));
   G.history=[
     {role:'user',content:'故事開始。場景：鐵霧城碼頭傍晚。艾爾法是被解僱的城衛（因釋放被扣糧食），身邊只有一隻五銅幣買來的布偶貓橘子。一名受傷的紅髮女人找上門，說霧刃幫搶了她一封「牽扯很多人命」的信，她需要認識山路的人幫忙。橘子判斷她「說真話但沒說完全部」。請繼續並給出行動選項。'},
-    {role:'assistant',content:'{"st":"序章・逼上梁山 Day 1","sl":"📍 鐵霧城・碼頭","nv":["紅髮女人在等待回答。霧越來越濃，山口方向隱約傳來犬吠——追兵可能不遠。"],"dl":[],"sm":null,"gd":{"g":0,"s":0,"c":0},"ch":[{"t":"「信裡寫了什麼？先說清楚，我再決定。」","h":"冷靜・可能觸發讀心"},{"t":"「不關我的事。」轉身繼續啃乾糧","h":"冷漠・但橘子可能不同意"},{"t":"拉她蹲進貨箱後面——遠處的犬吠近了","h":"實際・時間緊迫"},{"t":"低頭看橘子。橘子通常比她更清楚該怎麼做","h":"橘子感知・安全選項"}],"nm":null,"cb":null,"iv":null,"sp":null,"shop":null,"fa":null,"hp":null,"qt":null,"tm":null,"rp":null,"info":null,"relic":null,"clue":null,"or":null,"job":null}'}
+    {role:'assistant',content:'{"st":"序章・逼上梁山 Day 1","sl":"📍 鐵霧城・碼頭","nv":["紅髮女人在等待回答。霧越來越濃，山口方向隱約傳來犬吠——追兵可能不遠。"],"dl":[],"sm":null,"gd":{"g":0,"s":0,"c":0},"ch":[{"t":"「信裡寫了什麼？先說清楚，我再決定。」","h":"冷靜・可能觸發讀心"},{"t":"「不關我的事。」轉身繼續啃乾糧","h":"冷漠・但橘子可能不同意"},{"t":"拉她蹲進貨箱後面——遠處的犬吠近了","h":"實際・時間緊迫"},{"t":"低頭看橘子。橘子通常比她更清楚該怎麼做","h":"橘子感知・安全選項"}],"nm":null,"cb":null,"iv":null,"sp":null,"shop":null,"fa":null,"hp":null,"qt":null,"tm":null,"rp":null,"info":null,"relic":null,"clue":null,"or":null,"job":null,"gu":null}'}
   ];
   const initChoices=[
     {t:'「信裡寫了什麼？先說清楚，我再決定。」',h:'冷靜・可能觸發讀心'},
@@ -3976,7 +4154,7 @@ function doTravel(cityId){
   ];
   renderChoices(arrivalChoices);
   G.history.push({role:'user',content:`【抵達${city.name}】`});
-  G.history.push({role:'assistant',content:`{"st":"抵達${city.name}","sl":"📍 ${city.name}","nv":["艾爾法抵達${city.name}。"],"dl":[],"sm":null,"gd":{"g":0,"s":0,"c":0},"ch":[{"t":"環顧四周，確認地形","h":""},{"t":"尋找落腳處","h":""},{"t":"打聽當地情報","h":""},{"t":"前往市集","h":""}],"nm":null,"cb":null,"iv":null,"sp":null,"shop":null,"fa":null,"hp":null,"qt":null,"tm":null,"rp":null,"info":null,"relic":null,"clue":null,"or":null,"job":null}`});
+  G.history.push({role:'assistant',content:`{"st":"抵達${city.name}","sl":"📍 ${city.name}","nv":["艾爾法抵達${city.name}。"],"dl":[],"sm":null,"gd":{"g":0,"s":0,"c":0},"ch":[{"t":"環顧四周，確認地形","h":""},{"t":"尋找落腳處","h":""},{"t":"打聽當地情報","h":""},{"t":"前往市集","h":""}],"nm":null,"cb":null,"iv":null,"sp":null,"shop":null,"fa":null,"hp":null,"qt":null,"tm":null,"rp":null,"info":null,"relic":null,"clue":null,"or":null,"job":null,"gu":null}`});
   scrollD();
   saveGame();
 }
