@@ -172,7 +172,7 @@ const PARTY=[
 const TGS=['天罡星','天機星','天閒星','天勇星','天雄星','天猛星','天威星','天英星','天貴星','天富星','天滿星','天孤星','天傷星','天立星','天捷星','天暗星','天佑星','天空星','天速星','天異星','天殺星','天微星','天究星','天退星','天壽星','天劍星','天平星','天罪星','天損星','天敗星','天牢星','天慧星','天暴星','天哭星','天巧星'];
 const DSS=['地煞星','地勇星','地傑星','地雄星','地威星','地英星','地奇星','地猛星','地文星','地正星','地闊星','地闔星','地強星','地暗星','地輔星','地會星','地佐星','地祐星','地靈星','地獸星','地微星','地慧星','地暴星','地然星','地猖星','地狂星','地飛星','地走星','地巧星','地明星','地進星','地退星','地滿星','地遂星','地周星','地隱星','地異星','地理星','地俊星','地樂星','地捷星','地速星','地鎮星','地禽星','地刑星','地壯星','地劣星','地健星','地耗星','地賊星','地狗星','地囚星','地孤星','地角星','地短星','地魔星','地妖星','地幽星','地伏星','地僻星','地空星','地全星','地缺星','地殺星','地哭星','地損星','地破星','地平星','地奴星','地察星','地惡星'];
 const TIANGANG=[{num:1,star:'天魁星',name:'艾爾法',status:'recruited',id:'alfar'},...TGS.map((s,i)=>({num:i+2,star:s,name:'?',status:'unknown'}))];
-const DISHAT=[{num:1,star:'地魁星',name:'橘子',status:'recruited',id:'orange'},{num:2,star:'地煞星',name:'?',status:'contact',cN:'紅髮女',hint:'霧刃幫相關・左臂有傷・缺口彎刀'},...DSS.slice(1).map((s,i)=>({num:i+3,star:s,name:'?',status:'unknown'}))];
+const DISHAT=[{num:1,star:'地魁星',name:'橘子',status:'recruited',id:'orange'},...DSS.map((s,i)=>({num:i+2,star:s,name:'?',status:'unknown'}))];
 // INV 初始資料（新遊戲時使用）
 // 星外關鍵人物（不在108星之列，但與命運息息相關）
 const SPECIAL_CHARS=[
@@ -506,15 +506,19 @@ const BGM={
   },
   start(){
     this.init();
+    if(!this.ctx)return;
     if(this.ctx.state==='suspended')this.ctx.resume();
-    this.playing=true;this._loopId++;
+    this.playing=true;this._lid++;
+    if(this.master)this.master.gain.value=this.vol;
     this._play();
     this._updateUI(true);
     localStorage.setItem('fate_bgm','1');
   },
   stop(){
-    this.playing=false;this._loopId++;
+    this.playing=false;this._lid++;
     this._timers.forEach(t=>clearTimeout(t));this._timers=[];
+    // 立即靜音（停止所有已排程的音符）
+    if(this.master)this.master.gain.setValueAtTime(0,this.ctx.currentTime);
     this._updateUI(false);
     localStorage.setItem('fate_bgm','0');
   },
@@ -524,7 +528,13 @@ const BGM={
     this.mood=mood;
     localStorage.setItem('fate_bgm_mood',mood);
     const sel=document.getElementById('bgm-mood');if(sel)sel.value=mood;
-    if(this.playing){this._loopId++;this._timers.forEach(t=>clearTimeout(t));this._timers=[];this._play();}
+    if(this.playing){
+      // 先靜音舊的，再播新的
+      this._lid++;this._timers.forEach(t=>clearTimeout(t));this._timers=[];
+      if(this.master){this.master.gain.setValueAtTime(0,this.ctx.currentTime);
+        setTimeout(()=>{if(this.playing&&this.master){this.master.gain.setValueAtTime(this.vol,this.ctx.currentTime);this._play();}},300);
+      }
+    }
   },
   setVolume(v){
     this.vol=Math.max(0,Math.min(1,v));
@@ -676,9 +686,10 @@ async function callAPI(action){
   const parsed=tryParseJSON(raw);
   if(parsed)return parsed;
 
-  // 解析失敗：不自動重試（省token），讓玩家手動重試
+  // 解析失敗：移除無效回應和對應的user訊息，讓玩家手動重試
   console.warn('JSON parse failed. Raw:', raw.slice(0,200));
   G.history.pop(); // 移除無效的assistant回應
+  G.history.pop(); // 移除對應的user訊息（重試時會重新push）
   throw new Error('AI 回應格式錯誤，請點重試');
 }
 
@@ -790,7 +801,7 @@ function handleStarPresence(sp){
       if(sp.hint&&sp.hint!==star.hint){star.hint=sp.hint;changed=true;}
       if(sp.star)star.star=sp.star;
       if(sp.cN&&sp.cN!==star.cN){star.cN=sp.cN;changed=true;}
-      if(changed){renderBoth('stars');saveGame();}
+      if(changed){markDirty('stars','intel','wiki');renderBoth('stars');saveGame();}
     }
     showToast(`橘子感知：${typeLabel}${starInfo}`,'ok');
     // 自動加入情報板
@@ -1309,7 +1320,7 @@ function addErrRetry(msg,retryAction,isCors){
   btn.style.cssText='flex-shrink:0;padding:.22rem .55rem;background:rgba(201,168,76,.12);border:1px solid rgba(201,168,76,.5);border-radius:3px;color:var(--gold);cursor:pointer;font-family:"Noto Serif TC",serif;font-size:.68rem;white-space:nowrap;';
   btn.onmouseover=()=>{btn.style.background='rgba(201,168,76,.25)';};
   btn.onmouseout=()=>{btn.style.background='rgba(201,168,76,.12)';};
-  btn.onclick=(ev)=>{ev.stopPropagation();w.remove();sendChoice(retryAction);};
+  btn.onclick=(ev)=>{ev.stopPropagation();w.remove();sendChoice('（系統：上次回應格式錯誤，請只輸出純JSON）'+retryAction);};
   e.appendChild(btn);
   w.appendChild(e);
   document.getElementById('story-content').appendChild(w);scrollD();
