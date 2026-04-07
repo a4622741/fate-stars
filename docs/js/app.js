@@ -115,7 +115,11 @@ function loadGame(){
         const [type,num]=k.split('_');
         const arr=type==='天罡'?TIANGANG:DISHAT;
         const s=arr.find(x=>x.num===parseInt(num));
-        if(s){s.status=v.status;s.name=v.name;if(v.id)s.id=v.id;if(v.cN)s.cN=v.cN;if(v.hint)s.hint=v.hint;}
+        if(s){
+          // 修正舊存檔：若星辰沒有被 AI 正式設定（無 id 且是 contact），重置為 unknown
+          if(v.status==='contact'&&!v.id&&(!v.name||v.name==='?')){v.status='unknown';}
+          s.status=v.status;s.name=v.name;if(v.id)s.id=v.id;if(v.cN)s.cN=v.cN;if(v.hint)s.hint=v.hint;
+        }
       });
     }
     // 換裝置/重新開啟：確保下一次 AI 呼叫回傳 JSON
