@@ -271,7 +271,7 @@ const SYS=`你是西方奇幻版水滸傳文字RPG故事引擎。靈感來源：
 9. cb填寫時ch設空陣列，等待骰子。決鬥時，敵方台詞暗示出招方向。
 10. iv：道具/裝備變動。{"add":[{"n":"名","t":"描述","q":"×1"}],"remove":["名"],"equip":[{"item":"名","who":"id","slot":"武器/防具/飾品"}],"purchase":[{"n":"名","t":"描述","slot":"武器"}]}。買到一般道具用add，買到裝備用purchase。
 11. hp：[{id,delta,reason}]。
-12. qt：任務新增/更新。status="new"為新增。
+12. qt：任務新增/更新。status="new"為新增，status="completed"為完成。rewards可選：{"gd":{"g":0,"s":5,"c":0},"fa":[{id,delta}],"rp":[{id,delta}],"items":[{"n":"名","t":"描述","q":"×1"}],"desc":"獎勵說明"}。完成時系統會自動發放獎勵。
 13. tm：{"advance":小時數} 或 {"setWeather":"天氣"}。
 14. rp：聲望變動。[{id,delta,reason}] id=ironmist/mistblade/merchant/hero/imperial/shadow。
 15. info：[{id,title,content,src,rel,cat}] cat=地點/人物/勢力/謠言。遇到重要NPC時主動提供情報。
@@ -443,6 +443,8 @@ function pushLocalEvent(msg){
 
 async function sendChoice(txt){
   if(G.thinking)return;
+  // 如果有待發送的戰鬥結果，附加到玩家選擇前
+  if(G._pendingCombatMsg){txt=G._pendingCombatMsg+'\n玩家選擇：'+txt;G._pendingCombatMsg=null;}
   // 自動壓縮：超過120條且為20的倍數時才嘗試
   if(G.history.length>120&&G.history.length%20===0&&!G.autoCompressing){
     G.autoCompressing=true;
@@ -615,7 +617,7 @@ function mergeShop(shopId,baseKey,newItems,shopName){
   (newItems||[]).forEach(ni=>{
     if(!existing.items.find(i=>i.n===ni.n)){existing.items.push(ni);addedNew.push(ni.n);}
   });
-  existing.newItems=addedNew;
+  existing.newItems=[...new Set([...(existing.newItems||[]),...addedNew])];
   existing.name=shopName||base.name;
   existing.lastVisit=G.time?.day||1;
   G.shopCatalogs[shopId]=existing;
@@ -2985,15 +2987,32 @@ function updateQuest(q){
     if(ex)ex.done=o.done;
     else (G.quests[idx].objectives=G.quests[idx].objectives||[]).push(o);
   });
-  if(q.status)G.quests[idx].status=q.status;
+  if(q.rewards)G.quests[idx].rewards=q.rewards;
   if(q.desc)G.quests[idx].desc=q.desc;
+  const wasActive=G.quests[idx].status==='active';
+  if(q.status)G.quests[idx].status=q.status;
+  if(wasActive&&q.status==='completed')applyQuestRewards(G.quests[idx]);
   renderChanged('quest');saveGame();
+}
+
+function applyQuestRewards(q){
+  if(!q.rewards)return;
+  const r=q.rewards;
+  const parts=[];
+  if(r.gd&&(r.gd.g||r.gd.s||r.gd.c)){applyGold(r.gd);parts.push(`${r.gd.g?'金'+r.gd.g+' ':''}${r.gd.s?'銀'+r.gd.s+' ':''}${r.gd.c?'銅'+r.gd.c:''}`.trim());}
+  if(r.fa)(Array.isArray(r.fa)?r.fa:[r.fa]).forEach(f=>{if(f.id&&f.delta){setFavor(f.id,f.delta);parts.push(`${getCharData(f.id)?.name||f.id} 好感${f.delta>0?'+':''}${f.delta}`);}});
+  if(r.rp)(Array.isArray(r.rp)?r.rp:[r.rp]).forEach(rp=>{if(rp.id&&rp.delta)applyRep([rp]);});
+  if(r.items){const inv=getInv();(Array.isArray(r.items)?r.items:[r.items]).forEach(item=>{const ex=inv.items.find(i=>i.n===item.n);if(ex){const m=ex.q.match(/(\d+)/);ex.q='×'+((m?parseInt(m[1]):1)+1);}else inv.items.push({...item,q:item.q||'×1'});parts.push(item.n);});}
+  if(parts.length)appendEntryToDOM({type:'sys',v:`🎁 任務獎勵：${parts.join('、')}`});
+  showToast('任務完成！獲得獎勵','ok');
+  renderChanged('inv','party');
 }
 
 function completeQuest(id){
   const q=(G.quests||[]).find(x=>x.id===id);if(!q)return;
   q.status='completed';q.objectives?.forEach(o=>o.done=true);
-  appendEntryToDOM({type:'sys',v:`✦ 任務完成：【${q.title}】${q.rewards?'　獎勵：'+q.rewards:''}`});
+  appendEntryToDOM({type:'sys',v:`✦ 任務完成：【${q.title}】`});
+  applyQuestRewards(q);
   renderChanged('quest');saveGame();
   showToast('任務完成：'+q.title,'ok');
 }
@@ -3590,10 +3609,20 @@ function autoCombat(cb){
         applyHPChange([{id:'alfar',delta:-dmg,reason:`${enemy}攻擊（${grade}）`}]);
       }
       scrollD();saveGame();
+      // 顯示戰鬥結果選項，讓玩家決定何時繼續
+      const combatMsg=`【骰子判定結果】${cb.desc||''}：投出${raw}，加值+${mod}，合計${total}（難度${diff}）。結果：${grade}。${success?'成功，請依成功後果繼續劇情。':'失敗，請依失敗後果繼續劇情。'}`;
       setTimeout(()=>{
-        const msg=`【骰子判定結果】${cb.desc||''}：投出${raw}，加值+${mod}，合計${total}（難度${diff}）。結果：${grade}。${success?'成功，請依成功後果繼續劇情。':'失敗，請依失敗後果繼續劇情。'}`;
-        sendChoice(msg);
-      },1800);
+        renderChoices(success?[
+          {t:'乘勝追擊',h:'趁勢推進'},
+          {t:'先確認隊伍狀況',h:'查看面板後再繼續'},
+          {t:'搜索戰利品',h:'可能獲得道具或情報'}
+        ]:[
+          {t:'咬牙撐住',h:'繼續正面應對'},
+          {t:'撤退重整',h:'保存實力'},
+          {t:'讓同伴掩護',h:'依靠隊友'}
+        ]);
+        G._pendingCombatMsg=combatMsg;
+      },1200);
     }
   },70);
 }
