@@ -865,7 +865,7 @@ function renderResp(d){
   if(d.iv){applyInv(d.iv);}
   // 安全網：偵測敘述中有購買/獲得道具但 iv 未填的情況
   if(!d.iv){
-    const allText2=[...(d.nv||[]),(d.sm||''),...(d.dl||[]).map(x=>x.ln||'')].join('');
+    const allText2=[...(Array.isArray(d.nv)?d.nv:d.nv?[d.nv]:[]),(d.sm||''),...(Array.isArray(d.dl)?d.dl:d.dl?[d.dl]:[]).map(x=>x.ln||'')].join('');
     const itemPatterns=allText2.matchAll(/(?:買了|購得|獲得|撿到|收下|取得|入手)[「『]?([^「『」』，。、\s]{1,8})[」』]?/g);
     const autoItems=[];
     for(const m of itemPatterns){
