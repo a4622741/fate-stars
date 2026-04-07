@@ -683,12 +683,6 @@ async function callAPI(action){
   const reader=res.body.getReader();
   const decoder=new TextDecoder();
   let raw='',buf='';
-  // 顯示串流文字的即時預覽區
-  const preview=mk('div','sentry');
-  const previewTxt=mk('div','s-narr');
-  previewTxt.style.cssText='color:var(--sild);font-size:.68rem;white-space:pre-wrap;';
-  preview.appendChild(previewTxt);
-  document.getElementById('story-content').appendChild(preview);
   while(true){
     const {done,value}=await reader.read();
     if(done)break;
@@ -701,15 +695,10 @@ async function callAPI(action){
         const evt=JSON.parse(line.slice(6));
         if(evt.type==='content_block_delta'&&evt.delta?.text){
           raw+=evt.delta.text;
-          // 即時預覽：顯示正在生成的文字（截取可見部分）
-          const visible=raw.replace(/[{}":\[\],]/g,' ').replace(/\\n/g,' ').slice(-200);
-          previewTxt.textContent=visible.length>3?'✦ '+visible.trim()+'…':'';
-          scrollD();
         }
       }catch(_){}
     }
   }
-  preview.remove(); // 移除預覽
   G.history.push({role:'assistant',content:raw});
   apiDone();apiReset429();
   // 解析 JSON
