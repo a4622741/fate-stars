@@ -350,8 +350,9 @@ async function callAPI(action){
   const goldStr=`金${G.gold.gold}銀${G.gold.silver}銅${G.gold.copper}`;
   const goldSnap=goldStr!==_lastSentGold?goldStr:'';
   _lastSentGold=goldStr;
-  let stateNote=`【狀態】${getTimeContext()}|${goldSnap?goldSnap+'|':''}隊:${partySnap}|道具${(getInv().items||[]).length}|任務${(G.quests||[]).filter(q=>q.status==='active').length}`;
-  if(stateNote.length>250)stateNote=stateNote.slice(0,247)+'…';
+  const _gSnap=Object.entries(G.guilds||{}).filter(([,v])=>v?.joined).map(([id,v])=>`${GUILDS[id]?.name||id}(${GUILDS[id]?.ranks[v.rank]||'?'})`).join(',');
+  let stateNote=`【狀態】${getTimeContext()}|${goldSnap?goldSnap+'|':''}隊:${partySnap}|道具${(getInv().items||[]).length}|任務${(G.quests||[]).filter(q=>q.status==='active').length}${_gSnap?'|工會:'+_gSnap:''}`;
+  if(stateNote.length>300)stateNote=stateNote.slice(0,297)+'…';
   G.history.push({role:'user',content:`${stateNote}\n${action}`});
   // 首次呼叫送完整 SYS，之後送精簡版（省 ~2000 tokens）
   const sysToSend=_sysPromptSent?SYS_SHORT:SYS;
@@ -1437,18 +1438,18 @@ const GUILDS={
 function getGuilds(){return G.guilds||(G.guilds={});}
 function getGuildRank(guildId){return getGuilds()[guildId]||{rank:0,exp:0,joined:false};}
 function joinGuild(guildId){
+  const g=GUILDS[guildId];if(!g)return;
   const guilds=getGuilds();
   if(guilds[guildId]?.joined)return;
   guilds[guildId]={rank:0,exp:0,joined:true,joinedDay:G.time?.day||1};
-  const g=GUILDS[guildId];
   appendEntryToDOM({type:'sys',v:`✦ 加入了【${g.name}】！初始等級：${g.ranks[0]}`});
   showToast(`加入 ${g.name}`,'ok');
   renderChanged('guild');saveGame();
 }
 function addGuildExp(guildId,amount){
+  const g=GUILDS[guildId];if(!g)return;
   const guilds=getGuilds();
   if(!guilds[guildId]?.joined)return;
-  const g=GUILDS[guildId];
   const info=guilds[guildId];
   info.exp=(info.exp||0)+amount;
   const expPerRank=50;
@@ -1466,9 +1467,9 @@ function applyGuildUpdate(gu){
     if(g.id&&g.action==='join')joinGuild(g.id);
     else if(g.id&&g.action==='exp'&&g.amount)addGuildExp(g.id,g.amount);
     else if(g.id&&g.action==='rank'&&g.rank!=null){
+      const gd=GUILDS[g.id];if(!gd)return;
       const guilds=getGuilds();if(!guilds[g.id]?.joined)return;
-      const gd=GUILDS[g.id];
-      guilds[g.id].rank=Math.min(gd.ranks.length-1,g.rank);
+      guilds[g.id].rank=Math.min(gd.ranks.length-1,Math.max(0,g.rank));
       appendEntryToDOM({type:'sys',v:`✦ ${gd.icon} ${gd.name} 等級設為：${gd.ranks[guilds[g.id].rank]}`});
       renderChanged('guild');saveGame();
     }
@@ -3411,7 +3412,8 @@ async function autoCompressHistory(){
   const keepN=10;
   const toCompress=G.history.slice(0,-keepN);
   const toKeep=G.history.slice(-keepN);
-  const _cp=allParty();const _stateSnap=`[狀態快照]隊伍:${_cp.map(m=>m.name).join(',')};金幣:金${G.gold.gold}銀${G.gold.silver}銅${G.gold.copper};任務:${(G.quests||[]).filter(q=>q.status==='active').map(q=>q.title).join(',')};好感:橘子${getFavor('orange')}`;
+  const _cp=allParty();const _gSnap3=Object.entries(G.guilds||{}).filter(([,v])=>v?.joined).map(([id,v])=>`${GUILDS[id]?.name||id}(${GUILDS[id]?.ranks[v.rank]||'?'})`).join(',');
+  const _stateSnap=`[狀態快照]隊伍:${_cp.map(m=>`${m.name}/${getJob(m.id)||'?'}`).join(',')};金幣:金${G.gold.gold}銀${G.gold.silver}銅${G.gold.copper};任務:${(G.quests||[]).filter(q=>q.status==='active').map(q=>q.title).join(',')};好感:橘子${getFavor('orange')}${_gSnap3?';工會:'+_gSnap3:''}`;
   const compressPrompt=`以下是RPG遊戲的故事歷史記錄，請用200字以內的繁體中文摘要，保留：重要劇情事件、招募的角色、已完成的任務、關鍵情報。\n${_stateSnap}\n\n${toCompress.map(m=>m.role+':'+m.content.slice(0,200)).join('\n')}`;
   let gated=false;
   try{
@@ -3447,7 +3449,8 @@ async function compressHistory(){
   const toCompress=G.history.slice(0,-keepN);
   const toKeep=G.history.slice(-keepN);
 
-  const _cp2=allParty();const _stateSnap2=`[狀態快照]隊伍:${_cp2.map(m=>m.name).join(',')};金幣:金${G.gold.gold}銀${G.gold.silver}銅${G.gold.copper};任務:${(G.quests||[]).filter(q=>q.status==='active').map(q=>q.title).join(',')};好感:橘子${getFavor('orange')}`;
+  const _cp2=allParty();const _gSnap4=Object.entries(G.guilds||{}).filter(([,v])=>v?.joined).map(([id,v])=>`${GUILDS[id]?.name||id}(${GUILDS[id]?.ranks[v.rank]||'?'})`).join(',');
+  const _stateSnap2=`[狀態快照]隊伍:${_cp2.map(m=>`${m.name}/${getJob(m.id)||'?'}`).join(',')};金幣:金${G.gold.gold}銀${G.gold.silver}銅${G.gold.copper};任務:${(G.quests||[]).filter(q=>q.status==='active').map(q=>q.title).join(',')};好感:橘子${getFavor('orange')}${_gSnap4?';工會:'+_gSnap4:''}`;
   const compressPrompt=`以下是一段奇幻 RPG 故事的對話記錄。請用繁體中文，以 400 字以內的「故事摘要」形式整理：已發生的重要事件、人物關係、地點、取得的情報與道具、當前局勢。摘要將作為後續故事的背景記憶。\n${_stateSnap2}\n\n${toCompress.map(m=>`[${m.role}]: ${typeof m.content==='string'?m.content.slice(0,500):''}`).join('\n')}`;
 
   let gated=false;
