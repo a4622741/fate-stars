@@ -592,7 +592,7 @@ const SYS=`西方奇幻水滸傳RPG引擎。水滸傳＋幻想水滸傳風格。
 {"st":"場景標題","sl":"📍 地點","nv":["敘述60-80字,1-3段"],"dl":[{"sp":"emoji","ln":"台詞"}],"sm":null,"gd":{"g":0,"s":0,"c":0},"ch":[{"t":"選項","h":"提示"}],"nm":null,"cb":null,"iv":null,"sp":null,"shop":null,"fa":null,"hp":null,"qt":null,"tm":null,"rp":null,"info":null,"relic":null,"clue":null,"or":null,"job":null,"gu":null}
 
 【規則】
-1.純JSON，違反=失敗 2.【最重要】每次回應必須有nv（1-3段敘述，60-80字/段，描寫場景、行動結果、角色反應）和dl（至少1句NPC或主角的對話/內心獨白）。玩家選了行動→你必須描寫該行動的過程和結果。 3.橘子：sp="橘子🐈😒" ln="喵"→{sp:"系統",ln:"〔翻譯〕"} 4.ch 3-4選項，各代表不同取向，h不留空，含幽默選項＋安全選項 5.角色emoji固定 6.玩家行動如實執行 7.場景描寫自然帶出同行隊友存在 8.地點合理銜接 9.cb時ch=[]
+1.純JSON，違反=失敗 2.【最重要】玩家的選擇＝艾爾法說的話或做的事。收到玩家輸入後：先用nv描寫艾爾法執行該行動的過程和結果（1-3段，60-80字/段），再用dl寫NPC對艾爾法行動的反應對話（至少1句）。不要重複玩家已選的文字，直接描寫後果。 3.橘子：sp="橘子🐈😒" ln="喵"→{sp:"系統",ln:"〔翻譯〕"} 4.ch 3-4選項＝艾爾法接下來可以說或做的事，寫成她的口吻。h不留空，含幽默選項＋安全選項 5.角色emoji固定 6.場景描寫自然帶出同行隊友存在 7.地點合理銜接 8.cb時ch=[]
 10.iv：add/remove/equip/purchase 11.hp：[{id,delta,reason}] 12.qt：new新增/completed完成，rewards可選{gd,fa,rp,items} 13.tm：advance或setWeather 14.rp：[{id,delta,reason}] 15.info：[{id,title,content,src,rel,cat}] 16.relic：{id,name,type,icon,rarity,desc,effect} 17.clue：天父星線索 18.or：橘子秘密stage 1-5 19.job：[{id,job}]劇情決定，四類：戰鬥(城衛/劍客/鬥士/弓手/騎兵)智謀(術士/謀士/學者)輔助(遊俠/密探/醫師/吟遊詩人)生產(鐵匠/廚師/藥師/商賈/裁縫/建築師/獵人) 20.gu：[{id:"adventurer/merchant/scholar/craft/shadow",action:"join/exp/rank",amount:N}] 21.fa：[{id,delta,reason}] 22.shop：{id,name,baseKey,newItems} 23.sp：{num,type,star,name,hint,cN} 24.nm：{id,name,star,type,num,title,emoji,desc,portrait,stats,tl,eq,baseLv} 25.小戰鬥用cb，boss才詳寫
 
 【同步規則】違反=崩潰：敘述涉及金幣→gd必填/好感→fa必填/道具→iv必填/HP→hp必填/任務→qt必填/時間→tm必填。文字描述≠數值生效。讀【背景數值】為真實狀態。【UI互動】僅背景資訊，不推進劇情。HP=0→瀕死不死亡，主角觸發危機劇情。
@@ -639,7 +639,7 @@ function apiReset429(){_apiThrottle._429count=0;} // 成功呼叫後重置退避
 
 let _sysPromptSent=false;
 let _lastSentGold=null;
-const SYS_SHORT='續前規則。只輸出純JSON{→}。每次回應：nv必須有1-3段敘述（描寫行動結果和場景）＋dl至少1句對話。橘子說喵→系統翻譯。ch給3-4選項。金幣→gd/道具→iv/HP→hp/好感→fa/任務→qt/時間→tm必須與敘述同步。';
+const SYS_SHORT='續前規則。純JSON{→}。玩家輸入＝艾爾法的行動/台詞。nv描寫她行動的後果＋dl寫NPC反應。ch＝她接下來可說可做的事。橘子喵→翻譯。gd/iv/hp/fa/qt/tm必須同步。';
 async function callAPI(action){
   if(!CFG.key){document.getElementById('api-modal').classList.add('open');throw new Error('請先設定 API 金鑰');}
   await apiGate();
