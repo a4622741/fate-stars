@@ -202,6 +202,152 @@ const INV_DEFAULT={
   key:[{n:'霧刃幫懸賞（記憶）',t:'線索50銀・首領5金',q:'—'}]
 };
 
+// ═══ BGM ENGINE（程式合成背景音樂）═══
+const BGM={
+  ctx:null,master:null,playing:false,mood:'explore',vol:0.3,
+  // 音階定義（各情緒使用不同音階）
+  scales:{
+    explore:[261.6,293.7,329.6,392.0,440.0,523.3,587.3], // C大調五聲：C D E G A C5 D5
+    town:[261.6,293.7,329.6,349.2,392.0,440.0,493.9],    // C大調：C D E F G A B
+    tension:[261.6,277.2,311.1,329.6,370.0,415.3,466.2],  // C小調和聲：C Db Eb E Gb Ab Bb
+    battle:[261.6,311.1,329.6,392.0,415.3,466.2,523.3],   // 小調五聲+增：C Eb E G Ab Bb C5
+    night:[261.6,293.7,349.2,392.0,466.2,523.3],          // 懸浮感：C D F G Bb C5
+    sad:[261.6,293.7,311.1,349.2,392.0,415.3,523.3],      // 自然小調：C D Eb F G Ab C5
+  },
+  // 各情緒的節奏與音色參數
+  moods:{
+    explore:{tempo:2.8,padVol:0.12,arpVol:0.08,bassVol:0.06,bellVol:0.05,padType:'sine',arpType:'triangle'},
+    town:{tempo:2.2,padVol:0.14,arpVol:0.10,bassVol:0.07,bellVol:0.06,padType:'sine',arpType:'sine'},
+    tension:{tempo:1.6,padVol:0.15,arpVol:0.06,bassVol:0.10,bellVol:0.03,padType:'sawtooth',arpType:'square'},
+    battle:{tempo:1.0,padVol:0.10,arpVol:0.12,bassVol:0.12,bellVol:0.04,padType:'sawtooth',arpType:'square'},
+    night:{tempo:4.0,padVol:0.10,arpVol:0.05,bassVol:0.04,bellVol:0.07,padType:'sine',arpType:'triangle'},
+    sad:{tempo:3.2,padVol:0.13,arpVol:0.06,bassVol:0.05,bellVol:0.06,padType:'sine',arpType:'triangle'},
+  },
+  _timers:[],
+  init(){
+    if(this.ctx)return;
+    this.ctx=new(window.AudioContext||window.webkitAudioContext)();
+    this.master=this.ctx.createGain();
+    this.master.gain.value=this.vol;
+    this.master.connect(this.ctx.destination);
+  },
+  // 單音符播放
+  _playNote(freq,startTime,duration,type,vol,detune=0){
+    const ctx=this.ctx;
+    const osc=ctx.createOscillator();
+    const gain=ctx.createGain();
+    osc.type=type;
+    osc.frequency.value=freq;
+    if(detune)osc.detune.value=detune;
+    gain.gain.setValueAtTime(0,startTime);
+    gain.gain.linearRampToValueAtTime(vol,startTime+0.08);
+    gain.gain.setValueAtTime(vol,startTime+duration*0.6);
+    gain.gain.exponentialRampToValueAtTime(0.001,startTime+duration);
+    osc.connect(gain);gain.connect(this.master);
+    osc.start(startTime);osc.stop(startTime+duration);
+  },
+  // 生成一個循環樂段
+  _scheduleLoop(){
+    if(!this.playing||!this.ctx)return;
+    const ctx=this.ctx;
+    const m=this.moods[this.mood]||this.moods.explore;
+    const scale=this.scales[this.mood]||this.scales.explore;
+    const now=ctx.currentTime+0.1;
+    const beatLen=m.tempo; // 秒/拍
+    const loopLen=beatLen*8; // 8拍一循環
+    const pick=()=>scale[Math.floor(Math.random()*scale.length)];
+    const pickLow=()=>scale[Math.floor(Math.random()*3)]*0.5; // 低八度bass
+    // PAD：長和弦墊底
+    const padRoot=scale[0]*0.5;
+    const padFifth=scale[Math.min(3,scale.length-1)]*0.5;
+    this._playNote(padRoot,now,loopLen,m.padType,m.padVol);
+    this._playNote(padFifth,now,loopLen,m.padType,m.padVol*0.7,7);
+    // 高八度泛音
+    this._playNote(padRoot*2,now,loopLen,'sine',m.padVol*0.3);
+    // ARP：隨機琶音旋律
+    for(let i=0;i<8;i++){
+      const t=now+i*beatLen;
+      if(Math.random()<0.75)this._playNote(pick(),t,beatLen*0.6,m.arpType,m.arpVol*(0.6+Math.random()*0.4));
+      if(Math.random()<0.3)this._playNote(pick(),t+beatLen*0.5,beatLen*0.4,m.arpType,m.arpVol*0.5);
+    }
+    // BASS：低音脈動
+    for(let i=0;i<4;i++){
+      const t=now+i*beatLen*2;
+      this._playNote(pickLow(),t,beatLen*1.5,'sine',m.bassVol);
+    }
+    // BELL：偶爾的高音點綴
+    if(Math.random()<0.5){
+      const t=now+Math.random()*loopLen*0.8;
+      this._playNote(pick()*2,t,beatLen*1.2,'sine',m.bellVol);
+    }
+    // 排程下一個循環
+    const tid=setTimeout(()=>this._scheduleLoop(),loopLen*900);
+    this._timers.push(tid);
+  },
+  start(){
+    this.init();
+    if(this.ctx.state==='suspended')this.ctx.resume();
+    this.playing=true;
+    this._scheduleLoop();
+    this._updateUI(true);
+    localStorage.setItem('fate_bgm','1');
+    localStorage.setItem('fate_bgm_mood',this.mood);
+  },
+  stop(){
+    this.playing=false;
+    this._timers.forEach(t=>clearTimeout(t));
+    this._timers=[];
+    this._updateUI(false);
+    localStorage.setItem('fate_bgm','0');
+  },
+  setMood(mood){
+    if(!this.moods[mood])return;
+    this.mood=mood;
+    localStorage.setItem('fate_bgm_mood',mood);
+    const sel=document.getElementById('bgm-mood');
+    if(sel)sel.value=mood;
+  },
+  setVolume(v){
+    this.vol=Math.max(0,Math.min(1,v));
+    if(this.master)this.master.gain.value=this.vol;
+    localStorage.setItem('fate_bgm_vol',this.vol);
+  },
+  _updateUI(on){
+    const btn=document.getElementById('bgm-toggle');
+    if(btn)btn.textContent=on?'🔇 關閉音樂':'🎵 開啟音樂';
+    const wave=document.getElementById('bgm-icon-wave');
+    if(wave)wave.style.opacity=on?'1':'.4';
+  },
+  // 根據場景自動切換情緒
+  autoMood(sceneTitle,sceneLoc){
+    const t=(sceneTitle||'')+(sceneLoc||'');
+    let mood='explore';
+    if(/(戰鬥|決鬥|襲擊|交戰|追擊|攻打|衝突)/.test(t))mood='battle';
+    else if(/(危機|逃|追兵|暗殺|陷阱|包圍|緊急)/.test(t))mood='tension';
+    else if(/(城|鎮|村|街|市|港|酒館|客棧|旅店|商店|工會|公會)/.test(t))mood='town';
+    else if(/(夜|深夜|凌晨|月|星空|營火)/.test(t))mood='night';
+    else if(/(別離|犧牲|悲|喪|哀|墓|遺)/.test(t))mood='sad';
+    if(mood!==this.mood){this.setMood(mood);}
+  },
+  // 啟動時恢復設定
+  restore(){
+    this.vol=parseFloat(localStorage.getItem('fate_bgm_vol'))||0.3;
+    this.mood=localStorage.getItem('fate_bgm_mood')||'explore';
+    const volEl=document.getElementById('bgm-vol');if(volEl)volEl.value=this.vol*100;
+    const sel=document.getElementById('bgm-mood');if(sel)sel.value=this.mood;
+    if(localStorage.getItem('fate_bgm')==='1'){
+      // 需要用戶互動才能啟動 AudioContext，延遲到首次點擊
+      const handler=()=>{this.start();document.removeEventListener('click',handler);document.removeEventListener('touchstart',handler);};
+      document.addEventListener('click',handler,{once:false});
+      document.addEventListener('touchstart',handler,{once:false});
+      this._updateUI(true);
+    }
+  }
+};
+function toggleBGM(){if(BGM.playing)BGM.stop();else BGM.start();}
+function changeBGMMood(v){BGM.setMood(v);if(BGM.playing){BGM.stop();BGM.start();}}
+function setBGMVolume(v){BGM.setVolume(v);}
+
 // ═══ API ═══
 const SYS=`西方奇幻水滸傳RPG引擎。水滸傳＋幻想水滸傳風格。只輸出純JSON。
 
@@ -833,6 +979,7 @@ function addNewMember(m){
 
 function renderResp(d){
   if(d.st){document.getElementById('scene-title').textContent=d.st;G.sceneTitle=d.st;}
+  if(d.st||d.sl)BGM.autoMood(d.st||G.sceneTitle,d.sl||G.sceneLoc);
   if(d.sl){document.getElementById('scene-loc').textContent=d.sl;G.sceneLoc=d.sl;
     // 如果地點不再是商店相關場景，清除 inShop 標記
     const shopKeywords=/(商店|市集|攤販|雜貨|武器|鐵匠|藥舖|酒館|客棧)/;
@@ -3722,6 +3869,7 @@ function initStory(){
 // 自動戰鬥判定（由 AI cb 欄位觸發）
 function autoCombat(cb){
   if(!cb)return;
+  BGM.setMood('battle');if(BGM.playing){BGM.stop();BGM.start();}
   // 顯示骰子按鈕
   const db=document.getElementById('dice-btn');
   if(db)db.style.display='';
@@ -4410,6 +4558,7 @@ if(hasSave){
   initStory();
 }
 scrollD();
+BGM.restore();
 if(!CFG.key)document.getElementById('api-modal').classList.add('open');
 document.getElementById('free-inp').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.isComposing)sendFree();});
 document.getElementById('api-inp').addEventListener('keydown',e=>{if(e.key==='Enter')saveKey();});
