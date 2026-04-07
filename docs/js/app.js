@@ -27,7 +27,7 @@ const G={
   // ── 新系統 ──
   hp:{},           // {id:{cur,max}} 角色血量
   quests:[],       // 任務列表
-  time:{day:1,hour:18,weather:'霧'},  // 時間
+  time:{day:1,hour:18,weather:'濃霧'},  // 時間
   rep:{},          // {faction:value} 聲望
   relics:{},       // {starNum:{name,found,effect}} 寶器
   founderClues:[], // 天父星線索碎片
@@ -93,7 +93,7 @@ function loadGame(){
     G.specialOv=data.specialOv||{};
     G.hp=data.hp||{};
     G.quests=data.quests||[];
-    G.time=data.time||{day:1,hour:18,weather:'霧'};
+    G.time=data.time||{day:1,hour:18,weather:'濃霧'};
     G.rep=data.rep||{};
     G.relics=data.relics||{};
     if(data.presetRelicOv){Object.entries(data.presetRelicOv).forEach(([k,v])=>{if(PRESET_RELICS[k]){PRESET_RELICS[k].status=v.status;PRESET_RELICS[k].effect=v.effect;}});}
@@ -372,7 +372,7 @@ async function sendChoice(txt){
   // 如果有待發送的戰鬥結果，附加到玩家選擇前
   if(G._pendingCombatMsg){txt=G._pendingCombatMsg+'\n玩家選擇：'+txt;G._pendingCombatMsg=null;}
   // 自動壓縮：超過120條且為20的倍數時才嘗試
-  if(G.history.length>120&&G.history.length%20===0&&!G.autoCompressing){
+  if(G.history.length>80&&!G.autoCompressing){
     G.autoCompressing=true;
     try{await autoCompressHistory();}finally{G.autoCompressing=false;}
   }
@@ -1223,7 +1223,8 @@ function trainChar(id,ev){
   ev.stopPropagation();
   const c=getCharData(id);if(!c)return;
   const cost=5;// 5銀幣
-  if(G.gold.silver<cost&&G.gold.gold===0){showToast('銀幣不足（需5銀）','err');return;}
+  const totalSilver=G.gold.gold*100+G.gold.silver;
+  if(totalSilver<cost){showToast('銀幣不足（需5銀）','err');return;}
   applyGold({g:0,s:-cost,c:0});
   const ug=getUpgrade(id);
   ug.pts+=3;
@@ -1689,7 +1690,7 @@ function updateTimeDisplay(){
 }
 
 function advanceTime(hours=1){
-  if(!G.time)G.time={day:1,hour:18,weather:'霧'};
+  if(!G.time)G.time={day:1,hour:18,weather:'濃霧'};
   hours=Math.floor(Math.max(0,hours));
   if(hours===0)return;
   const prevHour=G.time.hour;
@@ -1712,8 +1713,8 @@ function advanceTime(hours=1){
 
 function applyTimeUpdate(tm){
   if(!tm)return;
-  if(tm.advance)advanceTime(tm.advance);
-  if(tm.setHour!==undefined){G.time.hour=tm.setHour;updateTimeDisplay();saveGame();}
+  if(tm.advance)advanceTime(Math.min(tm.advance,240));
+  if(tm.setHour!==undefined){G.time.hour=Math.max(0,Math.min(23,Math.floor(tm.setHour)));updateTimeDisplay();saveGame();}
   if(tm.setWeather){
     G.time.weather=tm.setWeather;
     const wObj=WEATHERS.find(w=>w.w===tm.setWeather)||{icon:'⛅',effect:null};
@@ -2026,7 +2027,7 @@ function _buildPartyDetail(members,hasAlfar){
 }
 
 function forceBellyFlip(ev){
-  ev.stopPropagation();
+  ev.stopPropagation();if(G.thinking)return;
   markDirty('party');
   G.bellyFlipCount=(G.bellyFlipCount||0)+1;
   const n=G.bellyFlipCount;
@@ -2145,7 +2146,7 @@ function consumeItem(item){
 }
 
 function giveOrangeFish(ev){
-  ev.stopPropagation();
+  ev.stopPropagation();if(G.thinking)return;
   markDirty('party');
   const fish=findFishItem();
   const hasFish=!!fish;
@@ -2188,7 +2189,7 @@ function giveOrangeFish(ev){
 
 // ── 抱起橘子 ──
 function pickUpOrange(ev){
-  ev.stopPropagation();
+  ev.stopPropagation();if(G.thinking)return;
   markDirty('party');
   const scenes=[
     [{type:'narr',v:'艾爾法俯身，將橘子從地上抄起，抱在胸前。橘子沒有反抗——她只是抬頭，用藍眼睛看著艾爾法的臉。'},
@@ -2218,7 +2219,7 @@ function pickUpOrange(ev){
 
 // ── 和橘子聊天 ──
 function chatOrange(ev){
-  ev.stopPropagation();
+  ev.stopPropagation();if(G.thinking)return;
   markDirty('party');
   const topics=[
     // 關於命運
@@ -2267,7 +2268,7 @@ function chatOrange(ev){
 
 // ── 橘子建議 ──
 function askOrangeSuggest(ev){
-  ev.stopPropagation();
+  ev.stopPropagation();if(G.thinking)return;
   markDirty('party');
   const fav=getFavor('orange')||50;
   const suggests=[
@@ -4328,8 +4329,13 @@ function doGoToPoi(cityId,poiName){
   appendEntryToDOM({type:'sys',v:`📍 前往 ${loc}`});
   advanceTime(1);
 
+  const isGuild=/(公會|工會)/.test(poiName);
   const isShop=/(商店|市集|攤販|雜貨|武器|鐵匠|藥舖|酒館|客棧|旅店|藥店|藥鋪)/.test(poiName);
-  if(isShop){
+  if(isGuild){
+    // 工會POI：開啟工會面板並讓AI處理加入/互動
+    switchTab(document.querySelector('.ptab'),'p','guild');
+    sendChoice(`【前往${poiName}】玩家進入工會大廳。請描述工會場景，並根據劇情觸發加入工會(gu)或接受任務(qt)。`);
+  }else if(isShop){
     // 直接開啟商店 UI，不等 AI
     const baseKey=getShopKey(poiName);
     const shopId=`${cityId}_${poiName}`;
