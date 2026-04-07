@@ -1120,6 +1120,8 @@ function leaveParty(id,ev){
   const c=getCharData(id);
   // 卸下該角色的所有裝備
   if(c){const inv=getInv();inv.equip.forEach(e=>{if(e.w===c.name&&e.status==='equipped'){e.status='持有';e.w=null;if(c.eq)c.eq[e.slot||'武器']='——';}});}
+  // 清理據點工人分配
+  const bw=getBaseWorkers();Object.keys(bw).forEach(f=>{if(bw[f]===id)delete bw[f];});
   G.partyIds=G.partyIds.filter(x=>x!==id);_partyCache=null;
   renderBoth('party');renderBoth('stars');saveGame();
   showToast(`${c?.name||id} 離開同伴`,'inf');
@@ -1758,7 +1760,7 @@ function assignWorker(charId,facility){
 }
 function collectProduction(){
   const w=getBaseWorkers();const inv=getInv();const now=Date.now();
-  const last=G._lastCollect||now;
+  const last=G._lastCollect||(now-180000); // 首次給3小時生產量
   const hours=Math.min(24,Math.floor((now-last)/60000)); // 1分鐘=1遊戲小時
   if(hours<1)return;
   G._lastCollect=now;
@@ -1790,7 +1792,7 @@ function collectProduction(){
 
 // ═══ DICE GAMBLE（骰子賭博）═══ 純本地
 function openDiceGame(){
-  const bet=Math.min(G.gold.copper+G.gold.silver*10,50);
+  const bet=Math.min(G.gold.copper+G.gold.silver*10+G.gold.gold*1000,50);
   if(bet<5){showToast('至少需要銅5才能賭','err');return;}
   const betAmount=Math.min(30,Math.floor(bet/2));
   const playerDice=[Math.floor(Math.random()*6)+1,Math.floor(Math.random()*6)+1];
