@@ -87,7 +87,7 @@ function loadGame(){
     G.extraPcfg=data.extraPcfg||{};
     G.partyIds=data.partyIds||['alfar','orange'];_partyCache=null;_invalidateCharCache();
     G.upgrade=data.upgrade||{};
-    G.inv=data.inv||null;
+    G.inv=data.inv||getInv();
     G.favor=data.favor||{};
     G.bellyFlipCount=data.bellyFlipCount||0;
     G.specialOv=data.specialOv||{};
@@ -247,9 +247,9 @@ const SYS=`你是西方奇幻版水滸傳文字RPG故事引擎。靈感來源：
 
 ═══ 主角設定 ═══
 艾爾法😒（天魁星）：不求領導，被推上位。她的原則不是為了英雄主義，是因為「做不到視而不見」。沉默寡言，面無表情下藏著固執的善良。體內沉眠的星力=命運強加的枷鎖。
-橘子🐈😒（地魁星）：台詞永遠是「喵」系列，緊接系統翻譯。她看穿一切虛偽，對翻肚持強烈反對立場。知力99不是玩笑——她可能是108星中最接近真相的存在。
+橘子🐈😒（地魁星）：台詞永遠是「喵」系列，緊接系統翻譯（sp:"系統",ln:"〔翻譯〕"）。星辰感知時也一樣——橘子說「喵！」，系統翻譯說明星辰身份（如「〔翻譯：這傢伙是天罡第X星・○○星。〕」）。她看穿一切虛偽，對翻肚持強烈反對立場。知力99不是玩笑——她可能是108星中最接近真相的存在。
 
-═══ 輸出格式（所有欄位必填，不用的設null）═══
+═══ 輸出格式（所有欄位必填，不用的設null；ch在cb戰鬥時設[]空陣列）═══
 {"st":"場景標題","sl":"📍 地點","nv":["敘述"],"dl":[{"sp":"角色emoji","ln":"台詞"}],"sm":null,"gd":{"g":0,"s":0,"c":0},"ch":[{"t":"選項","h":""}],"nm":null,"cb":null,"iv":null,"sp":null,"shop":null,"fa":null,"hp":null,"qt":null,"tm":null,"rp":null,"info":null,"relic":null,"clue":null,"or":null,"job":null}
 
 ═══ 格式規則 ═══
@@ -299,6 +299,7 @@ F. 凡敘述涉及時間推進，tm必須填。
 G. nv/dl的文字描述≠數值生效。只有JSON欄位才能改變遊戲狀態。
 H. 讀取【背景數值】作為當前真實狀態，不要自行推算或記憶舊值。
 I. 標記為【UI互動】的訊息是玩家在介面上點擊按鈕產生的旁白（如翻肚、餵魚、聊天）。這些只是背景資訊，用於豐富角色認知。絕對不要因為UI互動而推進場景、改變地點、觸發事件或跳過玩家正在進行的對話。下一次回應必須延續UI互動發生前的劇情脈絡。
+J.【瀕死規則】角色HP歸零時進入「瀕死」狀態，無法行動但不會永久死亡。必須在1-2回合內由隊友救治或撤退，否則該角色重傷退出當前戰鬥。主角（艾爾法）HP歸零時觸發危機劇情——橘子星力暴走或同伴拼死保護，強制進入撤退/被救場景。108星辰不會輕易死亡（命運守護），但可以重傷、被俘、失蹤。
 `;
 
 
@@ -497,8 +498,9 @@ function handleStarPresence(sp){
     const starInfo=sp.num?`第${sp.num}星・${sp.star||''}`:sp.star||'星辰之人';
     const typeLabel=sp.type||'';
     const dispName=(!sp.name||sp.name==='?'||sp.name==='???')?(sp.cN||'？？？'):sp.name;
-    // 橘子主動告知星辰身份
-    appendEntryToDOM({type:'dial',sp:'橘子🐈😒',ln:`喵！這傢伙身上有星辰氣息——${typeLabel}${starInfo}。${sp.hint||''}`});
+    // 橘子主動告知星辰身份（喵→系統翻譯模式）
+    appendEntryToDOM({type:'dial',sp:'橘子🐈😒',ln:'喵——！！'});
+    appendEntryToDOM({type:'dial',sp:'系統',ln:`〔翻譯：這傢伙身上有星辰氣息——${typeLabel}${starInfo}。${sp.hint||''}〕`});
     if(dispName!=='？？？')appendEntryToDOM({type:'sys',v:`✦ 橘子感知 ✦ ${dispName} ═ ${typeLabel}・${starInfo}`});
     else appendEntryToDOM({type:'sys',v:`✦ 橘子感知 ✦ 身份未明的星辰之人 ═ ${typeLabel}・${starInfo}`});
     // 更新星辰錄
@@ -774,8 +776,8 @@ function equipItemToggle(idx){
     item.status='持有';
     const c=allParty().find(m=>m.name===item.w);
     if(c&&c.eq)c.eq[item.slot||'武器']='——';
-    renderChanged('party','inv');
-  showToast(`${item.n} 已卸下`,'inf');
+    renderChanged('party','inv');saveGame();
+    showToast(`${item.n} 已卸下`,'inf');
   }else{
     // 選擇裝備到哪個角色（簡單版：第一個可戰鬥角色）
     const candidates=allParty().filter(m=>m.id!=='orange');
@@ -828,6 +830,8 @@ function leaveParty(id,ev){
   if(ev)ev.stopPropagation();
   if(G.partyIds.length<=1){showToast('至少保留一名同伴','err');return;}
   const c=getCharData(id);
+  // 卸下該角色的所有裝備
+  if(c){const inv=getInv();inv.equip.forEach(e=>{if(e.w===c.name&&e.status==='equipped'){e.status='持有';e.w=null;if(c.eq)c.eq[e.slot||'武器']='——';}});}
   G.partyIds=G.partyIds.filter(x=>x!==id);_partyCache=null;
   renderBoth('party');renderBoth('stars');saveGame();
   showToast(`${c?.name||id} 離開同伴`,'inf');
@@ -908,8 +912,8 @@ function renderResp(d){
       G.inShop=false;
     }
   }
-  (d.nv||[]).forEach(p=>appendEntryToDOM({type:'narr',v:p}));
-  (d.dl||[]).forEach(dl=>appendEntryToDOM({type:'dial',sp:dl.sp,ln:dl.ln}));
+  (Array.isArray(d.nv)?d.nv:d.nv?[d.nv]:[]).forEach(p=>appendEntryToDOM({type:'narr',v:p}));
+  (Array.isArray(d.dl)?d.dl:d.dl?[d.dl]:[]).forEach(dl=>appendEntryToDOM({type:'dial',sp:dl.sp,ln:dl.ln}));
   if(d.sm)appendEntryToDOM({type:'sys',v:d.sm});
   if(d.gd)applyGold(d.gd);
   // 安全網：偵測敘述/系統訊息中有金幣描述但 gd 未填的情況
@@ -958,11 +962,11 @@ function renderResp(d){
     }
   }
   if(d.shop)handleShop(d.shop);
-  if(d.hp)applyHPChange(d.hp);
+  if(d.hp)applyHPChange(Array.isArray(d.hp)?d.hp:[d.hp]);
   if(d.qt)applyQuestUpdate(d.qt);
   if(d.tm)applyTimeUpdate(d.tm);
-  if(d.rp)applyRep(d.rp);
-  if(d.info)applyIntelUpdate(d.info);
+  if(d.rp)applyRep(Array.isArray(d.rp)?d.rp:[d.rp]);
+  if(d.info)applyIntelUpdate(Array.isArray(d.info)?d.info:[d.info]);
   if(d.relic)applyRelic(d.relic);
   if(d.clue)applyFounderClue(d.clue);
   if(d.or&&d.or.stage)revealOrangeSecret(d.or.stage);
@@ -970,7 +974,8 @@ function renderResp(d){
   tickBondCooldowns();
   if(d.fa){const _fa=Array.isArray(d.fa)?d.fa:[d.fa];_fa.forEach(f=>{if(f.id&&f.delta){setFavor(f.id,f.delta);const _n=getCharData(f.id)?.name||f.id;showToast(`${_n} 好感 ${f.delta>0?'+':''}${f.delta}`,f.delta>0?'ok':'inf');}});renderChanged('party');}
   scrollD();
-  G.log.push({sec:d.st||'',loc:(d.sl||'').replace('📍 ',''),lines:[...(d.nv||[]).map(v=>({t:'txt',v})),...(d.dl||[]).map(dl=>({t:'txt',v:`${dl.sp}：「${dl.ln}」`})),...(d.sm?[{t:'sys',v:d.sm}]:[]) ]});
+  G.log.push({sec:d.st||'',loc:(d.sl||'').replace('📍 ',''),lines:[...(Array.isArray(d.nv)?d.nv:d.nv?[d.nv]:[]).map(v=>({t:'txt',v})),...(Array.isArray(d.dl)?d.dl:d.dl?[d.dl]:[]).map(dl=>({t:'txt',v:`${dl.sp}：「${dl.ln}」`})),...(d.sm?[{t:'sys',v:d.sm}]:[]) ]});
+  if(G.log.length>200)G.log.splice(0,G.log.length-200);
   markDirty('log');
   // 每次 AI 回應後強制同步所有面板
   renderAll();
