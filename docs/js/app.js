@@ -1804,13 +1804,65 @@ function smini(s,sn,id){
     return`<div class="smr"><div class="sml">${l}</div><div class="smb"><div class="smf ${lk?'lk':''}" style="width:${p}%"></div></div><div class="smv">${lk?(sn2||'??'):(ev??bv)}${bonusTag}</div>${plusBtn}</div>`;
   }).join('');
 }
+let _partyViewMode='roster';
 function buildParty(){
   const members=allParty();
-  const countHtml=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.55rem;">
-    <div style="font-size:.6rem;color:var(--sild);letter-spacing:.06em;">同伴 <span style="color:var(--gold)">${members.length}</span> / ${MAX_PARTY}</div>
-    <button class="pa train" onclick="restAllHP()">休息🌙</button>
-  </div>`;
   const hasAlfar=members.some(m=>m.id==='alfar');
+  // header
+  const hdr=`<div class="party-hdr">
+    <div class="party-hdr-l">PARTY <span>${members.length}</span>/${MAX_PARTY}</div>
+    <div style="display:flex;gap:.25rem;align-items:center;">
+      <button class="pa train" onclick="restAllHP()" style="font-size:.5rem;padding:.12rem .4rem;">休息🌙</button>
+      <div class="party-mode">
+        <button class="${_partyViewMode==='roster'?'ac':''}" onclick="_partyViewMode='roster';renderChanged('party');">陣容</button>
+        <button class="${_partyViewMode==='detail'?'ac':''}" onclick="_partyViewMode='detail';renderChanged('party');">詳細</button>
+      </div>
+    </div>
+  </div>`;
+  if(_partyViewMode==='detail')return hdr+_buildPartyDetail(members,hasAlfar);
+  return hdr+_buildPartyRoster(members,hasAlfar);
+}
+function _buildPartyRoster(members,hasAlfar){
+  return members.map(c=>{
+    const hp=getHP(c.id);const hpPct=hp.max>0?Math.round(hp.cur/hp.max*100):0;
+    const inj=injuryLevel(c.id);
+    const fv=getFavor(c.id);const fvCol=fv!==null?favorColor(fv):'';
+    const ug=c.id!=='orange'?getUpgrade(c.id):null;
+    const job=getJob(c.id);const jd=job?JOBS[job]:null;
+    const src=getPortraitSrc(c.id);
+    return`<div class="jrpg-row" onclick="openChar('${c.id}')">
+      <div class="jrpg-face">${src?`<img src="${src}"/>`:`<span class="emoji-ph">${c.emoji}</span>`}</div>
+      <div class="jrpg-info">
+        <div class="jrpg-top">
+          <span class="jrpg-name">${c.emoji} ${c.name}</span>
+          ${ug?`<span class="lv-badge">Lv.${ug.lv}</span>`:''}
+          ${jd?`<span class="jrpg-class" style="border:1px solid ${jd.color};color:${jd.color};background:rgba(0,0,0,.3);">${jd.icon}${job}</span>`:''}
+        </div>
+        <div class="jrpg-bars">
+          <div class="jrpg-bar-row">
+            <span class="jrpg-bar-lbl" style="color:${inj.color};">HP</span>
+            <div class="jrpg-bar-track"><div class="jrpg-bar-fill" style="width:${hpPct}%;background:${inj.color};"></div></div>
+            <span class="jrpg-bar-val" style="color:${inj.color};">${hp.cur}/${hp.max}</span>
+          </div>
+          ${fv!==null?`<div class="jrpg-bar-row">
+            <span class="jrpg-bar-lbl" style="color:${fvCol};">好感</span>
+            <div class="jrpg-bar-track"><div class="jrpg-bar-fill" style="width:${fv}%;background:${fvCol};"></div></div>
+            <span class="jrpg-bar-val" style="color:${fvCol};">${fv}</span>
+          </div>`:''}
+        </div>
+      </div>
+      <span class="jrpg-star">${c.type}${c.num}星</span>
+    </div>
+    ${c.id==='orange'&&hasAlfar?`<div class="jrpg-actions">
+      <button class="pa belly" onclick="event.stopPropagation();forceBellyFlip(event)">翻肚🐾</button>
+      <button class="pa fish" onclick="event.stopPropagation();giveOrangeFish(event)">魚乾🐟</button>
+      <button class="pa hold" onclick="event.stopPropagation();pickUpOrange(event)">抱起🤍</button>
+      <button class="pa chat" onclick="event.stopPropagation();chatOrange(event)">聊天💬</button>
+      <button class="pa suggest" onclick="event.stopPropagation();askOrangeSuggest(event)">建議✦</button>
+    </div>`:''}`;
+  }).join('');
+}
+function _buildPartyDetail(members,hasAlfar){
   const cards=members.map(c=>{
     const ug=c.id!=='orange'?getUpgrade(c.id):null;
     const pts=ug?.pts||0;
@@ -1842,9 +1894,7 @@ function buildParty(){
           ${enh>0?`<span style="font-size:.52rem;color:var(--gold);">[+${enh}]</span>`:''}
           ${eqItem&&c.id!=='orange'?`<button onclick="event.stopPropagation();upgradeEquip('${c.id}','${lbl}')"
             ${!cost?'disabled':''}
-            style="font-size:.5rem;padding:.08rem .3rem;background:transparent;border:1px solid ${cost?'rgba(100,150,200,.3)':'rgba(80,80,80,.2)'};border-radius:2px;color:${cost?'rgba(130,170,220,.7)':'var(--sild)'};cursor:${cost?'pointer':'not-allowed'};flex-shrink:0;"
-            onmouseover="${cost?"this.style.borderColor='rgba(100,150,200,.7)';this.style.color='rgba(160,200,255,.9)'":''}
-            onmouseout="${cost?"this.style.borderColor='rgba(100,150,200,.3)';this.style.color='rgba(130,170,220,.7)'":''}">
+            style="font-size:.5rem;padding:.08rem .3rem;background:transparent;border:1px solid ${cost?'rgba(100,150,200,.3)':'rgba(80,80,80,.2)'};border-radius:2px;color:${cost?'rgba(130,170,220,.7)':'var(--sild)'};cursor:${cost?'pointer':'not-allowed'};flex-shrink:0;">
             ${cost?'強化 '+cost+'銀':'MAX'}
           </button>`:''}
         </div>`;
@@ -1870,7 +1920,7 @@ function buildParty(){
     </div>
   </div>`;
   }).join('');
-  return countHtml+cards;
+  return cards;
 }
 
 function forceBellyFlip(ev){
