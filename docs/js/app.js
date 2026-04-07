@@ -454,7 +454,7 @@ const BGM={
   },
   init(){
     if(this.ctx)return;
-    this.ctx=new(window.AudioContext||window.webkitAudioContext)();
+    try{this.ctx=new(window.AudioContext||window.webkitAudioContext)();}catch(e){console.warn('AudioContext unavailable');return;}
     this.master=this.ctx.createGain();this.master.gain.value=this.vol;
     // 混響
     const rate=this.ctx.sampleRate,len=rate*2,buf=this.ctx.createBuffer(2,len,rate);
@@ -2032,7 +2032,7 @@ function buildGuild(){
   </div>`;
   if(joined.length){
     joined.forEach(([id,g])=>{
-      const info=guilds[id];
+      const info=guilds[id]||{rank:0,exp:0};
       const rankName=g.ranks[info.rank]||g.ranks[0];
       const nextRank=info.rank<g.ranks.length-1?g.ranks[info.rank+1]:null;
       const expPerRank=50;const pct=nextRank?Math.min(100,Math.round((info.exp%expPerRank)/expPerRank*100)):100;
@@ -3022,8 +3022,8 @@ function scell(s,t){
 }
 function buildInv(){
   const inv=getInv();
-  const equipped=inv.equip.filter(i=>i.status==='equipped');
-  const held=inv.equip.filter(i=>i.status==='持有'||(!i.status&&i.status!=='equipped'));
+  const equipped=(inv.equip||[]).filter(i=>i.status==='equipped');
+  const held=(inv.equip||[]).filter(i=>i.status!=='equipped');
   const eqCard=(i,realIdx,canUnequip)=>{
     const enh=i.enhance||0;
     const bText=bonusText(getEnhancedBonus(i));
@@ -4429,7 +4429,7 @@ function autoCombat(cb){
           {t:'讓同伴掩護',h:'依靠隊友'}
         ]);
         G._pendingCombatMsg=combatMsg;
-      },1200);
+      },2000); // 必須晚於 heroDown 的 1500ms
     }
   },70);
 }
