@@ -68,7 +68,7 @@ function _doSave(){
     };
     localStorage.setItem(SAVE_KEY,JSON.stringify(data));
     showSaveIndicator();
-  }catch(e){console.warn('存檔失敗:',e);}
+  }catch(e){console.warn('存檔失敗:',e);showToast('存檔失敗：儲存空間可能已滿','err');}
 }
 function loadGame(){
   try{
@@ -496,13 +496,13 @@ function handleStarPresence(sp){
   }else{
     // 108星辰——橘子有反應
     const starInfo=sp.num?`第${sp.num}星・${sp.star||''}`:sp.star||'星辰之人';
-    const typeLabel=sp.type||'';
+    const typeLabel=sp.type?sp.type+'・':'';
     const dispName=(!sp.name||sp.name==='?'||sp.name==='???')?(sp.cN||'？？？'):sp.name;
     // 橘子主動告知星辰身份（喵→系統翻譯模式）
     appendEntryToDOM({type:'dial',sp:'橘子🐈😒',ln:'喵——！！'});
     appendEntryToDOM({type:'dial',sp:'系統',ln:`〔翻譯：這傢伙身上有星辰氣息——${typeLabel}${starInfo}。${sp.hint||''}〕`});
-    if(dispName!=='？？？')appendEntryToDOM({type:'sys',v:`✦ 橘子感知 ✦ ${dispName} ═ ${typeLabel}・${starInfo}`});
-    else appendEntryToDOM({type:'sys',v:`✦ 橘子感知 ✦ 身份未明的星辰之人 ═ ${typeLabel}・${starInfo}`});
+    if(dispName!=='？？？')appendEntryToDOM({type:'sys',v:`✦ 橘子感知 ✦ ${dispName} ═ ${typeLabel}${starInfo}`});
+    else appendEntryToDOM({type:'sys',v:`✦ 橘子感知 ✦ 身份未明的星辰之人 ═ ${typeLabel}${starInfo}`});
     // 更新星辰錄
     const arr=sp.type==='天罡'?TIANGANG:DISHAT;
     const star=arr.find(s=>s.num===sp.num);
@@ -932,7 +932,7 @@ function renderResp(d){
       }
     }
   }
-  if(d.nm)addNewMember(d.nm);
+  if(d.nm){const _nm=Array.isArray(d.nm)?d.nm:[d.nm];_nm.forEach(m=>addNewMember(m));}
   if(d.sp)handleStarPresence(d.sp);
   if(d.iv){applyInv(d.iv);}
   // 安全網：偵測敘述中有購買/獲得道具但 iv 未填的情況
