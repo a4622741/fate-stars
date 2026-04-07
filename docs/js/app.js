@@ -263,6 +263,8 @@ const SYS=`你是西方奇幻版水滸傳文字RPG故事引擎。靈感來源：
 5. 每個角色有固定emoji，全程不換。
 6.【最高優先】玩家行動必須如實執行。未指定互動時，禁止安排同伴主動發言。
 7. 同伴只在：(a)玩家主動互動、(b)劇情危機、(c)選項後果時才發言。
+7a.【同伴可見性】每當場景描寫（nv）涉及行動或移動時，必須自然帶出同行隊友的存在（如「艾爾法默默跟在身後」「身旁的○○抱怨道」）。玩家需要知道誰在身邊。
+7b.【加入儀式】角色正式入隊（nm觸發）時，必須有明確的劇情演出：對方表態同行的台詞、隊伍反應、以及一段簡短的「○○加入了隊伍」敘述。不可跳過直接入隊。
 8. 地點移動需合理銜接。st不得使用玩家輸入文字。直接描寫當下場景。
 9. cb填寫時ch設空陣列，等待骰子。決鬥時，敵方台詞暗示出招方向。
 10. iv：道具/裝備變動。{"add":[{"n":"名","t":"描述","q":"×1"}],"remove":["名"],"equip":[{"item":"名","who":"id","slot":"武器/防具/飾品"}],"purchase":[{"n":"名","t":"描述","slot":"武器"}]}。買到一般道具用add，買到裝備用purchase。
@@ -339,12 +341,12 @@ async function callAPI(action){
   await apiGate();
   // 壓縮狀態快照：只發送變化的資料（快取 party 一次）
   const _p=allParty();
-  const partySnap=_p.filter(m=>m.id!=='orange').map(m=>`${m.name}/${getJob(m.id)||'?'}/HP${getHP(m.id).cur}`).join(',')+'；橘子HP'+getHP('orange').cur+'/好感'+getFavor('orange');
+  const partySnap=_p.filter(m=>m.id!=='orange').map(m=>`${m.name}(${m.emoji||''} ${m.title||''})/${getJob(m.id)||'?'}/HP${getHP(m.id).cur}`).join(',')+'；橘子HP'+getHP('orange').cur+'/好感'+getFavor('orange');
   const goldStr=`金${G.gold.gold}銀${G.gold.silver}銅${G.gold.copper}`;
   const goldSnap=goldStr!==_lastSentGold?goldStr:'';
   _lastSentGold=goldStr;
   let stateNote=`【狀態】${getTimeContext()}|${goldSnap?goldSnap+'|':''}隊:${partySnap}|道具${(getInv().items||[]).length}|任務${(G.quests||[]).filter(q=>q.status==='active').length}`;
-  if(stateNote.length>150)stateNote=stateNote.slice(0,147)+'…';
+  if(stateNote.length>250)stateNote=stateNote.slice(0,247)+'…';
   G.history.push({role:'user',content:`${stateNote}\n${action}`});
   // 首次呼叫送完整 SYS，之後送精簡版（省 ~2000 tokens）
   const sysToSend=_sysPromptSent?SYS_SHORT:SYS;
