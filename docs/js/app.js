@@ -1040,7 +1040,7 @@ function buyItem(idx){
   const inv=getInv();
   if(item.action==='rest'){restAllHP();appendEntryToDOM({type:'sys',v:'✦ 入住旅店・全員HP回復・時間推進8小時'});}
   else if(item.action==='meal'){applyHPChange(allParty().map(c=>({id:c.id,delta:15,reason:'熱食套餐'})));advanceTime(1);}
-  else if(item.action==='intel'){sendChoice('【購買情報】剛才在旅店打探消息，請給一條當地情報（透過info欄位加入情報板）。');}
+  else if(item.action==='intel'){const rumors=['有人在北方山脈見過巨大的影子','商人工會最近在囤積鐵礦石，不知道在準備什麼','聽說東邊的村莊出現了奇怪的流浪者','霧刃幫的勢力範圍又擴大了','有個戴面具的劍客在酒館出沒','學院工會正在尋找古代遺跡的線索','暗影工會最近很安靜，反而令人不安','城門口的守衛換了一批新面孔'];const r=rumors[Math.floor(Math.random()*rumors.length)];addIntel({id:'rumor_'+Date.now(),title:'酒館傳聞',content:r,src:'旅店打探',rel:2,cat:'謠言'});appendEntryToDOM({type:'sys',v:`📋 打探到情報：${r}`});}
   else if(item.slot){const bi={n:item.n,t:item.t||'',w:null,status:'持有',slot:item.slot,bonus:item.bonus||null};autoBonus(bi);inv.equip.push(bi);}
   else{const exist=inv.items.find(i=>i.n===item.n);if(exist){const m=exist.q.match(/[×x]?\s*(\d+)/);exist.q='×'+(m?(parseInt(m[1])+1):2);}else inv.items.push({n:item.n,t:item.t||'',q:'×1'});}
   if(_currentShop.newItems)_currentShop.newItems=_currentShop.newItems.filter(n=>n!==item.n);
@@ -2490,8 +2490,12 @@ function triggerBond(idA,idB,skillId){
   if(sk.effect==='block_hit')G.rep['_bond_block']=idB;
   if(sk.effect==='scene_success')G.rep['_bond_auto_success']=1;
   if(sk.effect==='unlock_hint'){
-    sendChoice(`【羈絆觸發】${sk.name}：橘子以神秘感知指引了一個方向，請在當前場景中加入一個原本不存在的隱藏選項或情報線索。`);
-    scrollD();return;
+    const hints=['北方的山道似乎有人跡⋯⋯','橘子的耳朵朝向東邊的暗巷轉了一下','地上有一枚不起眼的銅扣——某人匆忙離開時掉的','空氣中有淡淡的草藥味，來源不明','牆上的刮痕像是某種暗號'];
+    const h=hints[Math.floor(Math.random()*hints.length)];
+    appendEntryToDOM({type:'dial',sp:'橘子🐈😒',ln:'喵⋯⋯'});
+    appendEntryToDOM({type:'dial',sp:'系統',ln:`〔翻譯：${h}〕`});
+    addIntel({id:'bond_hint_'+Date.now(),title:'橘子的引導',content:h,src:'羈絆感知',rel:4,cat:'謠言',orange:true});
+    scrollD();saveGame();return;
   }
   // 設定冷卻
   G.rep[cdKey]=sk.cooldown;
@@ -3310,11 +3314,15 @@ function checkFounderTierUnlock(n){
     appendEntryToDOM({type:'dial',sp:'橘子🐈😒',ln:'喵⋯⋯'});
     appendEntryToDOM({type:'sys',v:'〔橘子感知：某個記憶的殘影。她認識那個氣息。〕'});
   }
-  if(n>=12){
+  if(n>=12&&!G._clue12Shown){
+    G._clue12Shown=true;
     appendEntryToDOM({type:'sys',v:'═══ 線索達到12條。某個古老的訊息正在顯現。═══'});
-    setTimeout(()=>{
-      sendChoice('【線索啟示】天父星的線索已累積至12條。請觸發一個隱藏的主線劇情：先行者生前留下的最後訊息以某種形式傳達給艾爾法——可以是夢境、古老文件、某人臨終的話語，或橘子的神秘引導。');
-    },1000);
+    appendEntryToDOM({type:'narr',v:'夜風忽然停了。橘子的瞳孔驟然收縮，藍色的光芒在她的眼底一閃而逝。她看見了什麼——是先行者留在星辰之間的最後訊息。'});
+    appendEntryToDOM({type:'dial',sp:'橘子🐈😒',ln:'喵嗚————'});
+    appendEntryToDOM({type:'dial',sp:'系統',ln:'〔翻譯：他⋯⋯留了話。給所有繼承星辰之路的人。但我還看不清全部。需要更多線索。〕'});
+    addIntel({id:'clue_milestone_12',title:'先行者的殘響',content:'天父星的12條線索匯聚，橘子隱約感知到先行者臨終前留下的訊息碎片。真相尚不完整，但方向已經浮現。',src:'橘子感知',rel:5,cat:'人物',orange:true});
+    showToast('✦ 主線解鎖：先行者的殘響','ok');
+    saveGame();
   }
 }
 
@@ -4999,9 +5007,14 @@ function doGoToPoi(cityId,poiName){
   const isGuild=/(公會|工會)/.test(poiName);
   const isShop=/(商店|市集|攤販|雜貨|武器|鐵匠|藥舖|酒館|客棧|旅店|藥店|藥鋪)/.test(poiName);
   if(isGuild){
-    // 工會POI：開啟工會面板並讓AI處理加入/互動
-    switchTab(document.querySelector('.ptab'),'p','guild');
-    sendChoice(`【前往${poiName}】玩家進入工會大廳。請描述工會場景，並根據劇情觸發加入工會(gu)或接受任務(qt)。`);
+    // 工會POI：本地開啟工會面板＋懸賞板，不呼叫AI
+    const guildMap={'冒險者':'adventurer','英雄':'adventurer','商人':'merchant','學院':'scholar','匠人':'craft','暗影':'shadow'};
+    const gId=Object.entries(guildMap).find(([k])=>poiName.includes(k));
+    if(gId&&!G.guilds?.[gId[1]]?.joined){joinGuild(gId[1]);}
+    appendEntryToDOM({type:'narr',v:`你走進${poiName}的大廳。公告板上貼滿了委託和懸賞。`});
+    markDirty('guild','activities');
+    switchTab(document.querySelector('.ptab'),'p','activities');
+    scrollD();saveGame();
   }else if(isShop){
     // 直接開啟商店 UI，不等 AI
     const baseKey=getShopKey(poiName);
