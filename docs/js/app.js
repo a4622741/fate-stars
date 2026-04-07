@@ -641,24 +641,19 @@ function apiHit429(){
 }
 function apiReset429(){_apiThrottle._429count=0;} // 成功呼叫後重置退避計數
 
-let _sysPromptSent=false;
 let _lastSentGold=null;
-const SYS_SHORT='續前規則。純JSON{→}。玩家輸入＝艾爾法的行動/台詞。nv描寫她行動的後果＋dl寫NPC反應。ch＝她接下來可說可做的事。橘子喵→翻譯。gd/iv/hp/fa/qt/tm必須同步。';
 async function callAPI(action){
   if(!CFG.key){document.getElementById('api-modal').classList.add('open');throw new Error('請先設定 API 金鑰');}
   await apiGate();
-  // 壓縮狀態快照：只發送變化的資料（快取 party 一次）
   const _p=allParty();
-  const partySnap=_p.filter(m=>m.id!=='orange').map(m=>`${m.name}(${m.emoji||''} ${m.title||''})/${getJob(m.id)||'?'}/HP${getHP(m.id).cur}`).join(',')+'；橘子HP'+getHP('orange').cur+'/好感'+getFavor('orange');
+  const partySnap=_p.filter(m=>m.id!=='orange').map(m=>`${m.name}/${getJob(m.id)||'?'}/HP${getHP(m.id).cur}`).join(',')+'；橘子HP'+getHP('orange').cur+'/好感'+getFavor('orange');
   const goldStr=`金${G.gold.gold}銀${G.gold.silver}銅${G.gold.copper}`;
   const goldSnap=goldStr!==_lastSentGold?goldStr:'';
   _lastSentGold=goldStr;
-  const _gSnap=Object.entries(G.guilds||{}).filter(([,v])=>v?.joined).map(([id,v])=>`${GUILDS[id]?.name||id}(${GUILDS[id]?.ranks[v.rank]||'?'})`).join(',');
-  let stateNote=`【狀態】${getTimeContext()}|${goldSnap?goldSnap+'|':''}隊:${partySnap}|道具${(getInv().items||[]).length}|任務${(G.quests||[]).filter(q=>q.status==='active').length}${_gSnap?'|工會:'+_gSnap:''}`;
+  let stateNote=`【狀態】${getTimeContext()}|${goldSnap?goldSnap+'|':''}隊:${partySnap}|道具${(getInv().items||[]).length}|任務${(G.quests||[]).filter(q=>q.status==='active').length}`;
   if(stateNote.length>200)stateNote=stateNote.slice(0,197)+'…';
   G.history.push({role:'user',content:`${stateNote}\n${action}`});
-  // 首次呼叫送完整 SYS，之後送精簡版（省 ~2000 tokens）
-  const sysToSend=_sysPromptSent?SYS_SHORT:SYS;
+  // 每次都送完整SYS（AI品質 > 省token）
   let res;
   try{
     res=await fetch('https://api.anthropic.com/v1/messages',{
@@ -669,14 +664,13 @@ async function callAPI(action){
         'anthropic-version':'2023-06-01',
         'anthropic-dangerous-direct-browser-access':'true',
       },
-      body:JSON.stringify({model:CFG.model,max_tokens:CFG.tokens,system:sysToSend,messages:G.history})
+      body:JSON.stringify({model:CFG.model,max_tokens:CFG.tokens,system:SYS,messages:G.history,stream:true})
     });
   }catch(e){
     apiDone();G.history.pop();
     if(isCorsErr(e)){document.getElementById('cors-modal').classList.add('open');}
     throw new Error(isCorsErr(e)?'網路/CORS 錯誤（請用本地伺服器）':('網路錯誤：'+e.message));
   }
-  _sysPromptSent=true;
   if(!res.ok){
     apiDone();G.history.pop();
     if(res.status===429){apiHit429();throw new Error('請求過於頻繁，已啟動冷卻');}
@@ -685,20 +679,45 @@ async function callAPI(action){
     const map={401:'API 金鑰無效或已過期',403:'API 金鑰無此權限',500:'Anthropic 伺服器錯誤，稍後重試'};
     throw new Error(map[res.status]||em);
   }
-  const data=await res.json();
-  const raw=data.content?.find(b=>b.type==='text')?.text||'';
+  // ── 串流讀取 ──
+  const reader=res.body.getReader();
+  const decoder=new TextDecoder();
+  let raw='',buf='';
+  // 顯示串流文字的即時預覽區
+  const preview=mk('div','sentry');
+  const previewTxt=mk('div','s-narr');
+  previewTxt.style.cssText='color:var(--sild);font-size:.68rem;white-space:pre-wrap;';
+  preview.appendChild(previewTxt);
+  document.getElementById('story-content').appendChild(preview);
+  while(true){
+    const {done,value}=await reader.read();
+    if(done)break;
+    buf+=decoder.decode(value,{stream:true});
+    const lines=buf.split('\n');
+    buf=lines.pop()||'';
+    for(const line of lines){
+      if(!line.startsWith('data: ')||line==='data: [DONE]')continue;
+      try{
+        const evt=JSON.parse(line.slice(6));
+        if(evt.type==='content_block_delta'&&evt.delta?.text){
+          raw+=evt.delta.text;
+          // 即時預覽：顯示正在生成的文字（截取可見部分）
+          const visible=raw.replace(/[{}":\[\],]/g,' ').replace(/\\n/g,' ').slice(-200);
+          previewTxt.textContent=visible.length>3?'✦ '+visible.trim()+'…':'';
+          scrollD();
+        }
+      }catch(_){}
+    }
+  }
+  preview.remove(); // 移除預覽
   G.history.push({role:'assistant',content:raw});
   apiDone();apiReset429();
-
-  // 嘗試解析 JSON
+  // 解析 JSON
   const parsed=tryParseJSON(raw);
   if(parsed)return parsed;
-
-  // 解析失敗：嘗試更激進的修復
   console.warn('JSON parse failed, attempting repair. Raw:', raw.slice(0,300));
   const repaired=tryRepairJSON(raw);
   if(repaired){G.history[G.history.length-1]={role:'assistant',content:JSON.stringify(repaired)};return repaired;}
-  // 修復也失敗：移除無效回應，讓玩家手動重試
   G.history.pop();G.history.pop();
   throw new Error('AI 回應格式錯誤，請點重試');
 }
