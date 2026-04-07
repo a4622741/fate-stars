@@ -6,7 +6,7 @@ const CFG={
   set key(v){localStorage.setItem('fate_key',v);},
   get model(){return localStorage.getItem('fate_model')||'claude-sonnet-4-20250514';},
   set model(v){localStorage.setItem('fate_model',v);},
-  get tokens(){return parseInt(localStorage.getItem('fate_tokens')||'1200');},
+  get tokens(){return parseInt(localStorage.getItem('fate_tokens')||'2000');},
   set tokens(v){localStorage.setItem('fate_tokens',String(v));},
 };
 
