@@ -957,7 +957,7 @@ function renderResp(d){
   if(d.or&&d.or.stage)revealOrangeSecret(d.or.stage);
   if(d.job)applyJobUpdate(d.job);
   tickBondCooldowns();
-  if(d.fa){const _fa=Array.isArray(d.fa)?d.fa:[d.fa];_fa.forEach(f=>{if(f.id&&f.delta){setFavor(f.id,f.delta);const _n=getCharData(f.id)?.name||f.id;showToast(`${_n} 好感 ${f.delta>0?'+':''}${f.delta}`,f.delta>0?'ok':'inf');}});renderChanged('party');}
+  if(d.fa){(d.fa||[]).forEach(f=>{if(f.id&&f.delta){setFavor(f.id,f.delta);const _n=getCharData(f.id)?.name||f.id;showToast(`${_n} 好感 ${f.delta>0?'+':''}${f.delta}`,f.delta>0?'ok':'inf');}});renderChanged('party');}
   scrollD();
   G.log.push({sec:d.st||'',loc:(d.sl||'').replace('📍 ',''),lines:[...(d.nv||[]).map(v=>({t:'txt',v})),...(d.dl||[]).map(dl=>({t:'txt',v:`${dl.sp}：「${dl.ln}」`})),...(d.sm?[{t:'sys',v:d.sm}]:[]) ]});
   markDirty('log');
