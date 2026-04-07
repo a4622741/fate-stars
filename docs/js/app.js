@@ -4289,41 +4289,10 @@ async function syncAll(){
   // 按鈕動畫
   const btn=document.querySelector('button[onclick="syncAll()"]');
   if(btn){btn.style.transition='transform .5s';btn.style.transform='rotate(360deg)';setTimeout(()=>{btn.style.transform='';btn.style.transition='';},500);}
-  showToast('✦ 前端已同步，正在校正AI記憶…','inf');
-  // ── 向 AI 發送完整狀態快照，讓 AI 校正認知 ──
-  if(!CFG.key){showToast('✦ 前端已同步（未設定金鑰，跳過AI校正）','ok');return;}
-  G.thinking=true;setDis(true);
-  try{
-    const inv=getInv();
-    const partyDetail=allParty().map(m=>{
-      const hp=getHP(m.id);const fav=getFavor(m.id);const job=getJob(m.id);
-      const eq=inv.equip.filter(e=>e.w===m.name&&e.status==='equipped').map(e=>`${e.slot}:${e.n}`).join(',');
-      return `${m.name}(${m.id})/${job||'無職業'}/HP${hp.cur}/${hp.max}${fav!==null?'/好感'+fav:''}${eq?'/裝備:'+eq:''}`;
-    }).join('；');
-    const itemList=inv.items.map(i=>i.n+(i.q||'')).join(',');
-    const questList=(G.quests||[]).filter(q=>q.status==='active').map(q=>q.title).join(',');
-    const guildList=Object.entries(G.guilds||{}).filter(([,v])=>v?.joined).map(([id,v])=>`${GUILDS[id]?.name||id}(${GUILDS[id]?.ranks[v.rank]||'?'})`).join(',');
-    const repList=Object.entries(G.rep).filter(([k,v])=>!k.startsWith('_')&&!k.startsWith('bond')&&v!==0).map(([k,v])=>`${k}:${v}`).join(',');
-    const stateMsg=`【系統同步・校正AI記憶】以下為遊戲當前真實狀態，請據此校正你的記憶，然後以JSON格式繼續當前場景並給出3-4個行動選項。
-時間：${getTimeContext()}
-金幣：金${G.gold.gold}・銀${G.gold.silver}・銅${G.gold.copper}
-隊伍：${partyDetail}
-道具：${itemList||'無'}
-任務：${questList||'無'}
-工會：${guildList||'無'}
-聲望：${repList||'無'}
-場景：${G.sceneTitle} / ${G.sceneLoc}`;
-    const th=addThink();
-    const d=await callAPI(stateMsg);
-    th.remove();
-    // 同步不推進劇情：只取選項，忽略敘述
-    if(d.ch?.length)renderChoices(d.ch);
-    else renderFallback();
-    showToast('✦ AI記憶已校正・全部同步完成','ok');
-  }catch(e){
-    showToast('前端已同步，AI校正失敗：'+e.message,'err');
-  }
-  G.thinking=false;setDis(false);
+  // 純前端同步，不呼叫AI（避免格式錯誤和浪費token）
+  if(G.currentChoices?.length)renderChoices(G.currentChoices,false);
+  else renderFallback();
+  showToast('✦ 全部同步完成','ok');
 }
 window.addEventListener('resize',applyResp);
 
