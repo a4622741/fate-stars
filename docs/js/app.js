@@ -794,7 +794,7 @@ function doSwap(newId,outId){
   document.getElementById('swap-modal').classList.remove('open');
   const idx=G.partyIds.indexOf(outId);
   if(idx!==-1)G.partyIds[idx]=newId;
-  else G.partyIds.push(newId);
+  else return; // outId不在隊伍中，取消交換
   _partyCache=null;
   renderBoth('party');renderBoth('stars');saveGame();
   const nc=getCharData(newId),oc=getCharData(outId);
@@ -2118,7 +2118,7 @@ function forceBellyFlip(ev){
     scenes=initReacts[n%initReacts.length];
   }
 
-  (Array.isArray(scenes[0])?scenes:scenes).forEach(e=>appendEntryToDOM(e));
+  (Array.isArray(scenes)?scenes:[scenes]).forEach(e=>appendEntryToDOM(e));
   scrollD();
   renderBoth('party');
   pushLocalEvent(`【系統事件・不需回應】玩家對橘子強制翻肚（第${n}次），橘子不滿。目前翻肚累計${n}次。`);
@@ -2396,8 +2396,8 @@ function scell(s,t){
 }
 function buildInv(){
   const inv=getInv();
-  const equipped=inv.equip.filter(i=>i.status==='equipped'||(!i.status&&i.q==='裝備中'));
-  const held=inv.equip.filter(i=>i.status==='持有'||(i.status&&i.status!=='equipped'));
+  const equipped=inv.equip.filter(i=>i.status==='equipped');
+  const held=inv.equip.filter(i=>i.status==='持有'||(!i.status&&i.status!=='equipped'));
   const eqCard=(i,realIdx,canUnequip)=>{
     const enh=i.enhance||0;
     const bText=bonusText(getEnhancedBonus(i));
@@ -2786,7 +2786,7 @@ function buildRelicSection(){
       const col=RELIC_RARITY_COLOR[r.rarity]||'var(--gold)';
       const sealed=r.status==='sealed';
       return`<div style="display:flex;gap:.5rem;align-items:flex-start;padding:.4rem 0;border-bottom:1px solid rgba(255,255,255,.04);">
-        <span style="font-size:1.1rem;flex-shrink:0;opacity:${sealed?.5:1}">${r.icon||'◈'}</span>
+        <span style="font-size:1.1rem;flex-shrink:0;opacity:${sealed?0.5:1}">${r.icon||'◈'}</span>
         <div style="flex:1;min-width:0">
           <div style="display:flex;align-items:center;gap:.3rem;margin-bottom:.1rem;">
             <span style="font-size:.72rem;color:${col};font-weight:600">${r.name}</span>
@@ -3155,7 +3155,7 @@ function applyQuestRewards(q){
   if(r.gd&&(r.gd.g||r.gd.s||r.gd.c)){applyGold(r.gd);parts.push(`${r.gd.g?'金'+r.gd.g+' ':''}${r.gd.s?'銀'+r.gd.s+' ':''}${r.gd.c?'銅'+r.gd.c:''}`.trim());}
   if(r.fa)(Array.isArray(r.fa)?r.fa:[r.fa]).forEach(f=>{if(f.id&&f.delta){setFavor(f.id,f.delta);parts.push(`${getCharData(f.id)?.name||f.id} 好感${f.delta>0?'+':''}${f.delta}`);}});
   if(r.rp)(Array.isArray(r.rp)?r.rp:[r.rp]).forEach(rp=>{if(rp.id&&rp.delta)applyRep([rp]);});
-  if(r.items){const inv=getInv();(Array.isArray(r.items)?r.items:[r.items]).forEach(item=>{const ex=inv.items.find(i=>i.n===item.n);if(ex){const m=ex.q.match(/(\d+)/);ex.q='×'+((m?parseInt(m[1]):1)+1);}else inv.items.push({...item,q:item.q||'×1'});parts.push(item.n);});}
+  if(r.items){const inv=getInv();(Array.isArray(r.items)?r.items:[r.items]).forEach(item=>{const ex=inv.items.find(i=>i.n===item.n);if(ex){const m=ex.q.match(/[×x]?\s*(\d+)/);ex.q='×'+((m?parseInt(m[1]):1)+1);}else inv.items.push({...item,q:item.q||'×1'});parts.push(item.n);});}
   if(parts.length)appendEntryToDOM({type:'sys',v:`🎁 任務獎勵：${parts.join('、')}`});
   showToast('任務完成！獲得獎勵','ok');
   renderChanged('inv','party');
