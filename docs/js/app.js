@@ -497,7 +497,7 @@ function handleStarPresence(sp){
     // 108星辰——橘子有反應
     const starInfo=sp.num?`第${sp.num}星・${sp.star||''}`:sp.star||'星辰之人';
     const typeLabel=sp.type?sp.type+'・':'';
-    const dispName=(!sp.name||sp.name==='?'||sp.name==='???')?(sp.cN||'？？？'):sp.name;
+    const dispName=(!sp.name||/^[?？]+$/.test(sp.name))?(sp.cN||'？？？'):sp.name;
     // 橘子主動告知星辰身份（喵→系統翻譯模式）
     appendEntryToDOM({type:'dial',sp:'橘子🐈😒',ln:'喵——！！'});
     appendEntryToDOM({type:'dial',sp:'系統',ln:`〔翻譯：這傢伙身上有星辰氣息——${typeLabel}${starInfo}。${sp.hint||''}〕`});
@@ -511,7 +511,7 @@ function handleStarPresence(sp){
       if(star.status==='unknown'){star.status='contact';changed=true;}
       // 名字從 ? / ??? 更新為真名
       const inName=sp.name||'?';
-      if(inName!=='?'&&inName!=='???'&&inName!=='？？？'&&star.name!==inName){star.name=inName;changed=true;}
+      if(inName&&!/^[?？]+$/.test(inName)&&star.name!==inName){star.name=inName;changed=true;}
       else if(star.name==='?'&&inName==='?'){/* 仍未知，不動 */}
       if(sp.hint&&sp.hint!==star.hint){star.hint=sp.hint;changed=true;}
       if(sp.star)star.star=sp.star;
@@ -719,7 +719,7 @@ function renderShopSell(){
 }
 
 function calcSellPrice(item,isEquip=false){
-  if(item.price)return{g:0,s:Math.max(0,Math.floor(((item.price.s||0)+(item.price.g||0)*100)*0.4)),c:Math.max(0,Math.floor((item.price.c||0)*0.4))};
+  if(item.price){const tc=((item.price.g||0)*100+(item.price.s||0))*10+(item.price.c||0);const sc=Math.max(0,Math.floor(tc*0.4));return{g:0,s:Math.floor(sc/10),c:sc%10};}
   if(isEquip){const enh=item.enhance||0;const base=Math.max(1,Math.floor((item.bonus?Object.values(item.bonus).filter(v=>v>0).reduce((a,b)=>a+b,0):5)*0.3));return{g:0,s:base+enh,c:0};}
   return{g:0,s:0,c:5};
 }
@@ -933,7 +933,7 @@ function renderResp(d){
     }
   }
   if(d.nm){const _nm=Array.isArray(d.nm)?d.nm:[d.nm];_nm.forEach(m=>addNewMember(m));}
-  if(d.sp)handleStarPresence(d.sp);
+  if(d.sp){(Array.isArray(d.sp)?d.sp:[d.sp]).forEach(sp=>handleStarPresence(sp));}
   if(d.iv){applyInv(d.iv);}
   // 安全網：偵測敘述中有購買/獲得道具但 iv 未填的情況
   if(!d.iv){
@@ -1054,6 +1054,7 @@ function renderFallback(){renderChoices([{t:'「⋯⋯繼續說。」',h:'等對
 function sendFree(){
   const v=document.getElementById('free-inp').value.trim();
   if(!v)return;
+  if(v.length>500){showToast('輸入過長，請精簡','err');return;}
   document.getElementById('free-inp').value='';
   document.getElementById('free-row').classList.remove('open');
   // ── 密技判斷（全半形都接受）──
@@ -1083,7 +1084,7 @@ function applyGold(d){
   total=Math.max(0,total+delta);
   G.gold.gold=Math.floor(total/1000);
   G.gold.silver=Math.floor((total%1000)/10);
-  G.gold.copper=total%10;
+  G.gold.copper=Math.floor(total)%10;
   updateGold();
   markDirty('inv');
 }
@@ -1483,6 +1484,7 @@ function injuryLevel(id){
 function applyHPChange(changes){
   // changes: [{id, delta, reason}]
   if(!changes||!changes.length) return;
+  let heroDown=false;
   changes.forEach(ch=>{
     const hp=getHP(ch.id);
     const before=hp.cur;
@@ -1495,9 +1497,14 @@ function applyHPChange(changes){
       const sign=diff>0?'+':'';
       appendEntryToDOM({type:'sys',v:`${inj.icon} ${name} HP ${sign}${diff} → ${hp.cur}/${hp.max}【${inj.name}】${ch.reason?'（'+ch.reason+'）':''}`});
     }
+    if(hp.cur===0&&ch.id==='alfar')heroDown=true;
   });
   renderChanged('party');
   saveGame();
+  if(heroDown){
+    appendEntryToDOM({type:'sys',v:'⚠️ 艾爾法倒下了——橘子的星力開始暴走！'});
+    setTimeout(()=>sendChoice('【緊急事件】艾爾法HP歸零，陷入瀕死狀態。請觸發危機劇情：橘子星力暴走或同伴拼死保護，強制進入撤退/被救場景。艾爾法不會死亡但必須脫離戰鬥。'),1200);
+  }
 }
 
 function hpBarHtml(id){
@@ -2418,6 +2425,8 @@ function revealOrangeSecret(targetStage){
   if(secret.relicUpdate&&PRESET_RELICS.orange){
     PRESET_RELICS.orange.status=secret.relicUpdate.status;
     PRESET_RELICS.orange.effect=secret.relicUpdate.effect;
+    if(!G.relics)G.relics={};
+    G.relics['orange']={...PRESET_RELICS.orange,foundDay:G.time?.day||1};
     renderBoth('inv');
   }
   // 系統提示
@@ -3154,7 +3163,8 @@ async function autoCompressHistory(){
   const keepN=10;
   const toCompress=G.history.slice(0,-keepN);
   const toKeep=G.history.slice(-keepN);
-  const compressPrompt=`以下是RPG遊戲的故事歷史記錄，請用200字以內的繁體中文摘要，保留：重要劇情事件、招募的角色、已完成的任務、關鍵情報。\n\n${toCompress.map(m=>m.role+':'+m.content.slice(0,200)).join('\n')}`;
+  const _cp=allParty();const _stateSnap=`[狀態快照]隊伍:${_cp.map(m=>m.name).join(',')};金幣:金${G.gold.gold}銀${G.gold.silver}銅${G.gold.copper};任務:${(G.quests||[]).filter(q=>q.status==='active').map(q=>q.title).join(',')};好感:橘子${getFavor('orange')}`;
+  const compressPrompt=`以下是RPG遊戲的故事歷史記錄，請用200字以內的繁體中文摘要，保留：重要劇情事件、招募的角色、已完成的任務、關鍵情報。\n${_stateSnap}\n\n${toCompress.map(m=>m.role+':'+m.content.slice(0,200)).join('\n')}`;
   let gated=false;
   try{
     await apiGate();gated=true;
@@ -3189,7 +3199,8 @@ async function compressHistory(){
   const toCompress=G.history.slice(0,-keepN);
   const toKeep=G.history.slice(-keepN);
 
-  const compressPrompt=`以下是一段奇幻 RPG 故事的對話記錄。請用繁體中文，以 400 字以內的「故事摘要」形式整理：已發生的重要事件、人物關係、地點、取得的情報與道具、當前局勢。摘要將作為後續故事的背景記憶。\n\n${toCompress.map(m=>`[${m.role}]: ${typeof m.content==='string'?m.content.slice(0,500):''}`).join('\n')}`;
+  const _cp2=allParty();const _stateSnap2=`[狀態快照]隊伍:${_cp2.map(m=>m.name).join(',')};金幣:金${G.gold.gold}銀${G.gold.silver}銅${G.gold.copper};任務:${(G.quests||[]).filter(q=>q.status==='active').map(q=>q.title).join(',')};好感:橘子${getFavor('orange')}`;
+  const compressPrompt=`以下是一段奇幻 RPG 故事的對話記錄。請用繁體中文，以 400 字以內的「故事摘要」形式整理：已發生的重要事件、人物關係、地點、取得的情報與道具、當前局勢。摘要將作為後續故事的背景記憶。\n${_stateSnap2}\n\n${toCompress.map(m=>`[${m.role}]: ${typeof m.content==='string'?m.content.slice(0,500):''}`).join('\n')}`;
 
   let gated=false;
   try{
