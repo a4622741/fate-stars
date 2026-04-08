@@ -115,11 +115,14 @@ function loadGame(){
         const [type,num]=k.split('_');
         const arr=type==='天罡'?TIANGANG:DISHAT;
         const s=arr.find(x=>x.num===parseInt(num));
-        if(s){
-          // 修正舊存檔：若星辰沒有被 AI 正式設定（無 id 且是 contact），重置為 unknown
-          if(v.status==='contact'&&!v.id&&(!v.name||v.name==='?')){v.status='unknown';}
-          s.status=v.status;s.name=v.name;if(v.id)s.id=v.id;if(v.cN)s.cN=v.cN;if(v.hint)s.hint=v.hint;
+        if(!s)return;
+        // 只恢復已招募的（有id）或被AI正式感知的（有id的contact）
+        if(v.status==='recruited'&&v.id){
+          s.status=v.status;s.name=v.name;s.id=v.id;
+        }else if(v.status==='contact'&&v.id){
+          s.status=v.status;s.name=v.name;s.id=v.id;if(v.cN)s.cN=v.cN;if(v.hint)s.hint=v.hint;
         }
+        // 沒有 id 的 contact → 不恢復，保持 unknown（清除舊硬編碼殘留）
       });
     }
     // 換裝置/重新開啟：確保下一次 AI 呼叫回傳 JSON
@@ -1334,10 +1337,12 @@ function renderAll(){
   updateGold();
   updateTimeDisplay();
   updateShopBtn();
-  const vis=G.activeTab||'party';
-  // 全部標髒，但只立即渲染可見分頁；其餘在切換時才渲染
+  // 強制渲染所有面板（確保資料同步）
   markAllDirty();
-  renderBoth(vis);
+  Object.keys(_renderCache).forEach(k=>delete _renderCache[k]);
+  ['party','stars','inv','quest','intel','log','guild','activities','hq'].forEach(tab=>{
+    _dirty[tab]=true;renderBoth(tab);
+  });
   if(G.currentChoices?.length)renderChoices(G.currentChoices,false);
 }
 
