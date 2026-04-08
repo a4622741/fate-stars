@@ -4319,10 +4319,26 @@ async function syncAll(){
   // 按鈕動畫
   const btn=document.querySelector('button[onclick="syncAll()"]');
   if(btn){btn.style.transition='transform .5s';btn.style.transform='rotate(360deg)';setTimeout(()=>{btn.style.transform='';btn.style.transition='';},500);}
-  // 純前端同步，不呼叫AI（避免格式錯誤和浪費token）
+  // 注入校正訊息到 history，讓 AI 下次回應時遵守新規則
+  const inv=getInv();
+  const pd=allParty().map(m=>`${m.name}/${getJob(m.id)||'?'}/HP${getHP(m.id).cur}`).join(',');
+  const correction=`【系統校正】請嚴格遵守以下規則：
+1. 只輸出純JSON。
+2. 遇到新的重要NPC時，若橘子感知到星辰氣息，必須填sp欄位：{"num":N,"type":"天罡或地煞","star":"星名","name":"???","hint":"外貌","cN":"暫稱"}。不填sp=星辰錄不更新。
+3. 與星辰角色同行一段時間後，ch選項必須包含「邀請加入隊伍」的選擇。玩家選擇後用nm欄位觸發入隊。
+4. 每次回應必須有nv（敘述）和dl（對話）。
+5. 當前狀態：隊伍=${pd}；金幣=金${G.gold.gold}銀${G.gold.silver}銅${G.gold.copper}；場景=${G.sceneTitle}/${G.sceneLoc}
+請以JSON格式繼續當前場景。`;
+  // 移除舊的校正（如果有的話）
+  G.history=G.history.filter(m=>!(m.role==='user'&&m.content.includes('【系統校正】')));
+  G.history.push({role:'user',content:correction});
+  G.history.push({role:'assistant',content:`{"st":"${G.sceneTitle||'繼續'}","sl":"${G.sceneLoc||'📍 未知'}","nv":[],"dl":[],"sm":null,"gd":{"g":0,"s":0,"c":0},"ch":[],"nm":null,"cb":null,"iv":null,"sp":null,"shop":null,"fa":null,"hp":null,"qt":null,"tm":null,"rp":null,"info":null,"relic":null,"clue":null,"or":null,"job":null,"gu":null}`});
+  saveGame();
   if(G.currentChoices?.length)renderChoices(G.currentChoices,false);
   else renderFallback();
-  showToast('✦ 全部同步完成','ok');
+  showToast('✦ 同步完成，AI已校正','ok');
+  appendEntryToDOM({type:'sys',v:'✦ AI 規則已校正。下次選擇時生效。'});
+  scrollD();
 }
 window.addEventListener('resize',applyResp);
 
