@@ -4373,13 +4373,26 @@ function integrityCheck(){
       }
     }
   });
+  // 6. 掃描最近敘述中出現的角色名，檢查是否有「同行但未入隊」的情況
+  const recentText=G.history.slice(-20).map(m=>m.content||'').join(' ');
+  const partyNames=allParty().map(m=>m.name);
+  // 掃描 extraParty 和已知 contact 星辰
+  [...TIANGANG,...DISHAT].filter(s=>s.status==='contact'&&s.name&&s.name!=='?').forEach(s=>{
+    if(!partyNames.includes(s.name)&&recentText.includes(s.name)){
+      fixes.push(`⚠ 星辰「${s.name}」（${s.type}第${s.num}星）在劇情中出現但未加入隊伍。下次選擇時可嘗試邀請。`);
+    }
+  });
+
   if(fixes.length){
     markDirty('stars','party','intel');
     renderBoth('stars');renderBoth('party');
     saveGame();
-    fixes.forEach(f=>appendEntryToDOM({type:'sys',v:`⚙ 自動修正：${f}`}));
+    fixes.forEach(f=>appendEntryToDOM({type:'sys',v:`⚙ ${f}`}));
     scrollD();
-    showToast(`⚙ 修正了 ${fixes.length} 項不同步`,'ok');
+    showToast(`⚙ 檢查完成，${fixes.length} 項`,'ok');
+  }else{
+    appendEntryToDOM({type:'sys',v:'⚙ 完整性檢查：所有資料同步正常。'});
+    scrollD();
   }
   return fixes.length;
 }
