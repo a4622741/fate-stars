@@ -1386,15 +1386,27 @@ function openEditAction(actionEl,originalTxt){
     sendBtn.style.cssText='padding:.25rem .5rem;background:rgba(201,168,76,.15);border:1px solid var(--goldd);border-radius:2px;color:var(--gold);font-size:.6rem;cursor:pointer;font-family:"Noto Serif TC",serif;';
     sendBtn.onclick=()=>{
       const newTxt=inp.value.trim();
-      if(!newTxt)return;
+      if(!newTxt||G.thinking)return;
       box.remove();
-      // 更新顯示
-      const el=actionEl.querySelector('.s-action');
-      if(el)el.textContent='▶ '+newTxt;
-      // 更新storyData
-      const idx=G.storyData.findIndex(e=>e.type==='action'&&e.v===originalTxt);
-      if(idx>-1)G.storyData[idx].v=newTxt;
-      // 重送給AI
+      // 1. 找到這個 action 在 storyData 裡的位置，刪掉它之後的所有內容
+      const sdIdx=G.storyData.findIndex(e=>e.type==='action'&&e.v===originalTxt);
+      if(sdIdx>-1)G.storyData.splice(sdIdx); // 刪掉 action 和之後的回覆
+      // 2. 刪掉 DOM 中 action 元素之後的所有故事內容
+      const container=document.getElementById('story-content');
+      let removing=false;
+      [...container.children].forEach(child=>{
+        if(child===actionEl){removing=true;child.remove();return;}
+        if(removing)child.remove();
+      });
+      // 3. 回滾 history：移除最後一對 user+assistant（舊的送出和回覆）
+      if(G.history.length>=2){
+        const last=G.history[G.history.length-1];
+        const prev=G.history[G.history.length-2];
+        if(prev.role==='user'&&last.role==='assistant')G.history.splice(-2);
+        else if(last.role==='user')G.history.pop();
+      }
+      saveGame();
+      // 4. 用新文字重送
       sendChoice(newTxt);
     };
     const cancelBtn=document.createElement('button');
