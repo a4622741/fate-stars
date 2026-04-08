@@ -792,6 +792,7 @@ async function sendChoice(txt){
   G.thinking=true;setDis(true);
   const prevChoices=G.currentChoices?.slice()||[];
   const actionEl=addAction(txt);
+  makeActionEditable(actionEl,txt);
   const th=addThink();
   try{
     const d=await callAPI(txt);
@@ -1358,6 +1359,53 @@ function renderChanged(...tabs){
   });
 }
 function addAction(txt){const e={type:'action',v:txt};appendEntryToDOM(e);scrollD();const entries=document.getElementById('story-content').children;return entries[entries.length-1];}
+// 長按已送出的行動文字 → 編輯並重送
+function makeActionEditable(actionEl,originalTxt){
+  if(!actionEl)return;
+  let pressTimer=null;
+  const startPress=()=>{pressTimer=setTimeout(()=>{openEditAction(actionEl,originalTxt);},500);};
+  const cancelPress=()=>{clearTimeout(pressTimer);};
+  actionEl.addEventListener('touchstart',startPress,{passive:true});
+  actionEl.addEventListener('touchend',cancelPress);
+  actionEl.addEventListener('touchcancel',cancelPress);
+  actionEl.addEventListener('contextmenu',(ev)=>{ev.preventDefault();openEditAction(actionEl,originalTxt);});
+}
+function openEditAction(actionEl,originalTxt){
+  // 若AI已回應完，不能重送（history已推進）
+  if(!G.thinking){
+    // 建立編輯UI在行動文字下方
+    if(actionEl.querySelector('.edit-action-box'))return;
+    const box=document.createElement('div');
+    box.className='edit-action-box';
+    box.style.cssText='display:flex;gap:.3rem;padding:.3rem;background:var(--bg2);border:1px solid var(--goldd);border-radius:3px;margin-top:.25rem;';
+    const inp=document.createElement('input');
+    inp.type='text';inp.value=originalTxt;
+    inp.style.cssText='flex:1;background:var(--bg3);border:1px solid var(--brd);border-radius:2px;color:var(--sil);padding:.25rem .4rem;font-size:.65rem;font-family:"Noto Serif TC",serif;';
+    const sendBtn=document.createElement('button');
+    sendBtn.textContent='重送';
+    sendBtn.style.cssText='padding:.25rem .5rem;background:rgba(201,168,76,.15);border:1px solid var(--goldd);border-radius:2px;color:var(--gold);font-size:.6rem;cursor:pointer;font-family:"Noto Serif TC",serif;';
+    sendBtn.onclick=()=>{
+      const newTxt=inp.value.trim();
+      if(!newTxt)return;
+      box.remove();
+      // 更新顯示
+      const el=actionEl.querySelector('.s-action');
+      if(el)el.textContent='▶ '+newTxt;
+      // 更新storyData
+      const idx=G.storyData.findIndex(e=>e.type==='action'&&e.v===originalTxt);
+      if(idx>-1)G.storyData[idx].v=newTxt;
+      // 重送給AI
+      sendChoice(newTxt);
+    };
+    const cancelBtn=document.createElement('button');
+    cancelBtn.textContent='取消';
+    cancelBtn.style.cssText='padding:.25rem .4rem;background:transparent;border:1px solid var(--brd);border-radius:2px;color:var(--sild);font-size:.6rem;cursor:pointer;font-family:"Noto Serif TC",serif;';
+    cancelBtn.onclick=()=>box.remove();
+    box.appendChild(inp);box.appendChild(sendBtn);box.appendChild(cancelBtn);
+    actionEl.appendChild(box);
+    inp.focus();inp.select();
+  }
+}
 function addThink(){const w=mk('div','sentry');w.innerHTML='<div style="font-size:.62rem;color:var(--goldd);text-align:center;letter-spacing:.08em;margin-bottom:.3rem;">✦ AI 思考中…</div><div class="think-row"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>';document.getElementById('story-content').appendChild(w);scrollD();return w;}
 function addErr(msg,isCors){
   const w=mk('div','sentry'),e=mk('div','s-err');
