@@ -4262,11 +4262,8 @@ function resetGame(){
     G.log=initLog();
 
     // 3. 重設星辰
-    TIANGANG.slice(1).forEach(s=>{s.status='unknown';s.name='?';delete s.id;});
-    DISHAT.slice(1).forEach((s,i)=>{
-      if(i===0){s.status='contact';s.name='?';delete s.id;}
-      else{s.status='unknown';s.name='?';delete s.id;}
-    });
+    TIANGANG.slice(1).forEach(s=>{s.status='unknown';s.name='?';delete s.id;delete s.cN;delete s.hint;});
+    DISHAT.slice(1).forEach(s=>{s.status='unknown';s.name='?';delete s.id;delete s.cN;delete s.hint;});
 
     // 4. 強制清除 DOM（逐子移除，比 innerHTML='' 更可靠）
     clearEl('story-content');
