@@ -1347,11 +1347,15 @@ function renderAll(){
 }
 
 function renderChanged(...tabs){
-  updateGold();updateShopBtn();
-  const vis=G.activeTab||'party';
-  tabs.forEach(t=>markDirty(t));
-  // 只立即渲染可見分頁，其餘延遲到切換時
-  if(tabs.includes(vis))renderBoth(vis);
+  // 任何狀態變動 → 全面更新 UI
+  updateGold();updateTimeDisplay();updateShopBtn();
+  document.getElementById('scene-title').textContent=G.sceneTitle||'';
+  document.getElementById('scene-loc').textContent=G.sceneLoc||'';
+  if(tabs.length){tabs.forEach(t=>markDirty(t));}else{markAllDirty();}
+  // 渲染所有被標髒的面板
+  ['party','stars','inv','quest','intel','guild','activities','hq'].forEach(t=>{
+    if(_dirty[t])renderBoth(t);
+  });
 }
 function addAction(txt){const e={type:'action',v:txt};appendEntryToDOM(e);scrollD();const entries=document.getElementById('story-content').children;return entries[entries.length-1];}
 function addThink(){const w=mk('div','sentry');w.innerHTML='<div style="font-size:.62rem;color:var(--goldd);text-align:center;letter-spacing:.08em;margin-bottom:.3rem;">✦ AI 思考中…</div><div class="think-row"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>';document.getElementById('story-content').appendChild(w);scrollD();return w;}
