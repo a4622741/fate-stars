@@ -4306,6 +4306,84 @@ function toggleDrawer(){G.drawerOpen=!G.drawerOpen;document.getElementById('draw
 function closeDrawer(){G.drawerOpen=false;document.getElementById('drawer').classList.remove('open');document.getElementById('drawer-ov').classList.remove('open');}
 function applyResp(){const m=window.innerWidth<768;document.getElementById('drawer-btn').style.display=m?'':'none';document.getElementById('panel-btn').style.display=m?'none':'';}
 
+// ═══ 完整性檢查：掃描 history 與遊戲狀態的不同步 ═══
+function integrityCheck(){
+  const fixes=[];
+  // 從最近 history 提取 AI 回應中的 JSON
+  const recentAssist=G.history.filter(m=>m.role==='assistant').slice(-10);
+  recentAssist.forEach(m=>{
+    let d;try{d=JSON.parse(m.content);}catch(_){try{const mm=m.content.match(/\{[\s\S]*\}/);if(mm)d=JSON.parse(mm[0]);}catch(_){}}
+    if(!d)return;
+    // 1. 檢查 sp 欄位：AI 回了 sp 但 handleStarPresence 可能沒跑到
+    if(d.sp){
+      const sps=Array.isArray(d.sp)?d.sp:[d.sp];
+      sps.forEach(sp=>{
+        if(!sp||sp.special||!sp.num||!sp.type)return;
+        const arr=sp.type==='天罡'?TIANGANG:DISHAT;
+        const star=arr.find(s=>s.num===sp.num);
+        if(star&&star.status==='unknown'){
+          star.status='contact';
+          if(sp.name&&!/^[?？]+$/.test(sp.name))star.name=sp.name;
+          if(sp.hint)star.hint=sp.hint;
+          if(sp.cN)star.cN=sp.cN;
+          if(sp.star)star.star=sp.star;
+          fixes.push(`星辰錄補登：${sp.type}第${sp.num}星 ${sp.cN||sp.name||'???'}`);
+        }else if(star&&star.status==='contact'&&sp.name&&!/^[?？]+$/.test(sp.name)&&star.name!==sp.name){
+          star.name=sp.name;
+          fixes.push(`星辰錄更名：第${sp.num}星→${sp.name}`);
+        }
+      });
+    }
+    // 2. 檢查 nm 欄位：AI 回了 nm 但 addNewMember 可能沒跑到
+    if(d.nm){
+      const nms=Array.isArray(d.nm)?d.nm:[d.nm];
+      nms.forEach(nm=>{
+        if(!nm||!nm.id||!nm.name)return;
+        if(!getCharData(nm.id)){
+          addNewMember(nm);
+          fixes.push(`角色補登：${nm.name} 加入隊伍`);
+        }else if(!isInParty(nm.id)){
+          joinParty(nm.id);
+          fixes.push(`角色補入隊：${nm.name}`);
+        }
+      });
+    }
+    // 3. 檢查 fa/gd/hp 等是否被漏掉（只補 fa，金幣和HP太敏感不自動補）
+    if(d.fa){
+      const fas=Array.isArray(d.fa)?d.fa:[d.fa];
+      fas.forEach(f=>{if(f&&f.id&&f.delta&&getFavor(f.id)!==null)setFavor(f.id,f.delta);});
+    }
+    // 4. 檢查 info
+    if(d.info){
+      const infos=Array.isArray(d.info)?d.info:[d.info];
+      infos.forEach(inf=>{
+        if(inf&&inf.id&&!(G.intel||[]).find(x=>x.id===inf.id))addIntel(inf);
+      });
+    }
+  });
+  // 5. 檢查 extraParty 裡有角色但不在 partyIds 裡（且隊伍未滿）
+  (G.extraParty||[]).forEach(c=>{
+    if(c.id&&!isInParty(c.id)&&(G.partyIds||[]).length<MAX_PARTY){
+      // 只補最近加入的（避免把所有離隊的都加回來）
+      // 檢查 history 裡是否提到這個角色
+      const mentioned=G.history.slice(-20).some(m=>m.content&&m.content.includes(c.name));
+      if(mentioned){
+        joinParty(c.id);
+        fixes.push(`角色補入隊：${c.name}（劇情中提及但未在隊伍）`);
+      }
+    }
+  });
+  if(fixes.length){
+    markDirty('stars','party','intel');
+    renderBoth('stars');renderBoth('party');
+    saveGame();
+    fixes.forEach(f=>appendEntryToDOM({type:'sys',v:`⚙ 自動修正：${f}`}));
+    scrollD();
+    showToast(`⚙ 修正了 ${fixes.length} 項不同步`,'ok');
+  }
+  return fixes.length;
+}
+
 async function syncAll(){
   if(G.thinking){showToast('AI 回應中，請稍候','inf');return;}
   markAllDirty();
@@ -4319,6 +4397,8 @@ async function syncAll(){
   // 按鈕動畫
   const btn=document.querySelector('button[onclick="syncAll()"]');
   if(btn){btn.style.transition='transform .5s';btn.style.transform='rotate(360deg)';setTimeout(()=>{btn.style.transform='';btn.style.transition='';},500);}
+  // 完整性檢查：修正不同步的資料
+  integrityCheck();
   // 注入校正訊息到 history，讓 AI 下次回應時遵守新規則
   const inv=getInv();
   const pd=allParty().map(m=>`${m.name}/${getJob(m.id)||'?'}/HP${getHP(m.id).cur}`).join(',');
@@ -5121,7 +5201,9 @@ if(hasSave){
   updateGold();
   renderStoryFromData();
   markDirty('log');
-  showToast('✦ 讀取存檔成功','ok');
+  // 開機完整性檢查
+  const fixed=integrityCheck();
+  showToast(fixed?`✦ 讀取存檔・修正${fixed}項`:'✦ 讀取存檔成功','ok');
 }else{
   G.log=initLog();
   markDirty('log');
