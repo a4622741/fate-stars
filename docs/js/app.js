@@ -183,11 +183,32 @@ function appendEntryToDOM(e,save=true){
     el.innerHTML=`<div style="display:flex;align-items:flex-start;gap:.3rem;">${avatarHtml}<div><span class="sp">${escHtml(e.sp)}：</span><span class="wd">「${escHtml(e.ln)}」</span></div></div>`;
     w.appendChild(el);
   }
-  else if(e.type==='sys'){const el=mk('div','s-sys');el.textContent=e.v;w.appendChild(el);}
+  else if(e.type==='sys'){
+    const v=String(e.v||'');
+    const isMeta=/^[⚙✦◈🏪📍⚜️💰🪙❤️⏰🔮]|系統自動同步|獲得：|失去：|金幣|HP|好感|強化|時間推進|紋章/.test(v);
+    if(isMeta){
+      appendSysLog(v);
+      if(save)G.storyData.push(e);
+      return;
+    }
+    const el=mk('div','s-sys');el.textContent=v;w.appendChild(el);
+  }
   else if(e.type==='action'){const el=mk('div','s-action');el.textContent='▶ '+e.v;w.appendChild(el);}
   else if(e.type==='err'){const el=mk('div','s-err');el.textContent='⚠ '+e.v;w.appendChild(el);}
   document.getElementById('story-content').appendChild(w);
   if(save){G.storyData.push(e);}
+}
+function appendSysLog(text){
+  const log=document.getElementById('sys-log');if(!log)return;
+  const cls=(/金幣|金$|銀$|銅$|所持金/.test(text))?'gold':(/獲得|道具|紋章/.test(text))?'item':(/⚠|失去|扣除/.test(text))?'warn':'';
+  const el=document.createElement('div');
+  el.className='sys-log-entry'+(cls?' '+cls:'');
+  el.textContent=text;
+  log.appendChild(el);
+  log.style.display='block';
+  log.scrollTop=log.scrollHeight;
+  // Keep max 30 entries
+  while(log.children.length>30)log.removeChild(log.firstChild);
 }
 let saveTimer;
 function showSaveIndicator(){
@@ -969,43 +990,161 @@ function applyInv(iv){
 let _currentShop=null;
 
 // ═══ SHOP CATALOG SYSTEM ═══
-const BASE_SHOPS={
-  general:{name:'雜貨鋪',items:[
+const SHOP_TEMPLATES={
+  // ── 雜貨 ──
+  general:[
     {n:'乾糧',t:'回復道具',price:{g:0,s:0,c:20}},
     {n:'魚乾',t:'橘子最愛・好感+8',price:{g:0,s:0,c:30}},
     {n:'繃帶',t:'緊急止血・HP+5',price:{g:0,s:0,c:25}},
     {n:'火種',t:'生火用具',price:{g:0,s:0,c:10}},
-    {n:'破舊地圖',t:'區域地圖・殘缺',price:{g:0,s:1,c:0}},
-  ]},
-  blacksmith:{name:'鐵匠舖',items:[
-    {n:'短刀',t:'輕量利刃',slot:'武器',price:{g:0,s:15,c:0},bonus:{武力:8}},
-    {n:'皮甲',t:'基礎防護',slot:'防具',price:{g:0,s:20,c:0},bonus:{統率:6,幸運:2}},
-    {n:'鐵盾',t:'格擋專用',slot:'防具',price:{g:0,s:18,c:0},bonus:{統率:10}},
+    {n:'麻繩',t:'攀爬・綑綁用',price:{g:0,s:0,c:15}},
+  ],
+  // ── 武器 ──
+  weapon:[
+    {n:'短劍',t:'標準輕兵器',slot:'武器',price:{g:0,s:12,c:0},bonus:{武力:10}},
+    {n:'長劍',t:'平衡型武器',slot:'武器',price:{g:0,s:25,c:0},bonus:{武力:16}},
+    {n:'戰斧',t:'重型武器',slot:'武器',price:{g:0,s:30,c:0},bonus:{武力:20,統率:-3}},
+    {n:'弓',t:'遠程武器',slot:'武器',price:{g:0,s:18,c:0},bonus:{武力:12,幸運:3}},
+    {n:'法杖',t:'魔法武器',slot:'武器',price:{g:0,s:22,c:0},bonus:{知力:15}},
+  ],
+  // ── 防具 ──
+  armor:[
+    {n:'皮甲',t:'輕型防護',slot:'防具',price:{g:0,s:15,c:0},bonus:{統率:6,幸運:2}},
+    {n:'鎖子甲',t:'中型防護',slot:'防具',price:{g:0,s:35,c:0},bonus:{統率:12}},
+    {n:'旅人斗篷',t:'基礎防護+隱匿',slot:'防具',price:{g:0,s:10,c:0},bonus:{統率:3,幸運:5}},
+    {n:'鐵盾',t:'格擋專用',slot:'飾品',price:{g:0,s:18,c:0},bonus:{統率:10}},
+  ],
+  // ── 飾品 ──
+  accessory:[
     {n:'銅指環',t:'略有加持',slot:'飾品',price:{g:0,s:8,c:0},bonus:{幸運:4}},
-  ]},
-  inn:{name:'旅店',items:[
+    {n:'護身符',t:'祈禱之物',slot:'飾品',price:{g:0,s:12,c:0},bonus:{幸運:6,知力:2}},
+  ],
+  // ── 旅店 ──
+  inn:[
     {n:'客房一晚',t:'全員HP回復・推進8小時',price:{g:0,s:3,c:0},action:'rest'},
     {n:'熱食套餐',t:'HP+15・推進1小時',price:{g:0,s:1,c:50},action:'meal'},
     {n:'消息打探',t:'獲得一條當地情報',price:{g:0,s:2,c:0},action:'intel'},
-  ]},
-  apothecary:{name:'藥鋪',items:[
+  ],
+  // ── 藥鋪 ──
+  apothecary:[
     {n:'草藥包',t:'HP+20',price:{g:0,s:2,c:0}},
     {n:'解毒劑',t:'解除中毒',price:{g:0,s:3,c:0}},
-    {n:'魚肉乾',t:'橘子最愛・好感+8',price:{g:0,s:0,c:40}},
     {n:'提神藥',t:'疲勞恢復',price:{g:0,s:1,c:50}},
-  ]},
+    {n:'恢復藥劑',t:'HP+40',price:{g:0,s:5,c:0}},
+  ],
 };
 
-function mergeShop(shopId,baseKey,newItems,shopName){
+// 各城市特色商品（追加在基礎模板之上）
+const CITY_EXTRAS={
+  iron_fog:{
+    weapon:[
+      {n:'鐵霧重錘',t:'礦工改造・鐵霧城特產',slot:'武器',price:{g:0,s:35,c:0},bonus:{武力:22,統率:-5}},
+      {n:'城衛制式劍',t:'鐵霧城衛標配',slot:'武器',price:{g:0,s:28,c:0},bonus:{武力:15,統率:3}},
+    ],
+    general:[
+      {n:'防霧面罩',t:'減輕鐵鏽霧害',price:{g:0,s:1,c:50}},
+      {n:'礦工燈',t:'霧中照明',price:{g:0,s:2,c:0}},
+    ],
+  },
+  iron_crown:{
+    weapon:[{n:'精鋼礦錘',t:'鐵冠城鍛造',slot:'武器',price:{g:0,s:40,c:0},bonus:{武力:25}}],
+    general:[{n:'礦石樣本',t:'可交易的鐵礦石',price:{g:0,s:3,c:0}}],
+  },
+  grey_haven:{
+    general:[
+      {n:'燻魚',t:'灰港名產・HP+10',price:{g:0,s:0,c:35}},
+      {n:'海鹽',t:'保鮮調味',price:{g:0,s:0,c:15}},
+      {n:'走私品地圖',t:'可疑的標記',price:{g:0,s:8,c:0}},
+    ],
+    weapon:[{n:'魚叉',t:'漁夫改造武器',slot:'武器',price:{g:0,s:15,c:0},bonus:{武力:12,幸運:2}}],
+  },
+  silver_moon:{
+    weapon:[
+      {n:'銀月細劍',t:'銀月城名匠打造',slot:'武器',price:{g:1,s:0,c:0},bonus:{武力:20,魅力:5}},
+      {n:'符文短杖',t:'附魔法杖',slot:'武器',price:{g:0,s:80,c:0},bonus:{知力:22,幸運:3}},
+    ],
+    armor:[{n:'銀月護甲',t:'輕便華麗',slot:'防具',price:{g:1,s:20,c:0},bonus:{統率:15,魅力:5}}],
+    general:[
+      {n:'星象圖',t:'銀月城特產・裝飾用',price:{g:0,s:5,c:0}},
+      {n:'情報書信',t:'各地傳聞彙整',price:{g:0,s:3,c:0}},
+    ],
+    apothecary:[{n:'月光精華',t:'HP+60・稀有',price:{g:0,s:15,c:0}}],
+  },
+  rust_city:{
+    weapon:[{n:'帝國遺劍',t:'鏽蝕但仍鋒利',slot:'武器',price:{g:0,s:20,c:0},bonus:{武力:18,幸運:-2}}],
+    general:[{n:'帝國徽記碎片',t:'收藏品或線索',price:{g:0,s:5,c:0}}],
+  },
+  golden_bridge:{
+    general:[
+      {n:'東方香料',t:'料理用・來自東海',price:{g:0,s:2,c:0}},
+      {n:'內陸皮革',t:'來自霧山',price:{g:0,s:3,c:0}},
+    ],
+    accessory:[{n:'商旅護符',t:'金橋城名物',slot:'飾品',price:{g:0,s:15,c:0},bonus:{魅力:8,幸運:3}}],
+  },
+  east_port:{
+    weapon:[
+      {n:'海軍彎刀',t:'海軍規格・適合船戰',slot:'武器',price:{g:0,s:35,c:0},bonus:{武力:18,幸運:5}},
+      {n:'珊瑚弓',t:'東海特產',slot:'武器',price:{g:0,s:45,c:0},bonus:{武力:16,魅力:8}},
+    ],
+    general:[
+      {n:'船票（短程）',t:'碼頭間移動',price:{g:0,s:5,c:0}},
+      {n:'海圖',t:'東海航路圖',price:{g:0,s:8,c:0}},
+    ],
+    apothecary:[{n:'東海珍珠粉',t:'HP+50',price:{g:0,s:12,c:0}}],
+  },
+  jade_forest:{
+    apothecary:[
+      {n:'精靈藥草',t:'HP+80・翠林特產',price:{g:0,s:25,c:0}},
+      {n:'世界樹樹液',t:'解除所有異常',price:{g:0,s:40,c:0}},
+    ],
+    weapon:[{n:'精靈短弓',t:'翠林城工藝',slot:'武器',price:{g:1,s:0,c:0},bonus:{武力:15,知力:10,幸運:5}}],
+    general:[{n:'翠林通行證',t:'精靈域通行必需',price:{g:0,s:20,c:0}}],
+  },
+  dragon_valley:{
+    weapon:[{n:'龍骨匕首',t:'龍牙砦限定',slot:'武器',price:{g:0,s:50,c:0},bonus:{武力:28,幸運:-5}}],
+    general:[{n:'防熱藥',t:'抵禦地熱',price:{g:0,s:5,c:0}}],
+  },
+  sand_gate:{
+    general:[
+      {n:'防沙頭巾',t:'南荒必備',price:{g:0,s:2,c:0}},
+      {n:'大容量水壺',t:'荒野求生用',price:{g:0,s:3,c:0}},
+      {n:'照明彈',t:'荒野求救信號',price:{g:0,s:4,c:0}},
+    ],
+  },
+  frost_keep:{
+    general:[
+      {n:'防寒皮衣',t:'霜嶺必需品',price:{g:0,s:8,c:0}},
+      {n:'暖爐石',t:'攜帶式保暖',price:{g:0,s:3,c:0}},
+    ],
+    weapon:[{n:'騎士團長劍',t:'霜守堡騎士團鍛造',slot:'武器',price:{g:1,s:20,c:0},bonus:{武力:22,統率:8}}],
+  },
+  shadow_marsh:{
+    apothecary:[
+      {n:'沼澤解毒劑',t:'對瘴氣特效',price:{g:0,s:6,c:0}},
+      {n:'劇毒萃取',t:'武器塗毒用',price:{g:0,s:10,c:0}},
+      {n:'迷幻菇',t:'用途不明・慎用',price:{g:0,s:4,c:0}},
+    ],
+    general:[{n:'防瘴面具',t:'影沼地必備',price:{g:0,s:5,c:0}}],
+  },
+};
+
+// 根據城市和商店類型取得商品列表
+function getCityShopItems(cityId,shopType){
+  const base=[...(SHOP_TEMPLATES[shopType]||SHOP_TEMPLATES.general)];
+  const extras=CITY_EXTRAS[cityId]?.[shopType]||[];
+  return [...base,...extras];
+}
+
+function mergeShop(shopId,baseKey,newItems,shopName,cityId){
   if(!G.shopCatalogs)G.shopCatalogs={};
-  const base=BASE_SHOPS[baseKey]||{name:shopName||'商店',items:[]};
-  const existing=G.shopCatalogs[shopId]||{items:[...base.items],newItems:[]};
+  const baseItems=cityId?getCityShopItems(cityId,baseKey):(SHOP_TEMPLATES[baseKey]||SHOP_TEMPLATES.general);
+  const existing=G.shopCatalogs[shopId]||{items:[...baseItems],newItems:[]};
   const addedNew=[];
   (newItems||[]).forEach(ni=>{
     if(!existing.items.find(i=>i.n===ni.n)){existing.items.push(ni);addedNew.push(ni.n);}
   });
   existing.newItems=[...new Set([...(existing.newItems||[]),...addedNew])];
-  existing.name=shopName||base.name;
+  existing.name=shopName||'商店';
   existing.lastVisit=G.time?.day||1;
   G.shopCatalogs[shopId]=existing;
   return existing;
@@ -1015,7 +1154,7 @@ function handleShop(shop){
   if(!shop)return;
   let finalShop;
   if(shop.id){
-    finalShop=mergeShop(shop.id,shop.baseKey||'general',shop.newItems||[],shop.name);
+    finalShop=mergeShop(shop.id,shop.baseKey||'general',shop.newItems||[],shop.name,shop.cityId||detectCity());
   }else if(shop.items?.length){
     finalShop=mergeShop('shop_'+(shop.name||'').replace(/\s/g,'_'),'general',shop.items,shop.name);
   }else return;
@@ -1336,7 +1475,7 @@ function renderResp(d){
   // 安全網：偵測敘述中有購買/獲得道具但 iv 未填的情況
   if(!d.iv){
     const allText2=[...(Array.isArray(d.nv)?d.nv:d.nv?[d.nv]:[]),(d.sm||''),...(Array.isArray(d.dl)?d.dl:d.dl?[d.dl]:[]).map(x=>x.ln||'')].join('');
-    const itemPatterns=allText2.matchAll(/(?:買了|購得|獲得|撿到|收下|取得|入手)[「『]?([^「『」』，。、\s]{1,8})[」』]?/g);
+    const itemPatterns=allText2.matchAll(/(?:買了|購得|獲得|撿到|收下|取得|入手|給了你|遞給|塞給|交給|送給|掏出|發現了|拾起)[「『「]?([^「『」』」，。、\s]{1,12})[」』」]?/g);
     const autoItems=[];
     for(const m of itemPatterns){
       const name=m[1].replace(/[×x]\d+$/,'').trim();
@@ -5168,6 +5307,7 @@ function initLog(){
 function initStory(){
   const c=document.getElementById('story-content');
   c.innerHTML='';
+  const sysLog=document.getElementById('sys-log');if(sysLog)sysLog.innerHTML='';
   document.getElementById('story-scroll').scrollTop=0;
   G.storyData=[];
 
@@ -5472,43 +5612,43 @@ const KINGDOMS=[
 const MAP_CITIES={
   // ═══ 霧山聯邦 ═══
   iron_fog:{name:'鐵霧城',cx:175,cy:215,size:7,kingdom:'fog_mt',desc:'霧山聯邦工業重城，終年霧不散。代理城主：恩佐·卡羅。',keywords:['鐵霧城'],
-    pois:[{name:'港口區・倉庫',icon:'⚓',type:'port',x:110,y:265,desc:'葛林的倉庫，可接搬運工作。'},{name:'中央廣場',icon:'📋',type:'plaza',x:200,y:178,desc:'公告欄，懸賞令張貼處。'},{name:'城衛隊本部',icon:'🛡️',type:'guard',x:295,y:148,desc:'代理城主恩佐駐守。'},{name:'鐵鎚旅館',icon:'🍺',type:'inn',x:158,y:150,desc:'休息・打聽情報・補給。'},{name:'武器修繕鋪',icon:'⚒️',type:'shop',x:255,y:245,desc:'裝備維修・輕型武器。'},{name:'雜貨商行',icon:'🎒',type:'shop',x:328,y:218,desc:'乾糧・繃帶・基本補給。'},{name:'霧山驛站',icon:'🐎',type:'waystation',x:225,y:310,desc:'可購買驛馬前往其他城市。',waystation:true},{name:'霧刃幫據點',icon:'⚠️',type:'danger',x:385,y:290,desc:'山口附近活動，位置不確定。'}]},
+    pois:[{name:'港口區・倉庫',icon:'⚓',type:'port',x:110,y:265,desc:'葛林的倉庫，可接搬運工作。'},{name:'中央廣場',icon:'📋',type:'plaza',x:200,y:178,desc:'公告欄，懸賞令張貼處。'},{name:'城衛隊本部',icon:'🛡️',type:'guard',x:295,y:148,desc:'代理城主恩佐駐守。'},{name:'鐵鎚旅館',icon:'🍺',type:'inn',x:158,y:150,desc:'休息・打聽情報・補給。'},{name:'武器修繕鋪',icon:'⚒️',type:'shop',x:255,y:245,desc:'裝備維修・輕型武器。'},{name:'雜貨商行',icon:'🎒',type:'shop',x:328,y:218,desc:'乾糧・繃帶・基本補給。'},{name:'霧山驛站',icon:'🐎',type:'waystation',x:225,y:310,desc:'可購買驛馬前往其他城市。',waystation:true},{name:'霧刃幫據點',icon:'⚠️',type:'danger',x:385,y:290,desc:'山口附近活動，位置不確定。'},{name:'鐵霧傭兵公會',icon:'⚔️',type:'guild',x:230,y:180,desc:'懸賞任務・傭兵招募。'}]},
   iron_crown:{name:'鐵冠城',cx:120,cy:120,size:5,kingdom:'fog_mt',desc:'霧山聯邦北方要塞，守備嚴密，礦脈豐富。',keywords:['鐵冠城'],
-    pois:[{name:'要塞城門',icon:'🏰',type:'guard',x:200,y:160,desc:'戒備森嚴，需通關令。'},{name:'礦工聚落',icon:'⛏️',type:'district',x:300,y:240,desc:'採礦工人居住區。'},{name:'北驛',icon:'🐎',type:'waystation',x:370,y:170,desc:'前往鐵霧城或銀月城。',waystation:true}]},
+    pois:[{name:'要塞城門',icon:'🏰',type:'guard',x:200,y:160,desc:'戒備森嚴，需通關令。'},{name:'礦工聚落',icon:'⛏️',type:'district',x:300,y:240,desc:'採礦工人居住區。'},{name:'北驛',icon:'🐎',type:'waystation',x:370,y:170,desc:'前往鐵霧城或銀月城。',waystation:true},{name:'鐵冠武器鋪',icon:'⚔️',type:'shop',x:150,y:200,desc:'精鋼武器・礦區特供。'},{name:'礦區雜貨',icon:'🎒',type:'shop',x:250,y:280,desc:'礦工補給品。'},{name:'鐵冠旅館',icon:'🍺',type:'inn',x:350,y:200,desc:'礦工與行商休息處。'}]},
   grey_haven:{name:'灰港鎮',cx:90,cy:185,size:4,kingdom:'fog_mt',desc:'霧山聯邦西端漁港，海霧終年不散，走私猖獗。',keywords:['灰港'],
-    pois:[{name:'漁市場',icon:'🐟',type:'shop',x:180,y:180,desc:'鮮魚・海產・漁民消息。'},{name:'走私碼頭',icon:'🤫',type:'danger',x:320,y:260,desc:'夜間才開放，危險但有奇貨。'},{name:'灰港客棧',icon:'🍺',type:'inn',x:250,y:200,desc:'漁民與水手聚集。'}]},
+    pois:[{name:'漁市場',icon:'🐟',type:'shop',x:180,y:180,desc:'鮮魚・海產・漁民消息。'},{name:'走私碼頭',icon:'🤫',type:'danger',x:320,y:260,desc:'夜間才開放，危險但有奇貨。'},{name:'灰港客棧',icon:'🍺',type:'inn',x:250,y:200,desc:'漁民與水手聚集。'},{name:'灰港雜貨',icon:'🎒',type:'shop',x:140,y:230,desc:'漁村基本補給。'},{name:'灰港渡口',icon:'🐎',type:'waystation',x:280,y:150,desc:'船運往鐵霧城或影沼鎮。',waystation:true}]},
   // ═══ 中央王國 ═══
   silver_moon:{name:'銀月城',cx:340,cy:148,size:8,kingdom:'central',desc:'中央王國最大商業都市，各路英雄匯聚，情報市場繁盛。',keywords:['銀月城'],
     pois:[{name:'月橋商街',icon:'🏪',type:'shop',x:160,y:170,desc:'各類商品・稀有道具。'},{name:'英雄公會',icon:'⚔️',type:'guild',x:250,y:230,desc:'任務・懸賞・傭兵招募。'},{name:'銀月旅館',icon:'🍺',type:'inn',x:340,y:155,desc:'高級旅館。'},{name:'中央驛站',icon:'🐎',type:'waystation',x:430,y:195,desc:'四通八達。',waystation:true},{name:'星象館',icon:'🔭',type:'special',x:310,y:290,desc:'古老星象機構，與108星辰有關聯。'}]},
   rust_city:{name:'鏽城',cx:360,cy:255,size:6,kingdom:'central',desc:'前帝都廢墟，帝國崩裂後百廢待興。',keywords:['鏽城','廢都'],
-    pois:[{name:'廢墟廣場',icon:'🏚️',type:'ruins',x:200,y:165,desc:'帝都昔日中心。'},{name:'殘黨據點',icon:'⚠️',type:'danger',x:350,y:220,desc:'帝國殘黨盤據。'},{name:'地下遺跡',icon:'🕳️',type:'special',x:290,y:295,desc:'古代機關，未知寶藏。'},{name:'廢都驛',icon:'🐎',type:'waystation',x:150,y:250,desc:'破舊但仍運作。',waystation:true}]},
+    pois:[{name:'廢墟廣場',icon:'🏚️',type:'ruins',x:200,y:165,desc:'帝都昔日中心。'},{name:'殘黨據點',icon:'⚠️',type:'danger',x:350,y:220,desc:'帝國殘黨盤據。'},{name:'地下遺跡',icon:'🕳️',type:'special',x:290,y:295,desc:'古代機關，未知寶藏。'},{name:'廢都驛',icon:'🐎',type:'waystation',x:150,y:250,desc:'破舊但仍運作。',waystation:true},{name:'廢都雜貨',icon:'🎒',type:'shop',x:250,y:200,desc:'拾荒者販售的物資。'},{name:'鏽鐵武器攤',icon:'⚔️',type:'shop',x:150,y:180,desc:'帝國遺物翻新。'},{name:'廢都酒館',icon:'🍺',type:'inn',x:300,y:160,desc:'殘黨與探險者出沒。'}]},
   golden_bridge:{name:'金橋城',cx:400,cy:178,size:5,kingdom:'central',desc:'中央王國東部商貿樞紐，連接東海與內陸的咽喉。',keywords:['金橋城','金橋'],
-    pois:[{name:'大橋市集',icon:'🏪',type:'shop',x:200,y:180,desc:'東西貨物交匯，物價公道。'},{name:'稅務署',icon:'📜',type:'guard',x:300,y:230,desc:'中央王國稅收重地。'},{name:'金橋驛',icon:'🐎',type:'waystation',x:380,y:170,desc:'前往銀月城或東港城。',waystation:true}]},
+    pois:[{name:'大橋市集',icon:'🏪',type:'shop',x:200,y:180,desc:'東西貨物交匯，物價公道。'},{name:'稅務署',icon:'📜',type:'guard',x:300,y:230,desc:'中央王國稅收重地。'},{name:'金橋驛',icon:'🐎',type:'waystation',x:380,y:170,desc:'前往銀月城或東港城。',waystation:true},{name:'金橋武器行',icon:'⚔️',type:'shop',x:250,y:220,desc:'東西方武器交匯。'},{name:'金橋旅館',icon:'🍺',type:'inn',x:150,y:200,desc:'商旅歇腳處。'}]},
   crown_peak:{name:'王冠峰',cx:290,cy:105,size:4,kingdom:'central',desc:'中央王國北境要塞，俯瞰翠林域與霧山聯邦交界。',keywords:['王冠峰'],
-    pois:[{name:'瞭望塔',icon:'🗼',type:'guard',x:250,y:180,desc:'可遠眺三國邊境。'},{name:'邊境商隊營地',icon:'🏕️',type:'shop',x:350,y:240,desc:'來往商隊補給站。'}]},
+    pois:[{name:'瞭望塔',icon:'🗼',type:'guard',x:250,y:180,desc:'可遠眺三國邊境。'},{name:'邊境商隊營地',icon:'🏕️',type:'shop',x:350,y:240,desc:'來往商隊補給站。'},{name:'邊境雜貨',icon:'🎒',type:'shop',x:200,y:260,desc:'山上補給有限。'},{name:'瞭望塔客房',icon:'🍺',type:'inn',x:300,y:200,desc:'邊境守軍的休息設施。'},{name:'峰頂驛',icon:'🐎',type:'waystation',x:350,y:150,desc:'往銀月城或翠林城。',waystation:true}]},
   // ═══ 東海王國 ═══
   east_port:{name:'東港城',cx:510,cy:155,size:7,kingdom:'east_sea',desc:'東海王國大港，海貿繁盛，情報人員眾多。',keywords:['東港城'],
     pois:[{name:'東港碼頭',icon:'⚓',type:'port',x:420,y:275,desc:'大型商港，可搭船。'},{name:'商人公會',icon:'💰',type:'guild',x:215,y:175,desc:'情報・任務・走私線索。'},{name:'海鷗旅館',icon:'🍺',type:'inn',x:175,y:240,desc:'各路人馬聚集。'},{name:'武器鋪・波浪',icon:'⚔️',type:'shop',x:305,y:205,desc:'海軍規格武器。'},{name:'東港驛站',icon:'🐎',type:'waystation',x:385,y:155,desc:'前往銀月城或霧海關。',waystation:true},{name:'情報屋',icon:'🕵️',type:'special',x:290,y:290,desc:'地下情報網。'}]},
   fog_sea_pass:{name:'霧海關',cx:545,cy:248,size:5,kingdom:'east_sea',desc:'東海王國南端要塞，控制海上航路。',keywords:['霧海關'],
-    pois:[{name:'關卡城門',icon:'🚧',type:'guard',x:200,y:155,desc:'嚴格盤查，需通行證。'},{name:'走私商人',icon:'🤫',type:'special',x:310,y:245,desc:'黑市交易。'},{name:'南海驛',icon:'🐎',type:'waystation',x:380,y:195,desc:'前往東港城或南方。',waystation:true}]},
+    pois:[{name:'關卡城門',icon:'🚧',type:'guard',x:200,y:155,desc:'嚴格盤查，需通行證。'},{name:'走私商人',icon:'🤫',type:'special',x:310,y:245,desc:'黑市交易。'},{name:'南海驛',icon:'🐎',type:'waystation',x:380,y:195,desc:'前往東港城或南方。',waystation:true},{name:'關口雜貨',icon:'🎒',type:'shop',x:250,y:200,desc:'關卡內唯一商店。'},{name:'關口客棧',icon:'🍺',type:'inn',x:180,y:230,desc:'過夜等候通關。'}]},
   coral_bay:{name:'珊瑚灣',cx:555,cy:180,size:4,kingdom:'east_sea',desc:'東海王國漁村，盛產珊瑚與珍珠，海盜出沒。',keywords:['珊瑚灣'],
-    pois:[{name:'珊瑚市場',icon:'🐚',type:'shop',x:220,y:200,desc:'珊瑚・珍珠・海產品。'},{name:'海盜暗礁',icon:'🏴‍☠️',type:'danger',x:350,y:270,desc:'海盜藏身處。'}]},
+    pois:[{name:'珊瑚市場',icon:'🐚',type:'shop',x:220,y:200,desc:'珊瑚・珍珠・海產品。'},{name:'海盜暗礁',icon:'🏴‍☠️',type:'danger',x:350,y:270,desc:'海盜藏身處。'},{name:'海產雜貨',icon:'🎒',type:'shop',x:280,y:170,desc:'漁村小店。'},{name:'珊瑚灣酒館',icon:'🍺',type:'inn',x:180,y:250,desc:'漁民酒館。'},{name:'珊瑚渡口',icon:'🐎',type:'waystation',x:350,y:200,desc:'船運往東港城。',waystation:true}]},
   // ═══ 翠林域 ═══
   jade_forest:{name:'翠林城',cx:290,cy:65,size:5,kingdom:'forest',desc:'翠林域精靈聚居地，外人不易進入。',keywords:['翠林城','翠林'],
-    pois:[{name:'世界樹廣場',icon:'🌳',type:'special',x:250,y:180,desc:'古老精靈議會所在。'},{name:'藥草市集',icon:'🌿',type:'shop',x:350,y:245,desc:'稀有藥草・精靈特產。'},{name:'林間驛',icon:'🐎',type:'waystation',x:160,y:210,desc:'需取得通行許可。',waystation:true}]},
+    pois:[{name:'世界樹廣場',icon:'🌳',type:'special',x:250,y:180,desc:'古老精靈議會所在。'},{name:'藥草市集',icon:'🌿',type:'shop',x:350,y:245,desc:'稀有藥草・精靈特產。'},{name:'林間驛',icon:'🐎',type:'waystation',x:160,y:210,desc:'需取得通行許可。',waystation:true},{name:'翠林武器工坊',icon:'⚔️',type:'shop',x:200,y:200,desc:'精靈工藝武器。'},{name:'翠林旅舍',icon:'🍃',type:'inn',x:300,y:180,desc:'精靈待客之所。'}]},
   elder_grove:{name:'古樹隱村',cx:335,cy:48,size:3,kingdom:'forest',desc:'翠林深處的隱匿聚落，居住著最古老的森民與隱士。',keywords:['古樹隱村','隱村'],
-    pois:[{name:'長老之廳',icon:'🧙',type:'special',x:260,y:200,desc:'古老智慧的守護者。'},{name:'禁忌書庫',icon:'📚',type:'special',x:350,y:250,desc:'收藏帝國時代的禁書。'}]},
+    pois:[{name:'長老之廳',icon:'🧙',type:'special',x:260,y:200,desc:'古老智慧的守護者。'},{name:'禁忌書庫',icon:'📚',type:'special',x:350,y:250,desc:'收藏帝國時代的禁書。'},{name:'隱士草藥攤',icon:'🌿',type:'shop',x:200,y:280,desc:'珍稀草藥・限量。'},{name:'長老之廳客房',icon:'🍃',type:'inn',x:310,y:180,desc:'古老的森民待客之道。'}]},
   // ═══ 南荒 ═══
   dragon_valley:{name:'龍牙砦',cx:415,cy:328,size:5,kingdom:'wasteland',desc:'南荒廢棄要塞，尋寶者與亡命之徒聚集。',keywords:['龍牙砦','龍谷'],
-    pois:[{name:'亡命者營地',icon:'🔥',type:'danger',x:215,y:180,desc:'強者為王。'},{name:'古龍遺跡',icon:'🐉',type:'special',x:320,y:250,desc:'古代龍族寶庫。'},{name:'廢砦驛',icon:'🐎',type:'waystation',x:380,y:155,desc:'破舊驛站。',waystation:true}]},
+    pois:[{name:'亡命者營地',icon:'🔥',type:'danger',x:215,y:180,desc:'強者為王。'},{name:'古龍遺跡',icon:'🐉',type:'special',x:320,y:250,desc:'古代龍族寶庫。'},{name:'廢砦驛',icon:'🐎',type:'waystation',x:380,y:155,desc:'破舊驛站。',waystation:true},{name:'亡命者市集',icon:'🎒',type:'shop',x:280,y:200,desc:'強者為王的交易。'},{name:'篝火營地',icon:'🍺',type:'inn',x:250,y:260,desc:'露天簡陋但安全。'}]},
   sand_gate:{name:'沙門城',cx:320,cy:340,size:4,kingdom:'wasteland',desc:'南荒北境的關城，是進入荒野的最後補給站。',keywords:['沙門城','沙門'],
-    pois:[{name:'最後補給站',icon:'🎒',type:'shop',x:220,y:190,desc:'南荒專用補給品。'},{name:'沙門酒館',icon:'🍺',type:'inn',x:310,y:240,desc:'冒險者情報交換。'},{name:'沙門驛',icon:'🐎',type:'waystation',x:380,y:180,desc:'前往龍牙砦或鏽城。',waystation:true}]},
+    pois:[{name:'最後補給站',icon:'🎒',type:'shop',x:220,y:190,desc:'南荒專用補給品。'},{name:'沙門酒館',icon:'🍺',type:'inn',x:310,y:240,desc:'冒險者情報交換。'},{name:'沙門驛',icon:'🐎',type:'waystation',x:380,y:180,desc:'前往龍牙砦或鏽城。',waystation:true},{name:'沙門冒險者公會',icon:'⚔️',type:'guild',x:280,y:200,desc:'南荒探索任務。'}]},
   // ═══ 霜嶺 ═══
   frost_keep:{name:'霜守堡',cx:150,cy:38,size:4,kingdom:'north_ice',desc:'北方極寒之地的孤堡，帝國時代的邊防遺址，現由流亡騎士團駐守。',keywords:['霜守堡','霜嶺'],
-    pois:[{name:'騎士團營房',icon:'🛡️',type:'guard',x:220,y:180,desc:'流亡騎士團，紀律嚴明。'},{name:'冰窖倉庫',icon:'❄️',type:'shop',x:320,y:230,desc:'寒帶特產・皮毛・凍肉。'},{name:'霜嶺驛',icon:'🐎',type:'waystation',x:380,y:200,desc:'前往鐵冠城。條件惡劣。',waystation:true}]},
+    pois:[{name:'騎士團營房',icon:'🛡️',type:'guard',x:220,y:180,desc:'流亡騎士團，紀律嚴明。'},{name:'冰窖倉庫',icon:'❄️',type:'shop',x:320,y:230,desc:'寒帶特產・皮毛・凍肉。'},{name:'霜嶺驛',icon:'🐎',type:'waystation',x:380,y:200,desc:'前往鐵冠城。條件惡劣。',waystation:true},{name:'霜守雜貨',icon:'🎒',type:'shop',x:200,y:250,desc:'禦寒物資。'},{name:'騎士團宿舍',icon:'🍺',type:'inn',x:280,y:200,desc:'騎士團提供的簡陋住所。'}]},
   // ═══ 影沼地 ═══
   shadow_marsh:{name:'影沼鎮',cx:115,cy:310,size:4,kingdom:'shadow_marsh',desc:'西南沼澤中的隱秘聚落，瘴氣瀰漫，藥師與亡命之徒藏身於此。',keywords:['影沼鎮','影沼'],
-    pois:[{name:'沼澤藥鋪',icon:'🧪',type:'shop',x:220,y:190,desc:'稀有毒藥與解藥。'},{name:'暗渡口',icon:'🛶',type:'special',x:320,y:260,desc:'通往不為人知的水路。'},{name:'影沼驛',icon:'🐎',type:'waystation',x:360,y:180,desc:'前往鐵霧城或灰港鎮。',waystation:true}]},
+    pois:[{name:'沼澤藥鋪',icon:'🧪',type:'shop',x:220,y:190,desc:'稀有毒藥與解藥。'},{name:'暗渡口',icon:'🛶',type:'special',x:320,y:260,desc:'通往不為人知的水路。'},{name:'影沼驛',icon:'🐎',type:'waystation',x:360,y:180,desc:'前往鐵霧城或灰港鎮。',waystation:true},{name:'影沼雜貨',icon:'🎒',type:'shop',x:280,y:220,desc:'沼澤生存物資。'},{name:'暗夜客棧',icon:'🍺',type:'inn',x:180,y:250,desc:'不問來歷的住所。'}]},
 };
 
 // 驛站連線（城市間可通行的路線）
@@ -5803,10 +5943,14 @@ function showPoiInfo(cityId,poiIdx){
 
 // POI 名稱對應商店類型
 const POI_SHOP_MAP={
-  '雜貨鋪':'general','雜貨店':'general','雜貨':'general','市集':'general','攤販':'general',
-  '鐵匠舖':'blacksmith','鐵匠':'blacksmith','武器鋪':'blacksmith','武器店':'blacksmith','兵器':'blacksmith',
-  '旅店':'inn','客棧':'inn','酒館':'inn','酒館旅店':'inn',
-  '藥鋪':'apothecary','藥店':'apothecary','藥草':'apothecary','藥師':'apothecary',
+  '雜貨':'general','雜貨鋪':'general','雜貨店':'general','雜貨商行':'general','商行':'general',
+  '補給':'general','補給站':'general','市集':'general','漁市場':'general','珊瑚市場':'general','冰窖':'general',
+  '武器':'weapon','武器鋪':'weapon','武器店':'weapon','武器修繕':'weapon','鐵匠':'weapon','鐵匠舖':'weapon',
+  '防具':'armor','防具店':'armor','盔甲':'armor',
+  '旅店':'inn','客棧':'inn','旅館':'inn','酒館':'inn',
+  '藥鋪':'apothecary','藥店':'apothecary','藥草':'apothecary','藥師':'apothecary','沼澤藥鋪':'apothecary',
+  '飾品':'accessory','飾品店':'accessory',
+  '商街':'general','大橋市集':'general','邊境商隊':'general',
 };
 
 function getShopKey(poiName){
@@ -5826,7 +5970,7 @@ function doGoToPoi(cityId,poiName){
   advanceTime(1);
 
   const isGuild=/(公會|工會)/.test(poiName);
-  const isShop=/(商店|市集|攤販|雜貨|武器|鐵匠|藥舖|酒館|客棧|旅店|藥店|藥鋪)/.test(poiName);
+  const isShop=/(商店|市集|攤販|雜貨|武器|鐵匠|藥舖|酒館|客棧|旅店|旅館|藥店|藥鋪|補給|防具|飾品|商行|商街|冰窖|漁市|珊瑚市場|草藥|工坊)/.test(poiName);
   if(isGuild){
     // 工會POI：本地開啟工會面板＋懸賞板，不呼叫AI
     const guildMap={'冒險者':'adventurer','英雄':'adventurer','商人':'merchant','學院':'scholar','匠人':'craft','暗影':'shadow'};
@@ -5840,7 +5984,7 @@ function doGoToPoi(cityId,poiName){
     // 直接開啟商店 UI，不等 AI
     const baseKey=getShopKey(poiName);
     const shopId=`${cityId}_${poiName}`;
-    const shop=mergeShop(shopId,baseKey,[],poiName);
+    const shop=mergeShop(shopId,baseKey,[],poiName,cityId);
     _currentShop=shop;G.lastShop=shop;G.inShop=true;saveGame();
     const sb=document.getElementById('shop-btn');if(sb){sb.style.display='';sb.title=shop.name;}
     const fr2=document.getElementById('free-row');if(fr2)fr2.classList.add('open');
