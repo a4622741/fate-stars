@@ -1,5 +1,5 @@
-// Service Worker — 命運之星 PWA
-const CACHE_NAME = 'fate-stars-v31';
+// Service Worker — 命運之星 PWA v32
+const CACHE_NAME = 'fate-stars-v32';
 const ASSETS = [
   './',
   './index.html',
@@ -10,61 +10,66 @@ const ASSETS = [
   './assets/icon-512.svg',
 ];
 
-// Install: cache all static assets, skip waiting immediately
+// Install: cache assets + FORCE skip waiting
 self.addEventListener('install', e => {
-  e.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(ASSETS))
-      .then(() => self.skipWaiting())
-  );
+  self.skipWaiting();
+  e.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS)));
 });
 
-// Activate: clear ALL old caches, claim clients
+// Activate: delete ALL old caches + claim
 self.addEventListener('activate', e => {
   e.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
-    ).then(() => self.clients.claim())
+    caches.keys()
+      .then(keys => Promise.all(keys.map(k => caches.delete(k))))
+      .then(() => caches.open(CACHE_NAME))
+      .then(cache => cache.addAll(ASSETS))
+      .then(() => self.clients.claim())
   );
 });
 
-// Fetch: network-first for everything local (ensures updates are picked up)
+// Message: force update
+self.addEventListener('message', e => {
+  if (e.data === 'skipWaiting') self.skipWaiting();
+  if (e.data === 'clearCache') {
+    caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k))));
+  }
+});
+
+// Fetch: ALWAYS network-first for local files
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
-
-  // API calls: always network, never cache
   if (url.hostname === 'api.anthropic.com') return;
-  // Pollinations images: network with cache fallback
+
+  // Pollinations: cache-first (images don't change)
   if (url.hostname === 'image.pollinations.ai') {
     e.respondWith(
-      caches.match(e.request).then(cached => {
-        return cached || fetch(e.request).then(res => {
-          const clone = res.clone();
-          caches.open(CACHE_NAME).then(c => c.put(e.request, clone));
-          return res;
-        });
-      })
+      caches.match(e.request).then(c => c || fetch(e.request).then(r => {
+        const cl = r.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(e.request, cl));
+        return r;
+      }))
     );
     return;
   }
-  // External resources (fonts etc): network with cache fallback
+
+  // External: network → cache fallback
   if (url.hostname !== location.hostname) {
     e.respondWith(
-      fetch(e.request).then(res => {
-        const clone = res.clone();
-        caches.open(CACHE_NAME).then(c => c.put(e.request, clone));
-        return res;
+      fetch(e.request).then(r => {
+        const cl = r.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(e.request, cl));
+        return r;
       }).catch(() => caches.match(e.request))
     );
     return;
   }
 
-  // Local static: NETWORK-FIRST (ensures PWA always gets latest version)
+  // Local: NETWORK FIRST, always
   e.respondWith(
-    fetch(e.request).then(res => {
-      const clone = res.clone();
-      caches.open(CACHE_NAME).then(c => c.put(e.request, clone));
-      return res;
+    fetch(e.request).then(r => {
+      const cl = r.clone();
+      caches.open(CACHE_NAME).then(cache => cache.put(e.request, cl));
+      return r;
     }).catch(() => caches.match(e.request))
   );
 });

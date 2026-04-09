@@ -6091,9 +6091,15 @@ if(hasSave){
 scrollD();
 BGM.restore();
 // 畫風版本檢測 — 畫風更新時自動清除舊頭像快取並重新生成
+// 強制更新 Service Worker
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.getRegistration().then(reg=>{
+    if(reg){reg.update();if(reg.waiting)reg.waiting.postMessage('skipWaiting');}
+  });
+  navigator.serviceWorker.addEventListener('controllerchange',()=>location.reload());
+}
 const _PORTRAIT_VER='5';
 if(localStorage.getItem('portrait_style_ver')!==_PORTRAIT_VER){
-  // 強制清除所有頭像（含 localStorage 和記憶體）
   clearPortraitCache();
   Object.keys(localStorage).filter(k=>k.startsWith('portrait_')||k.startsWith('db_svg_')).forEach(k=>localStorage.removeItem(k));
   localStorage.setItem('portrait_style_ver',_PORTRAIT_VER);
