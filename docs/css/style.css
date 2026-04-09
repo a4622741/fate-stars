@@ -9,7 +9,7 @@
   --panel-w:310px;--hdr-h:50px;
 }
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-html,body{height:100%;overflow:hidden;}
+html,body{height:100%;height:100dvh;overflow:hidden;}
 body{background:var(--bg);color:var(--sil);font-family:'Noto Serif TC',serif;display:flex;flex-direction:column;}
 body::before{content:'';position:fixed;inset:0;
   background:
@@ -389,20 +389,28 @@ body::after{content:'';position:fixed;inset:0;background-image:
 
 /* RESPONSIVE */
 @media(max-width:767px){
+  :root{--panel-w:100%;}
   .panel-side{display:none;}
-  .app-body{padding-bottom:60px;}
+  .app-body{padding-bottom:calc(60px + env(safe-area-inset-bottom,0px));}
   .hdr-s{display:none;}
-  .toast{bottom:70px;}
-  .story-scroll{padding:.85rem .65rem 0;}
+  .toast{bottom:calc(70px + env(safe-area-inset-bottom,0px));}
+  .story-scroll{padding:.65rem .55rem 0;}
+  .choices-wrap{padding:.5rem .55rem calc(.6rem + env(safe-area-inset-bottom,0px));}
   .p-tabs,.drawer-tabs{overflow-x:auto;-webkit-overflow-scrolling:touch;}
   .ptab,.dtab{flex:0 0 auto;min-width:50px;padding:.55rem .35rem;}
+  .s-narr{font-size:.88rem;line-height:1.85;}
+  .s-dial{font-size:.85rem;line-height:1.8;}
+  .ch-btn{min-height:40px;padding:.5rem .6rem;}
+  .ch-txt{font-size:.78rem;}
 }
 @media(max-width:480px){
   .drawer{max-height:65vh;}
-  .ch-btn{padding:.58rem .7rem;}
+  .ch-btn{padding:.48rem .55rem;}
+  .s-narr{font-size:.84rem;}
+  .s-dial{font-size:.82rem;}
 }
 @media(min-width:768px){.drawer,.drawer-ov{display:none!important;}}
-@media(max-width:350px){.hdr-g{display:none;}.hdr-t{font-size:.82rem;}}
+@media(max-width:350px){.hdr-g{display:none;}.hdr-t{font-size:.82rem;}.ch-txt{font-size:.74rem;}}
 
 /* ── MAP LOADING ── */
 .map-bg-loading{display:flex;flex-direction:column;align-items:center;justify-content:center;
@@ -426,16 +434,7 @@ body::after{content:'';position:fixed;inset:0;background-image:
 /* ── TITLE GLOW ── */
 .hdr-t{text-shadow:0 0 8px rgba(201,168,76,.25),0 0 2px rgba(232,204,122,.15);}
 
-/* ── RESPONSIVE FIX ── */
-@media(max-width:767px){
-  :root{--panel-w:100%;}
-  .story-scroll{padding:.65rem .55rem 0;}
-  .choices-wrap{padding:.5rem .55rem .6rem;}
-  .s-narr{font-size:.88rem;line-height:1.85;}
-  .s-dial{font-size:.85rem;line-height:1.8;}
-  .ch-btn{min-height:40px;padding:.5rem .6rem;}
-  .ch-txt{font-size:.78rem;}
-}
+/* ── EXTRA RESPONSIVE ── */
 @media(max-height:600px){
   .drawer{max-height:55vh;}
   :root{--hdr-h:42px;}
