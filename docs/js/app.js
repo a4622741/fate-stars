@@ -4759,7 +4759,7 @@ function openPortraitSettings(id){
   panel.innerHTML=`<div style="font-size:.68rem;color:var(--goldd);margin-bottom:.45rem;">🖼 ${label} 頭像設定</div>
     <div style="margin-bottom:.5rem;padding:.4rem;background:rgba(201,168,76,.06);border:1px solid var(--brd);border-radius:3px;">
       <div style="font-size:.6rem;color:var(--goldd);margin-bottom:.3rem;">✦ 用描述生成頭像</div>
-      <textarea id="port-desc-${id}" style="width:100%;height:50px;background:var(--bg);border:1px solid var(--brd);border-radius:2px;color:var(--sil);font-family:'Noto Serif TC',serif;font-size:.62rem;padding:.3rem;resize:vertical;" placeholder="輸入描述，中文OK！\n例：可愛的藍眼布偶貓，蓬鬆白毛，大眼睛">${cfg?.prompt||''}</textarea>
+      <textarea id="port-desc-${id}" style="width:100%;height:100px;background:var(--bg);border:1px solid var(--brd);border-radius:2px;color:var(--sil);font-family:'Noto Serif TC',serif;font-size:.62rem;padding:.3rem;resize:vertical;" placeholder="輸入描述，中文OK！描述越詳細效果越好。\n例：可愛的藍眼布偶貓，蓬鬆的白色和奶油色毛髮，臉上有深色花紋，圓滾滾的大眼睛，粉紅色小鼻子，胖嘟嘟的臉頰，坐在奇幻風格的窗台上，溫暖的燈光">${cfg?.prompt||''}</textarea>
       <div style="display:flex;gap:.3rem;margin-top:.3rem;">
         <button onclick="generateFromDesc('${id}')" id="gen-btn-${id}" class="sbn c" style="flex:1;font-size:.62rem;padding:.3rem;">✦ 生成頭像</button>
       </div>
