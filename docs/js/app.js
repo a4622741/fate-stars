@@ -19,7 +19,7 @@ const G={
   storyData:[],
   currentChoices:[],
   sceneTitle:'序章・Day 1　傍晚',
-  sceneLoc:'📍 鐵霧城・碼頭',
+  sceneLoc:'📍 鐵霧城・城門前',
   partyIds:['alfar','orange'],
   upgrade:{},
   inv:null,
@@ -85,7 +85,7 @@ function loadGame(){
     G.storyData=data.storyData||[];
     G.currentChoices=data.currentChoices||[];
     G.sceneTitle=data.sceneTitle||'序章・Day 1　傍晚';
-    G.sceneLoc=data.sceneLoc||'📍 鐵霧城・碼頭';
+    G.sceneLoc=data.sceneLoc||'📍 鐵霧城・城門前';
     G.extraParty=data.extraParty||[];
     G.extraPcfg=data.extraPcfg||{};
     G.partyIds=data.partyIds||['alfar','orange'];_partyCache=null;_invalidateCharCache();
@@ -198,11 +198,11 @@ function showSaveIndicator(){
 
 // ═══ DATA ═══
 const PARTY=[
-  {id:'alfar',star:'天魁星',type:'天罡',num:1,name:'艾爾法',title:'遊俠（無所屬）',emoji:'😒',baseLv:1,job:'城衛',
-   desc:'鐵霧城前城衛，因擅自釋放被扣押的糧食而遭解僱。出身平凡，語少，銀色長髮，面無表情卻行事有原則。某種古老的星力在她體內沉眠。',
+  {id:'alfar',star:'天魁星',type:'天罡',num:1,name:'艾爾法',title:'旅人（無所屬）',emoji:'😒',baseLv:1,job:null,
+   desc:'來歷不明的旅人。語少，銀色長髮，面無表情。帶著一隻花五枚銅幣買的布偶貓在大陸上漫無目的地流浪。沒有故鄉，沒有目標，沒有值得講述的過去——至少她是這麼說的。某種古老的星力在她體內沉眠。',
    stats:{武力:41,知力:69,統率:22,魅力:34,幸運:51},sn:{},
    tl:[{n:'潛星之光',s:true,d:'封印中。條件未達。'},{n:'平靜之眼',s:false,d:'不受恐懼、魅惑、幻術影響。'},{n:'讀心微表情',s:false,d:'可察覺對方說謊（成功率依知力浮動）。'}],
-   eq:{武器:'舊制式短劍（磨損三級）',防具:'城衛布甲（補丁×7）',飾品:'——'}},
+   eq:{武器:'無銘短劍（磨損嚴重）',防具:'旅人斗篷（破舊）',飾品:'——'}},
   {id:'orange',star:'——',type:'星外',num:null,name:'橘子',title:'布偶貓・雌性（晁蓋之位）',emoji:'🐈😒',baseLv:null,job:'命運之錨',
    desc:'以五枚銅幣購入的布偶貓，雌性。雙色毛、藍眼，面癱，聽懂人話，只會喵叫。知力數值異常，來歷不明。對翻肚子持強烈反對立場。不屬於108星，卻是引導星辰聚合的關鍵存在——如同水滸傳中的晁蓋。',
    stats:{武力:3,知力:99,統率:null,魅力:null,幸運:null},sn:{統率:'顯示拒絕',魅力:'數值異常',幸運:'???'},
@@ -250,11 +250,11 @@ const SPECIAL_CHARS=[
 // G.specialOv 覆蓋：特殊人物的動態狀態更新
 const INV_DEFAULT={
   equip:[
-    {n:'舊制式短劍',t:'磨損三級・攻擊力較低',w:'艾爾法',status:'equipped',slot:'武器',bonus:{武力:8,知力:0,統率:0,魅力:0,幸運:0}},
-    {n:'城衛布甲',t:'補丁×7',w:'艾爾法',status:'equipped',slot:'防具',bonus:{武力:0,知力:0,統率:5,魅力:0,幸運:2}}
+    {n:'無銘短劍',t:'磨損嚴重・來歷不明',w:'艾爾法',status:'equipped',slot:'武器',bonus:{武力:8,知力:0,統率:0,魅力:0,幸運:0}},
+    {n:'旅人斗篷',t:'破舊但耐用',w:'艾爾法',status:'equipped',slot:'防具',bonus:{武力:0,知力:0,統率:5,魅力:0,幸運:2}}
   ],
-  items:[{n:'乾糧',t:'回復道具',q:'×2'},{n:'破舊地圖（鐵霧城）',t:'殘缺',q:'×1'},{n:'解僱通知書',t:'留著或許有用',q:'×1'}],
-  key:[{n:'霧刃幫懸賞（記憶）',t:'線索50銀・首領5金',q:'—'}]
+  items:[{n:'乾糧',t:'回復道具',q:'×2'},{n:'破舊地圖（艾爾薩）',t:'殘缺不全',q:'×1'}],
+  key:[]
 };
 
 // ═══ BGM ENGINE — 東野美紀風格・FM合成 ═══
@@ -632,7 +632,7 @@ function setBGMVolume(v){BGM.setVolume(v);}
 const SYS=`你是文字RPG引擎。只輸出純JSON，從{開始到}結束，不加任何其他文字。
 
 世界觀：艾爾薩大陸，帝國崩裂，十二國割據。北斗星下齊聚的108顆命運之星降世。
-主角艾爾法😒（天魁星）：銀髮前城衛，面無表情，逼上梁山。玩家扮演她——玩家的每一句選擇就是艾爾法說的話或做的事。
+主角艾爾法😒（天魁星）：銀髮旅人，面無表情，來歷不明。沒有職業、沒有過去。玩家扮演她——玩家的每一句選擇就是艾爾法說的話或做的事。
 橘子🐈😒（晁蓋之位・命運之錨）：布偶貓，不屬於108星，卻是引導星辰聚合的關鍵存在。只說「喵」，之後緊接系統翻譯。知力99。如同水滸傳中的晁蓋。
 
 核心原則：水滸傳＋幻想水滸傳風格，西方奇幻劍與魔法世界。逼上梁山、義氣為核、招募即主線。文風：劍與魔法戰鬥＋吐槽日常。
@@ -1280,7 +1280,7 @@ function addNewMember(m){
   };
   G.extraParty.push(entry);_invalidateCharCache();
   const seed=Math.floor(Math.random()*9000)+1000;
-  G.extraPcfg[m.id]={prompt:`2d japanese anime character, ${m.portrait||m.name}, bust portrait, dark fantasy background, clean cel shading, anime style`,seed};
+  G.extraPcfg[m.id]={prompt:`${m.portrait||m.name}, character portrait, ${PORTRAIT_STYLE}`,seed};
   const arr=m.type==='天罡'?TIANGANG:DISHAT;
   const star=arr.find(s=>s.num===m.num);
   if(star){star.status='recruited';star.name=m.name;star.id=m.id;}
@@ -1580,17 +1580,18 @@ function updateGold(){
 // 用戶可在設定中貼上自訂圖片 URL 覆蓋
 
 const PC={};
+const PORTRAIT_STYLE='dark fantasy illustration, detailed character portrait, dramatic lighting, oil painting style, western fantasy RPG art';
 const PCFG={
   alfar:{
-    prompt:'2d japanese anime girl, long straight silver white hair, pale skin, deadpan face heavy lidded grey eyes, dark fantasy armor collar, bust portrait, clean cel shading, anime style',
-    seed:3614,
-    default:'https://image.pollinations.ai/prompt/2d%20japanese%20anime%20girl%20long%20straight%20silver%20white%20hair%20pale%20skin%20deadpan%20face%20heavy%20lidded%20grey%20eyes%20dark%20fantasy%20armor%20collar%20bust%20portrait%20clean%20cel%20shading%20anime%20style?width=260&height=148&seed=3614&model=flux',
+    prompt:`young woman traveler, long straight silver white hair, pale skin, deadpan emotionless face, grey eyes, worn dark hooded cloak, short sword at waist, ${PORTRAIT_STYLE}`,
+    seed:4821,
+    default:null,
     label:'艾爾法',color:'#a8b5cc',emoji:'😒',
   },
   orange:{
-    prompt:'cute cat sitting portrait, ragdoll cat breed, blue eyes, white and cream bicolor fur with dark seal points on face and ears, fluffy round face, whiskers, cat animal not human, anime illustration cat art, dark background',
-    seed:1155,
-    default:'https://image.pollinations.ai/prompt/cute%20ragdoll%20cat%20sitting%20blue%20eyes%20white%20cream%20bicolor%20fur%20dark%20seal%20points%20fluffy%20round%20face%20whiskers%20anime%20illustration%20dark%20background?width=260&height=148&seed=1155&model=flux',
+    prompt:`ragdoll cat, blue eyes, white and cream bicolor fur, dark seal points on face and ears, fluffy round face, sitting regally, mysterious aura, ${PORTRAIT_STYLE}`,
+    seed:2733,
+    default:null,
     label:'橘子',color:'#c9a84c',emoji:'🐈',
   },
 };
@@ -3570,10 +3571,10 @@ function applyFounderClue(clueData){
 const PRESET_RELICS={
   'alfar': {starId:'alfar', starName:'艾爾法', starNum:'天1', name:'天命折刃',
     type:'武器', icon:'⚔️', rarity:'稀有',
-    desc:'一把在帝國崩裂前夕折斷的城衛制式劍。斷口異常鋒利，仿佛命運本身留下的傷痕。',
+    desc:'一把來歷不明的無銘短劍。劍身有一道奇異的裂紋，卻怎麼也折不斷。彷彿命運本身的傷痕。',
     effect:'武力+15・每次大成功額外造成傷害',
-    status:'equipped', // 艾爾法一開始就持有（雖然只是舊短劍）
-    lore:'天魁星降世之器。折斷之日，帝國滅亡之夜。'},
+    status:'equipped', // 艾爾法一開始就持有（外觀是普通短劍）
+    lore:'天魁星降世之器。它選擇了她——或者說，它一直在等她。'},
   'orange': {starId:'orange', starName:'橘子', starNum:'地1', name:'命運之錨',
     type:'神物', icon:'⚓', rarity:'傳說',
     desc:'一枚五枚銅幣買來的貓。帝國最後的占星師說：「凡能找到這隻貓的人，便是命運之主。」',
@@ -4182,7 +4183,7 @@ function buildLog(){
       <div style="font-size:.58rem;color:var(--goldd);letter-spacing:.08em;margin:.5rem 0 .3rem;">🔮 27 真紋章</div>
       <p style="margin-bottom:.4rem;">世界創生時，始源之劍與盾的碰撞產生 27 枚真紋章，蘊含世界根源法則。真紋章賦予持有者強大力量，但伴隨詛咒。帝國崩裂之夜，沉睡的真紋章開始覺醒——與 108 星辰的降世同步。紋章與星辰的關係，是解開這個亂世之謎的關鍵。</p>
       <div style="font-size:.58rem;color:var(--goldd);letter-spacing:.08em;margin:.5rem 0 .3rem;">✦ 逼上梁山</div>
-      <p style="margin-bottom:.4rem;">艾爾法並非英雄。她只是一個因堅持「糧食應該分給飢餓的人」而被解僱的城衛。橘子也只是一隻五枚銅幣的貓——卻是北斗星下聚義的起點，如同晁蓋般的存在。但命運選中了她們——或者說，命運沒有給她們別的選擇。108 顆星辰，每一顆背後都有一個「被逼上絕路」的故事。</p>
+      <p style="margin-bottom:.4rem;">艾爾法並非英雄。她只是一個來歷不明的旅人——沒有故鄉，沒有過去，帶著一隻五枚銅幣的貓漫無目的地流浪。橘子也不只是一隻貓——她是北斗星下聚義的起點，如同晁蓋般的存在。命運選中了她們——或者說，命運沒有給她們別的選擇。108 顆星辰，每一顆背後都有一個「被逼上絕路」的故事。</p>
     </div>
     <div style="display:flex;flex-wrap:wrap;gap:.3rem;padding:.4rem .2rem;border-top:1px solid var(--brd);margin-top:.5rem;">
       <span style="font-size:.52rem;padding:.1rem .35rem;border:1px solid rgba(100,130,180,.3);border-radius:2px;color:rgba(120,150,200,.7);">霧山聯邦</span>
@@ -4207,7 +4208,7 @@ const WIKI_DATA={
     {title:'聖赫倫帝國',icon:'👑',body:'統治艾爾薩大陸長達六百年的龐大帝國。帝國曆 1077 年，末代皇帝在一夜之間暴斃，宮廷大亂，十二位總督各自割據稱王。帝國崩裂的那一夜，天空劃過 108 顆流星。'},
     {title:'十二王國時代',icon:'⚔️',body:'帝國崩裂後的現狀。十二個王國互相征伐、結盟、背叛，平民在苛政與戰火中掙扎。目前故事主要涉及：霧山聯邦、中央王國、東海王國、翠林域、南荒、霜嶺、影沼地。'},
     {title:'帝國曆',icon:'📅',body:'艾爾薩大陸通用的紀年方式。帝國建立之年為元年。當前故事發生在帝國曆 1080 年（帝國崩裂後第三年）。雖然帝國不復存在，但各國仍沿用此曆法。'},
-    {title:'鐵霧城',icon:'🏭',body:'霧山聯邦的首府，故事起點。終年被工業霧氣籠罩，鐵礦豐富。城衛制度嚴格，底層民眾在代理城主恩佐・卡羅的苛政下掙扎。艾爾法曾在此擔任城衛，因釋放被扣押的糧食而遭解僱。',tags:['霧山聯邦','起點']},
+    {title:'鐵霧城',icon:'🏭',body:'霧山聯邦的首府，故事起點。終年被工業霧氣籠罩，鐵礦豐富。城衛制度嚴格，底層民眾在代理城主恩佐・卡羅的苛政下掙扎。旅人艾爾法與橘子初次來到此城，便捲入了霧刃幫的風波。',tags:['霧山聯邦','起點']},
     {title:'銀月城',icon:'🌙',body:'中央王國首都，大陸最大的商貿中心。情報流通之地，英雄公會總部所在。新月型的城牆在夜晚映照月光，因此得名。政治暗流湧動，各方勢力在此角力。',tags:['中央王國','商貿']},
     {title:'東港城',icon:'⚓',body:'東海王國最大港口。海貿繁盛，但也是走私和間諜活動的溫床。商人公會在此勢力最強。碼頭區魚龍混雜，情報與危險並存。',tags:['東海王國','港口']},
     {title:'鏽城（前帝都）',icon:'🏚️',body:'聖赫倫帝國的舊都。帝國崩裂後逐漸荒廢，現被帝國殘軍佔據。城中充滿帝國全盛時期的遺跡與機關，據說地下宮殿中藏有帝國最後的秘密。',tags:['中央王國','帝國遺跡']},
@@ -4237,11 +4238,11 @@ const WIKI_DATA={
     {title:'招募模式',icon:'🤝',body:'108 星辰之人透過六種方式加入：\n① 逼上梁山型（被迫害而投靠）\n② 義氣相投型（被正義行為感召）\n③ 計謀招攬型（需要策略說服）\n④ 比武收服型（必須擊敗對方）\n⑤ 連環引薦型（A 介紹 B）\n⑥ 時機限定型（錯過就失去）'},
   ],
   '角色':[
-    {title:'艾爾法😒',icon:'😒',body:'本作主角。天魁星。前鐵霧城城衛，因擅自釋放被扣押的糧食而遭解僱。銀色長髮，面無表情，沉默寡言但原則至上。不是英雄——是「做不到視而不見」的普通人。體內沉眠的星力是命運強加的枷鎖。'},
+    {title:'艾爾法😒',icon:'😒',body:'本作主角。天魁星。來歷不明的旅人，沒有職業、沒有過去。銀色長髮，面無表情，沉默寡言。帶著一隻花五枚銅幣買的布偶貓在大陸上漫無目的地流浪。不是英雄——只是一個被命運選中的普通人。體內沉眠的星力是命運強加的枷鎖。'},
     {title:'橘子🐈😒',icon:'🐈',body:'晁蓋之位・命運之錨。不屬於 108 星，卻是引導星辰聚合的關鍵存在。五枚銅幣買來的布偶貓，雌性。藍眼睛，雙色毛，面癱。只會喵叫（由系統翻譯）。知力 99，看穿一切虛偽。對翻肚持強烈反對立場。如同《水滸傳》中的晁蓋——她是開路人，是北斗星下 108 星聚義的起點。'},
     {title:'北斗星・先行者',icon:'⚜️',body:'不屬於 108 星。最早感知到星辰降世的神秘存在。他如同北斗般指引方向，召集了最初的同伴踏上聚星之路——卻在途中倒下。他的名字已被遺忘，留下的線索與未竟之志成為後繼者的遺產。北斗雖墜，其光仍照亮前路。'},
     {title:'暗王（???）',icon:'👁️',body:'艾爾薩大陸幕後的神秘推手。不是 108 星之一，但其影響力凌駕於星辰之上。疑似在暗中操縱十二王國的政局。與星辰降世有某種關聯。真實身份完全不明。'},
-    {title:'恩佐・卡羅',icon:'⚙️',body:'鐵霧城代理城主。以鐵腕治理霧山聯邦西部，控制鐵礦開採與貿易。對底層人民苛刻，對反抗者毫不留情。艾爾法被解僱的直接原因就是他下達的扣糧令。'},
+    {title:'恩佐・卡羅',icon:'⚙️',body:'鐵霧城代理城主。以鐵腕治理霧山聯邦西部，控制鐵礦開採與貿易。對底層人民苛刻，對反抗者毫不留情。張貼霧刃幫懸賞令的人。'},
   ],
   '系統':[
     {title:'金幣系統',icon:'🪙',body:'三幣制：1 金 = 100 銀 = 1000 銅。金幣透過完成任務、打工、戰鬥獎勵、售出道具等方式獲得。用於購買裝備、道具、住宿、打探情報、角色修煉等。'},
@@ -4657,7 +4658,7 @@ function autoPortraitFromDialogue(d){
     let desc=name;
     try{const re=new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'[^。，]{0,40}');const m=allText.match(re);if(m)desc=m[0];}catch(_){}
     // 建 prompt
-    const prompt=`2d japanese anime character portrait, ${desc}, dark fantasy, cel shading, anime style`;
+    const prompt=`${desc}, character portrait, ${PORTRAIT_STYLE}`;
     const seed=Math.floor(Math.random()*9000)+1000;
     if(!G.extraPcfg)G.extraPcfg={};
     G.extraPcfg[npcId]={prompt,seed,label:name,emoji:speaker};
@@ -4680,7 +4681,7 @@ function generateStarPortrait(type,num,name,hint){
   const starPortId=`star_${type}_${num}`;
   if(getCustomPortrait(starPortId))return; // 已有
   const desc=hint||name||'mysterious fantasy character';
-  const prompt=`2d japanese anime character portrait, ${desc.replace(/[・、。]/g,', ')}, dark fantasy, cel shading, anime style`;
+  const prompt=`${desc.replace(/[・、。]/g,', ')}, character portrait, ${PORTRAIT_STYLE}`;
   const seed=Math.floor(Math.random()*9000)+1000;
   if(!G.extraPcfg)G.extraPcfg={};
   G.extraPcfg[starPortId]={prompt,seed,label:name||'???'};
@@ -4949,7 +4950,7 @@ function resetGame(){
     G.currentChoices=[];
     G.gold={gold:0,silver:8,copper:135};
     G.sceneTitle='序章・Day 1　傍晚';
-    G.sceneLoc='📍 鐵霧城・碼頭';
+    G.sceneLoc='📍 鐵霧城・城門前';
     G.extraParty=[];
     G.extraPcfg={};
     G.partyIds=['alfar','orange'];_partyCache=null;_invalidateCharCache();
@@ -5160,9 +5161,7 @@ function showToast(msg,type='ok'){const t=document.getElementById('toast');t.tex
 // ═══ INIT ═══
 function initLog(){
   return[
-    {sec:'序章・Day1',loc:'城衛隊宿舍前',lines:[{t:'txt',v:'艾爾法收到解僱通知。擅自釋放被扣押糧食。'},{t:'sys',v:'獲得：解僱通知書×1'}]},
-    {sec:'序章・Day1',loc:'中央廣場',lines:[{t:'txt',v:'霧刃幫懸賞令：線索50銀、首領5金。'},{t:'sys',v:'代理城主：恩佐·卡羅'}]},
-    {sec:'序章・Day1',loc:'港口區・倉庫',lines:[{t:'txt',v:'在葛林倉庫擔任搬運工。'},{t:'sys',v:'獲得：銅幣×80'}]},
+    {sec:'序章・Day1',loc:'鐵霧城・城門前',lines:[{t:'txt',v:'旅人艾爾法與橘子抵達鐵霧城。終年不散的濃霧，空氣中帶著鐵鏽味。'},{t:'sys',v:'持有：銀幣8枚、銅幣135枚'}]},
   ];
 }
 
@@ -5175,57 +5174,50 @@ function initStory(){
   const opening=[
     // ── 序幕：天象 ──
     {type:'sec',v:'序幕'},
-    {type:'narr',v:'帝國曆 1077 年，深秋之夜。聖赫倫帝國末代皇帝駕崩的那個晚上，108 顆流星劃過艾爾薩大陸的天空。沒有人知道這意味著什麼。'},
+    {type:'narr',v:'帝國曆 1077 年，深秋之夜。聖赫倫帝國末代皇帝駕崩的那個晚上，北斗星下 108 顆流星劃過艾爾薩大陸的天空。沒有人知道這意味著什麼。'},
     {type:'narr',v:'三年後，帝國已成廢墟。十二位總督各據一方稱王，邊境燃起戰火，商路斷絕，盜匪橫行。在這個義人無處容身的時代——'},
-    {type:'narr',v:'命運選中了一個最不起眼的人。'},
+    {type:'narr',v:'一個無名的旅人走進了鐵霧城。'},
 
-    // ── Day 1：被解僱 ──
-    {type:'sec',v:'序章・逼上梁山　Day 1　清晨'},
-    {type:'narr',v:'鐵霧城。霧山聯邦的工業重鎮，終年濃霧不散，空氣裡永遠帶著鐵鏽的味道。這座城市不歡迎理想主義者。'},
-    {type:'narr',v:'城衛隊宿舍的門在艾爾法身後關上。她手裡捏著一張紙，銀色的長髮在晨霧中顯得格外冷淡。'},
-    {type:'sys',v:'「茲通知：城衛三等雇兵艾爾法，因擅自釋放扣押糧食、干涉稅務官職務，即日解除雇傭，押金沒收。——代理城主 恩佐·卡羅」'},
-    {type:'narr',v:'她把通知書疊好，放進口袋。沒有憤怒，沒有委屈。只是那五個孩子的父親跪在地上求她的畫面，還留在眼底。'},
-    {type:'dial',sp:'橘子🐈😒',ln:'喵。'},
-    {type:'sys',v:'〔系統翻譯：你又做了多餘的事。〕'},
-    {type:'narr',v:'五枚銅幣買來的布偶貓蹲在腳邊，藍眼睛望著她。這隻貓從不撒嬌，從不示弱，只是一直在那裡。'},
-    {type:'dial',sp:'艾爾法😒',ln:'走吧。'},
-
-    // ── Day 1：求生 ──
-    {type:'sec',v:'序章　Day 1　上午'},
-    {type:'narr',v:'中央廣場。告示欄前擠滿了人——失業的礦工、逃難的農民、找活的傭兵。艾爾法擠到前排，瞇眼看公告。'},
-    {type:'sys',v:'【懸賞令】山口劫匪「霧刃幫」，已劫三支商隊。線索賞銀50，首領賞金5。——代理城主 恩佐·卡羅'},
-    {type:'sys',v:'【告示】徵募城衛・門檻提高：需持「良民證」及兩名現職城衛擔保。——城衛隊'},
-    {type:'narr',v:'良民證。艾爾法摸了摸口袋裡的解僱通知。回去的路已經堵死了。'},
-    {type:'dial',sp:'橘子🐈😒',ln:'喵——'},
-    {type:'sys',v:'〔系統翻譯：別站著了。餓了。〕'},
-
-    // ── Day 1：碼頭 ──
+    // ── Day 1：抵達 ──
     {type:'sec',v:'序章　Day 1　傍晚'},
-    {type:'narr',v:'碼頭區。葛林倉庫。一天的搬運工作結束，艾爾法領到八十枚銅幣——勉強夠兩天的乾糧。'},
-    {type:'narr',v:'她坐在碼頭的木樁上，霧在夕陽裡染成暗橙色。橘子蜷在她腳邊，耳朵忽然轉向山口方向。'},
+    {type:'narr',v:'鐵霧城。霧山聯邦的工業重鎮，終年濃霧不散，空氣裡永遠帶著鐵鏽的味道。這座城市不歡迎陌生人，但也不拒絕——只要你有銅幣。'},
+    {type:'narr',v:'城門前排著長長的隊伍。逃難的農民、找活的傭兵、鬼鬼祟祟的行商。艾爾法拉低斗篷的帽沿，銀色的長髮在霧中若隱若現。'},
+    {type:'narr',v:'她不記得自己從哪裡來，也不知道要往哪裡去。身上只有一把磨損的無銘短劍、一件破舊的斗篷、兩塊乾糧，和一隻五枚銅幣買的貓。'},
     {type:'dial',sp:'橘子🐈😒',ln:'喵——'},
-    {type:'sys',v:'〔系統翻譯：山上有人。不止一個。而且——有人在跑。〕'},
-    {type:'narr',v:'背後響起腳步聲。戒備的、急促的、帶傷的腳步聲。'},
-    {type:'narr',v:'紅髮。左臂繃帶纏到手肘。腰間一把缺口彎刀。眼神是被追殺過的人才有的那種鋒利。她站在三步之外，喘息未平，目光卻穩穩鎖著艾爾法。'},
-    {type:'dial',sp:'紅髮女人',ln:'你是今天幫葛林卸貨的那個前城衛？'},
-    {type:'dial',sp:'艾爾法😒',ln:'⋯⋯是。'},
-    {type:'dial',sp:'紅髮女人',ln:'我需要一個認識山路的人。霧刃幫劫了我的東西——不是錢，是一封信。那封信牽扯到很多人的命。'},
-    {type:'narr',v:'她的手在發抖。不是因為冷。'},
-    {type:'dial',sp:'紅髮女人',ln:'幫我，我付得起報酬。不幫，就當我沒來過。'},
-    {type:'narr',v:'橘子從艾爾法腳邊站起來，走向紅髮女人，在她靴子旁邊繞了一圈。然後坐下，望向艾爾法。'},
+    {type:'sys',v:'〔系統翻譯：又是一座充滿鐵鏽味的城市。你的品味一如既往地差。〕'},
+    {type:'narr',v:'肩上的布偶貓懶洋洋地趴著，藍眼睛半睜半閉。這隻貓從不撒嬌，從不示弱，只是一直在那裡——彷彿她才是主人，而艾爾法不過是代步工具。'},
+    {type:'dial',sp:'守門衛兵',ln:'入城費五銅。有通行證的減免。'},
+    {type:'dial',sp:'艾爾法😒',ln:'⋯⋯沒有通行證。'},
+    {type:'narr',v:'五枚銅幣落入衛兵的手中。城門在她面前緩緩打開，霧氣從門內湧出，像是迎接，又像是吞噬。'},
+
+    // ── Day 1：城內 ──
+    {type:'narr',v:'城內比城外更灰暗。鐵匠的錘聲迴盪在街道上，酒館門口有人在爭吵，告示欄前圍了一群人。'},
+    {type:'sys',v:'【懸賞令】山口劫匪「霧刃幫」，已劫三支商隊。線索賞銀50，首領賞金5。——代理城主 恩佐·卡羅'},
+    {type:'narr',v:'艾爾法瞥了一眼告示欄，沒有停留。她需要的是一頓飯和一個能過夜的地方。'},
+    {type:'dial',sp:'橘子🐈😒',ln:'喵。'},
+    {type:'sys',v:'〔系統翻譯：那邊的酒館有魚的味道。建議前往。這不是商量。〕'},
+    {type:'narr',v:'橘子的耳朵忽然轉向另一個方向——不是酒館，是山口方向。尾巴微微豎起。'},
+    {type:'narr',v:'下一秒，巷子裡衝出一個人影。紅髮。左臂繃帶纏到手肘。腰間一把缺口彎刀。眼神是被追殺過的人才有的那種鋒利。'},
+    {type:'narr',v:'她撞上了艾爾法的肩膀，險些摔倒，然後猛地站穩——喘息未平，目光鎖住艾爾法腰間的劍。'},
+    {type:'dial',sp:'紅髮女人',ln:'你會用劍嗎？'},
+    {type:'dial',sp:'艾爾法😒',ln:'⋯⋯看情況。'},
+    {type:'dial',sp:'紅髮女人',ln:'霧刃幫搶了我的東西——不是錢，是一封信。那封信牽扯到很多人的命。我需要幫手。'},
+    {type:'narr',v:'她的手在發抖。不是因為冷。背後的巷子裡傳來粗獷的叫罵聲——追兵不遠。'},
+    {type:'dial',sp:'紅髮女人',ln:'幫我，我付得起報酬。不幫，就當我沒出現過。'},
+    {type:'narr',v:'橘子從艾爾法肩上跳下來，走向紅髮女人，在她靴子旁邊繞了一圈。然後坐下，望向艾爾法。'},
     {type:'dial',sp:'橘子🐈😒',ln:'喵。'},
     {type:'sys',v:'〔系統翻譯：這個人在說真話。但她沒有說完全部。〕'},
   ];
 
   opening.forEach(e=>appendEntryToDOM(e));
   G.history=[
-    {role:'user',content:'故事開始。場景：鐵霧城碼頭傍晚。艾爾法是被解僱的城衛（因釋放被扣糧食），身邊只有一隻五銅幣買來的布偶貓橘子。一名受傷的紅髮女人找上門，說霧刃幫搶了她一封「牽扯很多人命」的信，她需要認識山路的人幫忙。橘子判斷她「說真話但沒說完全部」。請繼續並給出行動選項。'},
-    {role:'assistant',content:'{"st":"序章・逼上梁山 Day 1","sl":"📍 鐵霧城・碼頭","nv":["紅髮女人在等待回答。霧越來越濃，山口方向隱約傳來犬吠——追兵可能不遠。"],"dl":[],"sm":null,"gd":{"g":0,"s":0,"c":0},"ch":[{"t":"「信裡寫了什麼？先說清楚，我再決定。」","h":"冷靜・可能觸發讀心"},{"t":"「不關我的事。」轉身繼續啃乾糧","h":"冷漠・但橘子可能不同意"},{"t":"拉她蹲進貨箱後面——遠處的犬吠近了","h":"實際・時間緊迫"},{"t":"低頭看橘子。橘子通常比她更清楚該怎麼做","h":"橘子感知・安全選項"}],"nm":null,"cb":null,"iv":null,"sp":null,"shop":null,"fa":null,"hp":null,"qt":null,"tm":null,"rp":null,"info":null,"relic":null,"clue":null,"or":null,"job":null,"gu":null}'}
+    {role:'user',content:'故事開始。場景：鐵霧城城門前，傍晚。艾爾法是來歷不明的旅人，沒有職業沒有背景，帶著一隻五銅幣買的布偶貓橘子剛抵達鐵霧城。一名受傷的紅髮女人從巷子裡衝出來撞上她，說霧刃幫搶了她一封「牽扯很多人命」的信，需要會用劍的幫手。背後有追兵。橘子判斷她「說真話但沒說完全部」。請繼續並給出行動選項。'},
+    {role:'assistant',content:'{"st":"序章 Day 1","sl":"📍 鐵霧城・城門前","nv":["紅髮女人在等待回答。霧越來越濃，巷子深處傳來粗獷的叫罵聲——追兵很近。"],"dl":[],"sm":null,"gd":{"g":0,"s":0,"c":0},"ch":[{"t":"「信裡寫了什麼？先說清楚，我再決定。」","h":"冷靜・可能觸發讀心"},{"t":"「跟我沒關係。」轉身走向酒館","h":"冷漠・但橘子可能不同意"},{"t":"拉她閃進旁邊的貨棧——追兵的聲音近了","h":"實際・時間緊迫"},{"t":"低頭看橘子。橘子通常比她更清楚該怎麼做","h":"橘子感知・安全選項"}],"nm":null,"cb":null,"iv":null,"sp":null,"shop":null,"fa":null,"hp":null,"qt":null,"tm":null,"rp":null,"info":null,"relic":null,"clue":null,"or":null,"job":null,"gu":null,"cr":null}'}
   ];
   const initChoices=[
     {t:'「信裡寫了什麼？先說清楚，我再決定。」',h:'冷靜・可能觸發讀心'},
-    {t:'「不關我的事。」轉身繼續啃乾糧',h:'冷漠・但橘子可能不同意'},
-    {t:'拉她蹲進貨箱後面——遠處的犬吠近了',h:'實際・時間緊迫'},
+    {t:'「跟我沒關係。」轉身走向酒館',h:'冷漠・但橘子可能不同意'},
+    {t:'拉她閃進旁邊的貨棧——追兵的聲音近了',h:'實際・時間緊迫'},
     {t:'低頭看橘子。橘子通常比她更清楚該怎麼做',h:'橘子感知・安全選項'}
   ];
   renderChoices(initChoices);
@@ -5936,6 +5928,11 @@ if(hasSave){
 }
 scrollD();
 BGM.restore();
+// 畫風版本檢測 — 畫風更新時自動清除舊頭像快取並重新生成
+const _PORTRAIT_VER='2';
+if(localStorage.getItem('portrait_style_ver')!==_PORTRAIT_VER){
+  clearPortraitCache();localStorage.setItem('portrait_style_ver',_PORTRAIT_VER);
+}
 setTimeout(autoGeneratePortraits,2000);
 setTimeout(generateMissingStarPortraits,3000); // 補生成所有缺頭像的星辰
 setTimeout(collectProduction,1000); // 啟動時自動收穫據點生產 // 啟動後2秒開始生成頭像
