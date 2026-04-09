@@ -198,17 +198,21 @@ function appendEntryToDOM(e,save=true){
   document.getElementById('story-content').appendChild(w);
   if(save){G.storyData.push(e);}
 }
+const _sysInfoLog=[];
 function appendSysLog(text){
-  const log=document.getElementById('sys-log');if(!log)return;
   const cls=(/金幣|金$|銀$|銅$|所持金/.test(text))?'gold':(/獲得|道具|紋章/.test(text))?'item':(/⚠|失去|扣除/.test(text))?'warn':'';
-  const el=document.createElement('div');
-  el.className='sys-log-entry'+(cls?' '+cls:'');
-  el.textContent=text;
-  log.appendChild(el);
-  log.style.display='block';
-  log.scrollTop=log.scrollHeight;
-  // Keep max 30 entries
-  while(log.children.length>30)log.removeChild(log.firstChild);
+  _sysInfoLog.push({text,cls,time:Date.now()});
+  if(_sysInfoLog.length>200)_sysInfoLog.splice(0,_sysInfoLog.length-200);
+  markDirty('sysinfo');
+}
+function buildSysInfo(){
+  if(!_sysInfoLog.length) return `<div style="font-size:.62rem;color:var(--sild);padding:.5rem .2rem;">尚無系統訊息。</div>`;
+  const rows=[..._sysInfoLog].reverse();
+  return `<div style="font-size:.62rem;color:var(--goldd);margin-bottom:.4rem;">⚙ 系統紀錄（${rows.length}）</div>`+
+    rows.map(r=>{
+      const col=r.cls==='gold'?'var(--goldd)':r.cls==='item'?'#6ab46a':r.cls==='warn'?'var(--orange)':'var(--sild)';
+      return `<div style="font-size:.62rem;color:${col};line-height:1.5;padding:.12rem 0;border-bottom:1px solid rgba(255,255,255,.03);">${escHtml(r.text)}</div>`;
+    }).join('');
 }
 let saveTimer;
 function showSaveIndicator(){
@@ -1536,7 +1540,7 @@ function renderAll(){
   // 強制渲染所有面板（確保資料同步）
   markAllDirty();
   Object.keys(_renderCache).forEach(k=>delete _renderCache[k]);
-  ['party','stars','inv','quest','intel','log','guild','activities','hq','crest'].forEach(tab=>{
+  ['party','stars','inv','quest','intel','log','guild','activities','hq','crest','sysinfo'].forEach(tab=>{
     _dirty[tab]=true;renderBoth(tab);
   });
   if(G.currentChoices?.length)renderChoices(G.currentChoices,false);
@@ -1549,7 +1553,7 @@ function renderChanged(...tabs){
   document.getElementById('scene-loc').textContent=G.sceneLoc||'';
   if(tabs.length){tabs.forEach(t=>markDirty(t));}else{markAllDirty();}
   // 渲染所有被標髒的面板
-  ['party','stars','inv','quest','intel','guild','activities','hq','crest'].forEach(t=>{
+  ['party','stars','inv','quest','intel','guild','activities','hq','crest','sysinfo'].forEach(t=>{
     if(_dirty[t])renderBoth(t);
   });
 }
@@ -4641,7 +4645,7 @@ function applyQuestUpdate(qt){
 
 function renderBoth(tab){
   let h;
-  const cacheable=['stars','inv','quest','intel','wiki','hq','guild','activities','crest']; // party/log change often, skip cache
+  const cacheable=['stars','inv','quest','intel','wiki','hq','guild','activities','crest','sysinfo']; // party/log change often, skip cache
   if(cacheable.includes(tab)&&!_dirty[tab]&&_renderCache[tab]){
     h=_renderCache[tab];
   }else{
@@ -4656,6 +4660,7 @@ function renderBoth(tab){
     else if(tab==='activities')h=buildActivities();
     else if(tab==='hq')h=buildHQ();
     else if(tab==='crest')h=buildCrest();
+    else if(tab==='sysinfo')h=buildSysInfo();
     else h='';
     if(cacheable.includes(tab)){_renderCache[tab]=h;}_dirty[tab]=false;
   }
@@ -5307,7 +5312,7 @@ function initLog(){
 function initStory(){
   const c=document.getElementById('story-content');
   c.innerHTML='';
-  const sysLog=document.getElementById('sys-log');if(sysLog)sysLog.innerHTML='';
+  _sysInfoLog.length=0;
   document.getElementById('story-scroll').scrollTop=0;
   G.storyData=[];
 
