@@ -1582,13 +1582,13 @@ const PCFG={
   alfar:{
     prompt:'2d japanese anime girl, long straight silver white hair, pale skin, deadpan face heavy lidded grey eyes, dark fantasy armor collar, bust portrait, clean cel shading, anime style',
     seed:3614,
-    default:'https://api.dicebear.com/9.x/adventurer/svg?seed=alfar3614&backgroundColor=0d1220&hair=long01,long02,long03,long04,long05,long06&hairColor=b0c4de,c0d0e8&eyes=variant01,variant06,variant12&skinColor=f5d0b5,ffd5c2',
+    default:'https://image.pollinations.ai/prompt/2d%20japanese%20anime%20girl%20long%20straight%20silver%20white%20hair%20pale%20skin%20deadpan%20face%20heavy%20lidded%20grey%20eyes%20dark%20fantasy%20armor%20collar%20bust%20portrait%20clean%20cel%20shading%20anime%20style?width=260&height=148&seed=3614&model=flux',
     label:'艾爾法',color:'#a8b5cc',emoji:'😒',
   },
   orange:{
     prompt:'cute cat sitting portrait, ragdoll cat breed, blue eyes, white and cream bicolor fur with dark seal points on face and ears, fluffy round face, whiskers, cat animal not human, anime illustration cat art, dark background',
     seed:1155,
-    default:'https://api.dicebear.com/9.x/croodles/svg?seed=orange1155&backgroundColor=0d1220',
+    default:'https://image.pollinations.ai/prompt/cute%20ragdoll%20cat%20sitting%20blue%20eyes%20white%20cream%20bicolor%20fur%20dark%20seal%20points%20fluffy%20round%20face%20whiskers%20anime%20illustration%20dark%20background?width=260&height=148&seed=1155&model=flux',
     label:'橘子',color:'#c9a84c',emoji:'🐈',
   },
 };
