@@ -1278,6 +1278,12 @@ function addNewMember(m){
   const starLabel=m.type&&m.num?`${m.type}第${m.num}星・${m.star||''}`:'';
   appendEntryToDOM({type:'sys',v:`\n✦═══════════════════════✦\n  ${m.emoji||'⚔️'} ${m.name}「${m.title||''}」加入了隊伍！\n  ${starLabel}\n✦═══════════════════════✦`});
   showToast(`${m.name} 加入隊伍！`,'ok');
+  // 即時生成頭像
+  generatePortraitNow(m.id);
+  // 如果之前星辰感知時已生成過頭像，複製過來
+  const starPortId=`star_${m.type}_${m.num}`;
+  const existingPort=getCustomPortrait(starPortId);
+  if(existingPort&&!getCustomPortrait(m.id)){setCustomPortrait(m.id,existingPort);}
 
   renderChanged('party','stars');
 }
@@ -4123,6 +4129,19 @@ function openSettings(){
 }
 
 // 自動為所有有 prompt 但無頭像的角色生成 AI 頭像
+function generatePortraitNow(id){
+  if(getCustomPortrait(id))return; // 已有
+  const cfg=PCFG[id]||(G.extraPcfg&&G.extraPcfg[id]);
+  if(!cfg?.prompt)return;
+  const url=`https://image.pollinations.ai/prompt/${encodeURIComponent(cfg.prompt)}?width=260&height=148&seed=${cfg.seed||Math.floor(Math.random()*9000)+1000}&model=flux`;
+  const img=new Image();
+  img.onload=()=>{
+    setCustomPortrait(id,url);
+    markDirty('party','stars');
+    renderBoth('party');renderBoth('stars');
+  };
+  img.src=url;
+}
 function autoGeneratePortraits(){
   const ids=[...Object.keys(PCFG),...Object.keys(G.extraPcfg||{})];
   let delay=0;
