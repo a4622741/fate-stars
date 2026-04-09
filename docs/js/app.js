@@ -1744,16 +1744,16 @@ function updateGold(){
 const PC={};
 const PORTRAIT_STYLE='dark fantasy illustration, detailed character portrait, dramatic lighting, oil painting style, western fantasy RPG art';
 const _alfPrompt=`young woman traveler, long straight silver white hair, pale skin, deadpan emotionless face, grey eyes, worn dark hooded cloak, short sword at waist, ${PORTRAIT_STYLE}`;
-const _oraPrompt=`adorable fluffy ragdoll cat, big round sparkling blue eyes, white and cream bicolor fur, dark seal points on face and ears, chubby cheeks, tiny pink nose, soft cute expression, chibi style cat illustration, warm lighting, cozy fantasy atmosphere`;
+const _oraPrompt=`cute ragdoll cat, big blue eyes, fluffy white cream fur, chubby cheeks, pink nose, adorable, anime style illustration`;
 const PCFG={
   alfar:{
     prompt:_alfPrompt, seed:4821,
-    default:`https://image.pollinations.ai/prompt/${encodeURIComponent(_alfPrompt)}?width=260&height=148&seed=4821&model=pixart`,
+    default:`https://image.pollinations.ai/prompt/${encodeURIComponent(_alfPrompt)}?width=260&height=148&seed=4821&model=flux`,
     label:'艾爾法',color:'#a8b5cc',emoji:'😒',
   },
   orange:{
     prompt:_oraPrompt, seed:8816,
-    default:`https://image.pollinations.ai/prompt/${encodeURIComponent(_oraPrompt)}?width=260&height=148&seed=8816&model=pixart`,
+    default:`https://image.pollinations.ai/prompt/${encodeURIComponent(_oraPrompt)}?width=260&height=148&seed=8816&model=flux`,
     label:'橘子',color:'#c9a84c',emoji:'🐈',
   },
 };
@@ -4833,7 +4833,7 @@ function autoPortraitFromDialogue(d){
     G.extraPcfg[npcId]={prompt,seed,label:name,emoji:speaker};
     saveGame();
     // 生成頭像，完成後重繪故事（讓頭像出現在對話旁）
-    const url=`https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=260&height=148&seed=${seed}&model=pixart`;
+    const url=`https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=260&height=148&seed=${seed}&model=flux`;
     const img=new Image();
     img.onload=()=>{
       setCustomPortrait(npcId,url);
@@ -4854,7 +4854,7 @@ function generateStarPortrait(type,num,name,hint){
   const seed=Math.floor(Math.random()*9000)+1000;
   if(!G.extraPcfg)G.extraPcfg={};
   G.extraPcfg[starPortId]={prompt,seed,label:name||'???'};
-  const url=`https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=260&height=148&seed=${seed}&model=pixart`;
+  const url=`https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=260&height=148&seed=${seed}&model=flux`;
   const img=new Image();
   img.onload=()=>{
     setCustomPortrait(starPortId,url);saveGame();
@@ -4883,7 +4883,7 @@ function generatePortraitNow(id){
   if(getCustomPortrait(id))return; // 已有
   const cfg=PCFG[id]||(G.extraPcfg&&G.extraPcfg[id]);
   if(!cfg?.prompt)return;
-  const url=`https://image.pollinations.ai/prompt/${encodeURIComponent(cfg.prompt)}?width=260&height=148&seed=${cfg.seed||Math.floor(Math.random()*9000)+1000}&model=pixart`;
+  const url=`https://image.pollinations.ai/prompt/${encodeURIComponent(cfg.prompt)}?width=260&height=148&seed=${cfg.seed||Math.floor(Math.random()*9000)+1000}&model=flux`;
   const img=new Image();
   img.onload=()=>{
     setCustomPortrait(id,url);
@@ -4901,7 +4901,7 @@ function autoGeneratePortraits(){
     if(!cfg?.prompt)return;
     delay+=3000; // 間隔3秒避免過載
     setTimeout(()=>{
-      const url=`https://image.pollinations.ai/prompt/${encodeURIComponent(cfg.prompt)}?width=260&height=148&seed=${cfg.seed||Math.floor(Math.random()*9000)+1000}&model=pixart`;
+      const url=`https://image.pollinations.ai/prompt/${encodeURIComponent(cfg.prompt)}?width=260&height=148&seed=${cfg.seed||Math.floor(Math.random()*9000)+1000}&model=flux`;
       const img=new Image();
       img.onload=()=>{setCustomPortrait(id,url);renderBoth('party');};
       img.src=url;
@@ -4922,7 +4922,7 @@ function generateFromDesc(id){
   if(cfg)cfg.prompt=desc;
   const seed=Math.floor(Math.random()*9000)+1000;
   if(cfg)cfg.seed=seed;
-  const url=`https://image.pollinations.ai/prompt/${encodeURIComponent(desc)}?width=260&height=148&seed=${seed}&model=pixart`;
+  const url=`https://image.pollinations.ai/prompt/${encodeURIComponent(desc)}?width=260&height=148&seed=${seed}&model=flux`;
   const img=new Image();
   img.onload=()=>{
     setCustomPortrait(id,url);
@@ -4944,7 +4944,7 @@ async function generateAIPortrait(id){
   const status=document.getElementById(`gen-status-${id}`);
   if(btn)btn.disabled=true;
   if(status)status.textContent='生成中，約 15~30 秒…';
-  const url=`https://image.pollinations.ai/prompt/${encodeURIComponent(cfg.prompt)}?width=260&height=148&seed=${cfg.seed}&model=pixart`;
+  const url=`https://image.pollinations.ai/prompt/${encodeURIComponent(cfg.prompt)}?width=260&height=148&seed=${cfg.seed}&model=flux`;
   const img=new Image();
   img.onload=()=>{
     setCustomPortrait(id,url);
