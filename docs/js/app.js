@@ -66,7 +66,7 @@ function _doSave(){
       extraParty:G.extraParty,extraPcfg:G.extraPcfg,
       partyIds:G.partyIds,upgrade:G.upgrade,inv:getInv(),favor:G.favor,bellyFlipCount:G.bellyFlipCount||0,specialOv:G.specialOv||{},
       hp:G.hp,quests:G.quests,time:G.time,rep:G.rep,relics:G.relics,presetRelicOv:Object.fromEntries(Object.entries(PRESET_RELICS).filter(([k,v])=>v.status&&v.status!=='equipped').map(([k,v])=>[k,{status:v.status,effect:v.effect}])),founderClues:G.founderClues,orangeStage:G.orangeStage||0,intel:G.intel||[],lastShop:G.lastShop||null,inShop:G.inShop||false,shopCatalogs:G.shopCatalogs||{},
-      guilds:G.guilds||{},baseWorkers:G.baseWorkers||{},_lastCollect:G._lastCollect||null,_cookBuff:G._cookBuff||null,starOv,savedAt:Date.now(),
+      guilds:G.guilds||{},baseWorkers:G.baseWorkers||{},_lastCollect:G._lastCollect||null,_cookBuff:G._cookBuff||null,starOv,saveVersion:G._saveVersion||3,savedAt:Date.now(),
     };
     localStorage.setItem(SAVE_KEY,JSON.stringify(data));
     showSaveIndicator();
@@ -132,6 +132,27 @@ function loadGame(){
       G.history.push({role:'user',content:'請以JSON格式繼續故事。'});
       G.history.push({role:'assistant',content:'{"st":"繼續中","sl":"'+G.sceneLoc+'","nv":[],"dl":[],"sm":null,"gd":{"g":0,"s":0,"c":0},"ch":[],"nm":null,"cb":null,"iv":null,"sp":null,"shop":null,"fa":null,"hp":null,"qt":null,"tm":null,"rp":null,"info":null,"relic":null,"clue":null,"or":null,"job":null,"gu":null}'});
     }
+    // ═══ 存檔遷移：自動將舊存檔升級到最新版本 ═══
+    const saveVer=data.saveVersion||0;
+    if(saveVer<1){
+      // v1: 清除硬編碼的地煞第2星 contact 殘留
+      [...TIANGANG,...DISHAT].forEach(s=>{
+        if(s.status==='contact'&&!s.id){s.status='unknown';s.name='?';delete s.cN;delete s.hint;}
+      });
+    }
+    if(saveVer<2){
+      // v2: 確保所有欄位存在
+      if(!G.guilds)G.guilds={};
+      if(!G.baseWorkers)G.baseWorkers={};
+      if(!G._lastCollect)G._lastCollect=null;
+      if(!G._cookBuff)G._cookBuff=null;
+    }
+    if(saveVer<3){
+      // v3: 清理 history 中的舊校正訊息
+      G.history=G.history.filter(m=>!(m.role==='user'&&m.content.includes('【系統校正】')));
+    }
+    // 標記為最新版本，下次存檔時會寫入
+    G._saveVersion=3;
     return true;
   }catch(e){console.warn('讀取存檔失敗:',e);return false;}
 }
