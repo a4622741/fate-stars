@@ -1744,7 +1744,7 @@ function updateGold(){
 const PC={};
 const PORTRAIT_STYLE='dark fantasy illustration, detailed character portrait, dramatic lighting, oil painting style, western fantasy RPG art';
 const _alfPrompt=`young woman traveler, long straight silver white hair, pale skin, deadpan emotionless face, grey eyes, worn dark hooded cloak, short sword at waist, ${PORTRAIT_STYLE}`;
-const _oraPrompt=`ragdoll cat, blue eyes, white and cream bicolor fur, dark seal points on face and ears, fluffy round face, sitting regally, mysterious aura, ${PORTRAIT_STYLE}`;
+const _oraPrompt=`adorable fluffy ragdoll cat, big round sparkling blue eyes, white and cream bicolor fur, dark seal points on face and ears, chubby cheeks, tiny pink nose, soft cute expression, chibi style cat illustration, warm lighting, cozy fantasy atmosphere`;
 const PCFG={
   alfar:{
     prompt:_alfPrompt, seed:4821,
@@ -1752,8 +1752,8 @@ const PCFG={
     label:'艾爾法',color:'#a8b5cc',emoji:'😒',
   },
   orange:{
-    prompt:_oraPrompt, seed:2733,
-    default:`https://image.pollinations.ai/prompt/${encodeURIComponent(_oraPrompt)}?width=260&height=148&seed=2733&model=flux`,
+    prompt:_oraPrompt, seed:8816,
+    default:`https://image.pollinations.ai/prompt/${encodeURIComponent(_oraPrompt)}?width=260&height=148&seed=8816&model=flux`,
     label:'橘子',color:'#c9a84c',emoji:'🐈',
   },
 };
@@ -6091,7 +6091,7 @@ if(hasSave){
 scrollD();
 BGM.restore();
 // 畫風版本檢測 — 畫風更新時自動清除舊頭像快取並重新生成
-const _PORTRAIT_VER='3';
+const _PORTRAIT_VER='4';
 if(localStorage.getItem('portrait_style_ver')!==_PORTRAIT_VER){
   clearPortraitCache();localStorage.setItem('portrait_style_ver',_PORTRAIT_VER);
 }
