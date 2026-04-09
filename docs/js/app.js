@@ -1581,17 +1581,17 @@ function updateGold(){
 
 const PC={};
 const PORTRAIT_STYLE='dark fantasy illustration, detailed character portrait, dramatic lighting, oil painting style, western fantasy RPG art';
+const _alfPrompt=`young woman traveler, long straight silver white hair, pale skin, deadpan emotionless face, grey eyes, worn dark hooded cloak, short sword at waist, ${PORTRAIT_STYLE}`;
+const _oraPrompt=`ragdoll cat, blue eyes, white and cream bicolor fur, dark seal points on face and ears, fluffy round face, sitting regally, mysterious aura, ${PORTRAIT_STYLE}`;
 const PCFG={
   alfar:{
-    prompt:`young woman traveler, long straight silver white hair, pale skin, deadpan emotionless face, grey eyes, worn dark hooded cloak, short sword at waist, ${PORTRAIT_STYLE}`,
-    seed:4821,
-    get default(){return `https://image.pollinations.ai/prompt/${encodeURIComponent(this.prompt)}?width=260&height=148&seed=${this.seed}&model=flux`;},
+    prompt:_alfPrompt, seed:4821,
+    default:`https://image.pollinations.ai/prompt/${encodeURIComponent(_alfPrompt)}?width=260&height=148&seed=4821&model=flux`,
     label:'艾爾法',color:'#a8b5cc',emoji:'😒',
   },
   orange:{
-    prompt:`ragdoll cat, blue eyes, white and cream bicolor fur, dark seal points on face and ears, fluffy round face, sitting regally, mysterious aura, ${PORTRAIT_STYLE}`,
-    seed:2733,
-    get default(){return `https://image.pollinations.ai/prompt/${encodeURIComponent(this.prompt)}?width=260&height=148&seed=${this.seed}&model=flux`;},
+    prompt:_oraPrompt, seed:2733,
+    default:`https://image.pollinations.ai/prompt/${encodeURIComponent(_oraPrompt)}?width=260&height=148&seed=2733&model=flux`,
     label:'橘子',color:'#c9a84c',emoji:'🐈',
   },
 };
@@ -5915,7 +5915,7 @@ if(hasSave){
 scrollD();
 BGM.restore();
 // 畫風版本檢測 — 畫風更新時自動清除舊頭像快取並重新生成
-const _PORTRAIT_VER='2';
+const _PORTRAIT_VER='3';
 if(localStorage.getItem('portrait_style_ver')!==_PORTRAIT_VER){
   clearPortraitCache();localStorage.setItem('portrait_style_ver',_PORTRAIT_VER);
 }
