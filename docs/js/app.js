@@ -863,6 +863,21 @@ function handleStarPresence(sp){
     showToast(`橘子感知：${typeLabel}${starInfo}`,'ok');
     // 自動加入情報板
     addIntel({id:'orange_star_'+sp.num,title:`第${sp.num}星・${dispName}`,content:sp.hint||`橘子感知到此人身上有${starInfo}的氣息。`,src:'橘子感知',rel:4,cat:'人物',orange:true,related:`${sp.type}第${sp.num}星`});
+    // 自動生成頭像（用 hint 外貌描述）
+    const starPortId=`star_${sp.type}_${sp.num}`;
+    if(sp.hint&&!getCustomPortrait(starPortId)){
+      const prompt=`2d japanese anime character, ${sp.hint.replace(/[・、。]/g,', ')}, bust portrait, dark fantasy background, clean cel shading, anime style`;
+      const seed=Math.floor(Math.random()*9000)+1000;
+      if(!G.extraPcfg)G.extraPcfg={};
+      G.extraPcfg[starPortId]={prompt,seed,label:dispName};
+      // 背景生成頭像
+      setTimeout(()=>{
+        const url=`https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=260&height=148&seed=${seed}&model=flux`;
+        const img=new Image();
+        img.onload=()=>{setCustomPortrait(starPortId,url);markDirty('stars');renderBoth('stars');};
+        img.src=url;
+      },1000);
+    }
   }
 }
 
@@ -3151,7 +3166,12 @@ function scell(s,t){
     statusHtml=`<div style="font-size:.44rem;color:var(--goldd);margin-top:.1rem;">◈ 接觸中</div>`;
   }
   const cls=inParty?'rec':recruited?'rec':contact?'con':unk?'unk':'';
+  // 頭像：已招募用角色頭像，接觸中用星辰感知頭像
+  let thumbHtml='';
+  if(recruited&&s.id){const src=getPortraitSrc(s.id);if(src)thumbHtml=`<img src="${src}" style="width:100%;height:32px;object-fit:cover;object-position:center top;border-radius:2px;margin-bottom:.1rem;" onerror="this.style.display='none'"/>`;}
+  else if(contact){const src=getCustomPortrait(`star_${t}_${s.num}`);if(src)thumbHtml=`<img src="${src}" style="width:100%;height:32px;object-fit:cover;object-position:center top;border-radius:2px;margin-bottom:.1rem;opacity:.7;" onerror="this.style.display='none'"/>`;}
   return `<div class="sc ${cls}" onclick="openStar('${t}',${s.num})" style="${inParty?'border-color:rgba(76,175,122,.6)':''}">
+    ${thumbHtml}
     <div class="stp">${t}</div>
     <div class="snm">第${s.num}星</div>
     <div class="sst">${s.star}</div>
@@ -4019,7 +4039,13 @@ function openStar(type,num){
     </div>`:'';
     body=pHtml+(c?`<div class="msec"><div class="msect">人物說明</div><div class="mdesc">${escHtml(c.desc)}</div></div><div class="msec"><div class="msect">素質數值</div><div style="padding-top:.18rem">${smini(c.stats,c.sn,s.id)}</div></div>`:'')+'<div class="mnote2">→ 點擊「同伴」標籤查看完整資料</div>';
   }
-  else if(iC){body=`<div class="msec"><div class="msect">目擊情報</div><div class="mdesc">遭遇：${escHtml(s.cN||'身份不明')}</div><div class="mnote2">${escHtml(s.hint||'尚無情報')}</div></div><div class="msec"><div class="msect">素質數值</div><div class="mdesc" style="color:var(--sild);font-size:.68rem">尚未加入——數值未解鎖</div></div>`;}
+  else if(iC){
+    const starPortId=`star_${type}_${num}`;
+    const cSrc=getCustomPortrait(starPortId);
+    const cPortHtml=cSrc?`<div style="position:relative;width:100%;height:130px;overflow:hidden;border-bottom:1px solid var(--brd);">
+      <img src="${cSrc}" style="width:100%;height:100%;object-fit:cover;object-position:center top;display:block;" onerror="this.style.display='none'"/>
+      <div style="position:absolute;inset:0;background:linear-gradient(to bottom,transparent 50%,var(--bg2) 100%);pointer-events:none;"></div></div>`:'';
+    body=cPortHtml+`<div class="msec"><div class="msect">目擊情報</div><div class="mdesc">遭遇：${escHtml(s.cN||'身份不明')}</div><div class="mnote2">${escHtml(s.hint||'尚無情報')}</div></div><div class="msec"><div class="msect">素質數值</div><div class="mdesc" style="color:var(--sild);font-size:.68rem">尚未加入——數值未解鎖</div></div>`;}
   else{body=`<div class="msec"><div class="msect">星辰情報</div><div class="mdesc" style="color:var(--sild)">此星辰尚未降世，或尚未與主星相遇。</div><div class="mnote2">世界的某個角落，這顆星正在等待。</div></div>`;}
   const _dn=iU?'？？':(s.name==='?'||s.name==='???')?escHtml(s.cN||'？？？'):escHtml(s.name);
   document.getElementById('modal-inner').innerHTML=`<div class="mtop"><div class="mscol"><div class="mtp">${escHtml(type)}</div><div class="mnm">第${num}星</div><div class="mst">${escHtml(s.star)}</div></div><div class="micol"><div class="mname">${_dn}</div><div class="msub2">${escHtml(type)}・第${num}星・${escHtml(s.star)}</div><div class="mstat ${sc}">${st}</div></div></div><div class="mbody">${body}</div>`;
