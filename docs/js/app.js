@@ -199,6 +199,20 @@ function appendEntryToDOM(e,save=true){
   if(save){G.storyData.push(e);}
 }
 const _sysInfoLog=[];
+function switchStoryTab(tab){
+  const story=document.getElementById('story-scroll');
+  const sys=document.getElementById('sys-panel');
+  const tabStory=document.getElementById('stab-story');
+  const tabSys=document.getElementById('stab-sys');
+  if(tab==='story'){
+    story.style.display='';sys.style.display='none';
+    tabStory.classList.add('ac');tabSys.classList.remove('ac');
+  }else{
+    story.style.display='none';sys.style.display='';
+    tabStory.classList.remove('ac');tabSys.classList.add('ac');
+    sys.innerHTML=buildSysInfo();
+  }
+}
 function appendSysLog(text){
   const cls=(/金幣|金$|銀$|銅$|所持金/.test(text))?'gold':(/獲得|道具|紋章/.test(text))?'item':(/⚠|失去|扣除/.test(text))?'warn':'';
   _sysInfoLog.push({text,cls,time:Date.now()});
