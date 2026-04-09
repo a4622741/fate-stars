@@ -4757,12 +4757,18 @@ function openPortraitSettings(id){
   panel.id=panelId;
   panel.style.cssText='padding:.7rem 1rem;border-top:1px solid var(--brd);background:var(--bg3);';
   panel.innerHTML=`<div style="font-size:.68rem;color:var(--goldd);margin-bottom:.45rem;">🖼 ${label} 頭像設定</div>
+    <div style="margin-bottom:.5rem;padding:.4rem;background:rgba(201,168,76,.06);border:1px solid var(--brd);border-radius:3px;">
+      <div style="font-size:.6rem;color:var(--goldd);margin-bottom:.3rem;">✦ 用描述生成頭像</div>
+      <textarea id="port-desc-${id}" style="width:100%;height:50px;background:var(--bg);border:1px solid var(--brd);border-radius:2px;color:var(--sil);font-family:'Noto Serif TC',serif;font-size:.62rem;padding:.3rem;resize:vertical;" placeholder="輸入角色描述（中英文皆可）\n例：可愛的藍眼布偶貓，蓬鬆白毛，圓臉">${cfg?.prompt||''}</textarea>
+      <div style="display:flex;gap:.3rem;margin-top:.3rem;">
+        <button onclick="generateFromDesc('${id}')" id="gen-btn-${id}" class="sbn c" style="flex:1;font-size:.62rem;padding:.3rem;">✦ 生成頭像</button>
+      </div>
+      <div id="gen-status-${id}" style="font-size:.58rem;color:var(--sild);min-height:.9rem;margin-top:.2rem;"></div>
+    </div>
     <div style="display:flex;gap:.4rem;margin-bottom:.35rem;">
-      <input id="port-url-${id}" class="s-inp" style="flex:1;font-size:.65rem;" placeholder="貼上圖片網址（留空=預設）" value="${cur}"/>
+      <input id="port-url-${id}" class="s-inp" style="flex:1;font-size:.65rem;" placeholder="或直接貼圖片網址" value="${cur}"/>
       <button onclick="applyCustomPortrait('${id}');closeD();setTimeout(()=>openChar('${id}'),100);" class="sbn p" style="flex-shrink:0;padding:.32rem .55rem;font-size:.63rem;">套用</button>
     </div>
-    ${cfg?.prompt?`<button onclick="generateAIPortrait('${id}');closeD();setTimeout(()=>openChar('${id}'),8000);" id="gen-btn-${id}" class="sbn c" style="width:100%;font-size:.62rem;padding:.3rem;margin-bottom:.28rem;">✦ 重新生成 AI 頭像（Pollinations）</button>
-    <div id="gen-status-${id}" style="font-size:.58rem;color:var(--sild);min-height:.9rem;"></div>`:''}
     <button onclick="clearPortraitCache('${id}');renderBoth('party');closeD();setTimeout(()=>openChar('${id}'),100);" style="font-size:.6rem;padding:.15rem .45rem;background:transparent;border:1px solid var(--brd);border-radius:2px;color:var(--sild);cursor:pointer;margin-top:.25rem;">重設為預設</button>`;
   document.querySelector('#detail-modal .mbox.detail-mbox').appendChild(panel);
 }
@@ -4901,6 +4907,36 @@ function autoGeneratePortraits(){
       img.src=url;
     },delay);
   });
+}
+function generateFromDesc(id){
+  const textarea=document.getElementById(`port-desc-${id}`);
+  const status=document.getElementById(`gen-status-${id}`);
+  const btn=document.getElementById(`gen-btn-${id}`);
+  if(!textarea)return;
+  let desc=textarea.value.trim();
+  if(!desc){status.textContent='請輸入描述';status.style.color='#f99';return;}
+  if(btn)btn.disabled=true;
+  if(status){status.textContent='生成中，約 10~30 秒…';status.style.color='var(--sild)';}
+  // Save prompt to config
+  const cfg=PCFG[id]||(G.extraPcfg&&G.extraPcfg[id]);
+  if(cfg)cfg.prompt=desc;
+  const seed=Math.floor(Math.random()*9000)+1000;
+  if(cfg)cfg.seed=seed;
+  const url=`https://image.pollinations.ai/prompt/${encodeURIComponent(desc)}?width=260&height=148&seed=${seed}&model=flux`;
+  const img=new Image();
+  img.onload=()=>{
+    setCustomPortrait(id,url);
+    markDirty('party','stars');renderBoth('party');renderBoth('stars');
+    if(status){status.textContent='✓ 頭像已更新！';status.style.color='var(--grn)';}
+    const urlInp=document.getElementById(`port-url-${id}`);if(urlInp)urlInp.value=url;
+    if(btn)btn.disabled=false;
+    saveGame();
+  };
+  img.onerror=()=>{
+    if(status){status.textContent='⚠ 生成失敗，請修改描述後重試';status.style.color='#f99';}
+    if(btn)btn.disabled=false;
+  };
+  img.src=url;
 }
 async function generateAIPortrait(id){
   const cfg=PCFG[id]||(G.extraPcfg&&G.extraPcfg[id]);if(!cfg?.prompt)return;
