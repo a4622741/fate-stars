@@ -4142,38 +4142,43 @@ function openSettings(){
 
 // 自動為所有有 prompt 但無頭像的角色生成 AI 頭像
 // 從AI回應的對話中偵測新角色並自動生成頭像
-const _knownSpeakers=new Set(['系統','橘子🐈😒','艾爾法😒','旁白','系統翻譯']);
+const _knownSpeakers=new Set(['系統','橘子🐈😒','艾爾法😒','旁白']);
+function _stripEmoji(s){return s.replace(/[^\p{L}\p{N}\s]/gu,'').trim();}
 function autoPortraitFromDialogue(d){
   const dls=Array.isArray(d.dl)?d.dl:d.dl?[d.dl]:[];
   const nv=Array.isArray(d.nv)?d.nv:d.nv?[d.nv]:[];
-  const allText=nv.join(' ');
+  const allText=[...nv,...dls.map(x=>x?.ln||'')].join(' ');
   dls.forEach(dl=>{
     if(!dl||!dl.sp)return;
     const speaker=String(dl.sp).trim();
-    if(!speaker||_knownSpeakers.has(speaker))return;
-    // 從 speaker 提取名字（去掉 emoji）
-    const name=speaker.replace(/[\u{1F000}-\u{1FFFF}]|[\u{2600}-\u{27BF}]|[\u{FE00}-\u{FEFF}]/gu,'').trim();
-    if(!name||name.length<1)return;
-    // 檢查是否已有頭像設定
+    if(!speaker||speaker.length>20)return;
+    // 跳過系統和已知角色
+    if(_knownSpeakers.has(speaker)||speaker.includes('系統')||speaker.includes('翻譯'))return;
+    if(allParty().some(m=>speaker.includes(m.name)||m.name.includes(_stripEmoji(speaker))))return;
+    const name=_stripEmoji(speaker)||speaker;
+    if(name.length<1)return;
     const npcId='npc_'+name.replace(/\s/g,'_');
-    if(getCustomPortrait(npcId))return;
-    if(PCFG[npcId]||(G.extraPcfg&&G.extraPcfg[npcId]))return;
-    // 已知隊伍角色跳過
-    if(allParty().some(m=>speaker.includes(m.name)))return;
+    if(getCustomPortrait(npcId)){_knownSpeakers.add(speaker);return;}
     _knownSpeakers.add(speaker);
-    // 從敘述中嘗試提取外貌描述
+    // 從敘述提取外貌
     let desc=name;
-    const descMatch=allText.match(new RegExp(`${name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}[^。，]{0,30}`))||[];
-    if(descMatch[0])desc=descMatch[0];
-    // 建立 prompt 並生成
-    const prompt=`2d japanese anime character, ${desc}, bust portrait, dark fantasy style, clean cel shading`;
+    try{const re=new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'[^。，]{0,40}');const m=allText.match(re);if(m)desc=m[0];}catch(_){}
+    // 建 prompt
+    const prompt=`2d japanese anime character portrait, ${desc}, dark fantasy, cel shading, anime style`;
     const seed=Math.floor(Math.random()*9000)+1000;
     if(!G.extraPcfg)G.extraPcfg={};
     G.extraPcfg[npcId]={prompt,seed,label:name,emoji:speaker};
-    // 背景生成
+    saveGame();
+    // 生成頭像，完成後重繪故事（讓頭像出現在對話旁）
     const url=`https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=260&height=148&seed=${seed}&model=flux`;
     const img=new Image();
-    img.onload=()=>{setCustomPortrait(npcId,url);saveGame();};
+    img.onload=()=>{
+      setCustomPortrait(npcId,url);
+      saveGame();
+      // 重繪故事內容讓頭像顯示出來
+      renderStoryFromData();
+    };
+    img.onerror=()=>{console.warn('Portrait failed for',name);};
     img.src=url;
   });
 }
