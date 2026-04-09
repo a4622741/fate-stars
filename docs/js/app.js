@@ -894,21 +894,8 @@ function handleStarPresence(sp){
     showToast(`橘子感知：${typeLabel}${starInfo}`,'ok');
     // 自動加入情報板
     addIntel({id:'orange_star_'+sp.num,title:`第${sp.num}星・${dispName}`,content:sp.hint||`橘子感知到此人身上有${starInfo}的氣息。`,src:'橘子感知',rel:4,cat:'人物',orange:true,related:`${sp.type}第${sp.num}星`});
-    // 自動生成頭像（用 hint 外貌描述）
-    const starPortId=`star_${sp.type}_${sp.num}`;
-    if(sp.hint&&!getCustomPortrait(starPortId)){
-      const prompt=`2d japanese anime character, ${sp.hint.replace(/[・、。]/g,', ')}, bust portrait, dark fantasy background, clean cel shading, anime style`;
-      const seed=Math.floor(Math.random()*9000)+1000;
-      if(!G.extraPcfg)G.extraPcfg={};
-      G.extraPcfg[starPortId]={prompt,seed,label:dispName};
-      // 背景生成頭像
-      setTimeout(()=>{
-        const url=`https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=260&height=148&seed=${seed}&model=flux`;
-        const img=new Image();
-        img.onload=()=>{setCustomPortrait(starPortId,url);markDirty('stars');renderBoth('stars');};
-        img.src=url;
-      },1000);
-    }
+    // 自動生成星辰頭像
+    generateStarPortrait(sp.type,sp.num,dispName,sp.hint||'');
   }
 }
 
@@ -4160,6 +4147,13 @@ function autoPortraitFromDialogue(d){
     const npcId='npc_'+name.replace(/\s/g,'_');
     if(getCustomPortrait(npcId)){_knownSpeakers.add(speaker);return;}
     _knownSpeakers.add(speaker);
+    // 檢查是否為已知的 contact 星辰 → 用星辰系統生成
+    const matchStar=[...TIANGANG,...DISHAT].find(s=>(s.name&&s.name!=='?'&&name.includes(s.name))||(s.cN&&name.includes(s.cN)));
+    if(matchStar){
+      const type=TIANGANG.includes(matchStar)?'天罡':'地煞';
+      generateStarPortrait(type,matchStar.num,matchStar.name!=='?'?matchStar.name:name,matchStar.hint||desc||'');
+      return;
+    }
     // 從敘述提取外貌
     let desc=name;
     try{const re=new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'[^。，]{0,40}');const m=allText.match(re);if(m)desc=m[0];}catch(_){}
@@ -4180,6 +4174,40 @@ function autoPortraitFromDialogue(d){
     };
     img.onerror=()=>{console.warn('Portrait failed for',name);};
     img.src=url;
+  });
+}
+// 為108星辰生成頭像（不需要sp觸發，任何時候都可呼叫）
+function generateStarPortrait(type,num,name,hint){
+  const starPortId=`star_${type}_${num}`;
+  if(getCustomPortrait(starPortId))return; // 已有
+  const desc=hint||name||'mysterious fantasy character';
+  const prompt=`2d japanese anime character portrait, ${desc.replace(/[・、。]/g,', ')}, dark fantasy, cel shading, anime style`;
+  const seed=Math.floor(Math.random()*9000)+1000;
+  if(!G.extraPcfg)G.extraPcfg={};
+  G.extraPcfg[starPortId]={prompt,seed,label:name||'???'};
+  const url=`https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=260&height=148&seed=${seed}&model=flux`;
+  const img=new Image();
+  img.onload=()=>{
+    setCustomPortrait(starPortId,url);saveGame();
+    markDirty('stars');renderBoth('stars');
+    renderStoryFromData(); // 重繪讓頭像出現
+  };
+  img.src=url;
+}
+// 開機時為所有已接觸但沒頭像的星辰補生成
+function generateMissingStarPortraits(){
+  let delay=0;
+  [...TIANGANG,...DISHAT].forEach(s=>{
+    if(s.status==='contact'||s.status==='recruited'){
+      const portId=s.id?s.id:`star_${s.type||'地煞'}_${s.num}`;
+      if(!getCustomPortrait(portId)&&!getCustomPortrait(`star_天罡_${s.num}`)&&!getCustomPortrait(`star_地煞_${s.num}`)){
+        delay+=3000;
+        setTimeout(()=>{
+          const type=TIANGANG.includes(s)?'天罡':'地煞';
+          generateStarPortrait(type,s.num,s.name!=='?'?s.name:(s.cN||''),s.hint||'');
+        },delay);
+      }
+    }
   });
 }
 function generatePortraitNow(id){
@@ -5410,6 +5438,7 @@ if(hasSave){
 scrollD();
 BGM.restore();
 setTimeout(autoGeneratePortraits,2000);
+setTimeout(generateMissingStarPortraits,3000); // 補生成所有缺頭像的星辰
 setTimeout(collectProduction,1000); // 啟動時自動收穫據點生產 // 啟動後2秒開始生成頭像
 if(!CFG.key)document.getElementById('api-modal').classList.add('open');
 document.getElementById('free-inp').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.isComposing)sendFree();});
