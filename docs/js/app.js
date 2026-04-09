@@ -36,6 +36,7 @@ const G={
   orangeStage:0,
   intel:[],
   lastShop:null,
+  crests:null,       // 紋章系統
   shopCatalogs:{},  // 商店固定目錄快取
   extraParty:[],
   extraPcfg:{},
@@ -66,7 +67,7 @@ function _doSave(){
       extraParty:G.extraParty,extraPcfg:G.extraPcfg,
       partyIds:G.partyIds,upgrade:G.upgrade,inv:getInv(),favor:G.favor,bellyFlipCount:G.bellyFlipCount||0,specialOv:G.specialOv||{},
       hp:G.hp,quests:G.quests,time:G.time,rep:G.rep,relics:G.relics,presetRelicOv:Object.fromEntries(Object.entries(PRESET_RELICS).filter(([k,v])=>v.status&&v.status!=='equipped').map(([k,v])=>[k,{status:v.status,effect:v.effect}])),founderClues:G.founderClues,orangeStage:G.orangeStage||0,intel:G.intel||[],lastShop:G.lastShop||null,inShop:G.inShop||false,shopCatalogs:G.shopCatalogs||{},
-      guilds:G.guilds||{},baseWorkers:G.baseWorkers||{},_lastCollect:G._lastCollect||null,_cookBuff:G._cookBuff||null,starOv,saveVersion:G._saveVersion||3,savedAt:Date.now(),
+      guilds:G.guilds||{},baseWorkers:G.baseWorkers||{},_lastCollect:G._lastCollect||null,_cookBuff:G._cookBuff||null,crests:G.crests||null,starOv,saveVersion:G._saveVersion||3,savedAt:Date.now(),
     };
     localStorage.setItem(SAVE_KEY,JSON.stringify(data));
     showSaveIndicator();
@@ -109,6 +110,7 @@ function loadGame(){
     G.baseWorkers=data.baseWorkers||{};
     G._lastCollect=data._lastCollect||null;
     G._cookBuff=data._cookBuff||null;
+    G.crests=data.crests||null;
     // 恢復星辰狀態
     if(data.starOv){
       Object.entries(data.starOv).forEach(([k,v])=>{
@@ -633,10 +635,11 @@ const SYS=`你是文字RPG引擎。只輸出純JSON，從{開始到}結束，不
 主角艾爾法😒（天魁星）：銀髮前城衛，面無表情，逼上梁山。玩家扮演她——玩家的每一句選擇就是艾爾法說的話或做的事。
 橘子🐈😒（晁蓋之位・命運之錨）：布偶貓，不屬於108星，卻是引導星辰聚合的關鍵存在。只說「喵」，之後緊接系統翻譯。知力99。如同水滸傳中的晁蓋。
 
-核心原則：水滸傳＋幻想水滸傳風格。逼上梁山、義氣為核、招募即主線。文風：武俠戰鬥＋吐槽日常。
+核心原則：水滸傳＋幻想水滸傳風格，西方奇幻劍與魔法世界。逼上梁山、義氣為核、招募即主線。文風：劍與魔法戰鬥＋吐槽日常。
+紋章系統：世界有27枚真紋章（始源/元素/天體/生滅/支配/奧義/命運），持有者獲得強大力量但承受詛咒。一般紋章為真紋章碎片衍生，可裝備使用。
 
 ═══ 回應格式（所有欄位必填，不用的填null）═══
-{"st":"場景標題","sl":"📍 地點","nv":["敘述段落1","段落2"],"dl":[{"sp":"角色名emoji","ln":"台詞"}],"sm":null,"gd":{"g":0,"s":0,"c":0},"ch":[{"t":"艾爾法可說可做的事","h":"後果提示"}],"nm":null,"cb":null,"iv":null,"sp":null,"shop":null,"fa":null,"hp":null,"qt":null,"tm":null,"rp":null,"info":null,"relic":null,"clue":null,"or":null,"job":null,"gu":null}
+{"st":"場景標題","sl":"📍 地點","nv":["敘述段落1","段落2"],"dl":[{"sp":"角色名emoji","ln":"台詞"}],"sm":null,"gd":{"g":0,"s":0,"c":0},"ch":[{"t":"艾爾法可說可做的事","h":"後果提示"}],"nm":null,"cb":null,"iv":null,"sp":null,"shop":null,"fa":null,"hp":null,"qt":null,"tm":null,"rp":null,"info":null,"relic":null,"clue":null,"or":null,"job":null,"gu":null,"cr":null}
 
 ═══ 必遵守規則 ═══
 【回應結構】每次回應必須包含：
@@ -665,6 +668,7 @@ const SYS=`你是文字RPG引擎。只輸出純JSON，從{開始到}結束，不
 
 【其他欄位】
 cb：戰鬥骰子判定（填cb時ch設[]）。iv：道具變動add/remove/equip/purchase。info：情報[{id,title,content,src,rel,cat}]。job：職業變更[{id,job}]。
+cr：紋章事件。真紋章發現→{"id":"紋章id","found":true,"holder":"持有者名","src":"來源"}。一般紋章獲得→{"id":"紋章id","qty":數量}。真紋章id：genesis/blade/bulwark/hellfire/abyssal/tempest/thunder/terra/solar/lunar/stellar/eclipse/vitality/souleater/samsara/nihil/sovereign/chaos/order/judgment/illusion/chronos/gateway/sage/revolution/polaris/dawn。
 【UI互動】標記為【UI互動】的訊息僅為背景資訊，不要推進劇情。
 `;
 
@@ -1366,6 +1370,7 @@ function renderResp(d){
   if(d.or&&d.or.stage)revealOrangeSecret(d.or.stage);
   if(d.job)applyJobUpdate(d.job);
   if(d.gu)applyGuildUpdate(d.gu);
+  if(d.cr)applyCrestUpdate(d.cr);
   tickBondCooldowns();
   if(d.fa){const _fa=Array.isArray(d.fa)?d.fa:[d.fa];_fa.forEach(f=>{if(f.id&&f.delta){setFavor(f.id,f.delta);const _n=getCharData(f.id)?.name||f.id;showToast(`${_n} 好感 ${f.delta>0?'+':''}${f.delta}`,f.delta>0?'ok':'inf');}});renderChanged('party');}
   scrollD();
@@ -1392,7 +1397,7 @@ function renderAll(){
   // 強制渲染所有面板（確保資料同步）
   markAllDirty();
   Object.keys(_renderCache).forEach(k=>delete _renderCache[k]);
-  ['party','stars','inv','quest','intel','log','guild','activities','hq'].forEach(tab=>{
+  ['party','stars','inv','quest','intel','log','guild','activities','hq','crest'].forEach(tab=>{
     _dirty[tab]=true;renderBoth(tab);
   });
   if(G.currentChoices?.length)renderChoices(G.currentChoices,false);
@@ -1405,7 +1410,7 @@ function renderChanged(...tabs){
   document.getElementById('scene-loc').textContent=G.sceneLoc||'';
   if(tabs.length){tabs.forEach(t=>markDirty(t));}else{markAllDirty();}
   // 渲染所有被標髒的面板
-  ['party','stars','inv','quest','intel','guild','activities','hq'].forEach(t=>{
+  ['party','stars','inv','quest','intel','guild','activities','hq','crest'].forEach(t=>{
     if(_dirty[t])renderBoth(t);
   });
 }
@@ -3629,6 +3634,469 @@ function buildRelicSection(){
   </div>`;
 }
 
+// ═══ CREST SYSTEM（紋章系統）═══
+// 世界創生時，始源之劍與盾的碰撞產生27枚真紋章，蘊含世界根源法則。
+// 帝國崩裂之夜，沉睡的真紋章開始覺醒，與108星辰的降世息息相關。
+// 一般紋章為真紋章的碎片化衍生，可裝備使用。
+
+const TRUE_CRESTS=[
+  // ── 始源紋章群（3）── 世界誕生之力
+  {id:'genesis',  cat:'始源', name:'創世真紋章',  icon:'🌌', color:'#e0c0ff',
+   desc:'萬物起源之力。傳說在世界誕生的瞬間，虛空中第一道光凝結為此紋章。持有者可觸及存在的根源——但凡人的意識能否承受「一切的真相」？',
+   curse:'持有者逐漸喪失凡人的情感，最終成為不哭不笑的「觀測者」。',
+   lore:'帝國始祖曾短暫觸及此紋章，建立了六百年霸業。但他的日記最後一頁只有一句話：「我什麼都看見了。所以我什麼都不再感受。」',
+   effect:'所有素質判定+5・解鎖隱藏劇情分支',
+   location:'unknown', holder:null, status:'dormant'},
+  {id:'blade',    cat:'始源', name:'劍真紋章',    icon:'⚔️', color:'#ff6060',
+   desc:'劈開天地的始源之劍凝結而成。純粹的「斬斷」之力——斬斷肉體、斬斷因果、甚至斬斷命運本身。',
+   curse:'持有者無法停止戰鬥的渴望。和平時期會陷入無法控制的狂暴。',
+   lore:'傳說始源之劍將盾擊碎為大地，自身化為蒼穹。劍真紋章是那把劍留在世上最後的碎片。',
+   effect:'武力+30・攻擊無視防禦・大成功時觸發「斷命一閃」',
+   location:'unknown', holder:null, status:'dormant'},
+  {id:'bulwark',  cat:'始源', name:'盾真紋章',    icon:'🛡️', color:'#6090ff',
+   desc:'承受一切的始源之盾凝結而成。絕對的「守護」之力——守護生命、守護記憶、守護世界的形態。',
+   curse:'持有者背負世界的重量，壽命以常人十倍的速度流逝。',
+   lore:'始源之盾被劍擊碎後化為大地，但盾的意志並未消散。它化為紋章，繼續守護——即使被守護的一切早已改變。',
+   effect:'全隊 HP+50%・受到致命傷害時觸發「不碎之壁」',
+   location:'unknown', holder:null, status:'dormant'},
+
+  // ── 元素紋章群（5）── 自然法則之力
+  {id:'hellfire', cat:'元素', name:'炎獄真紋章',  icon:'🔥', color:'#ff4400',
+   desc:'灼燒一切的原初之火。不僅燃燒物質，更能燃燒概念——仇恨、記憶、乃至時間本身。',
+   curse:'持有者的體溫不斷升高，最終會自燃。歷代持有者平均壽命僅十二年。',
+   lore:'南荒的龍牙砦深處，地熱異常的源頭。當地居民稱之為「地底的心臟」。',
+   effect:'火屬性魔法威力三倍・免疫火焰・周圍敵人每回合灼傷',
+   location:'南荒・龍牙砦深處', holder:null, status:'dormant'},
+  {id:'abyssal',  cat:'元素', name:'冥淵真紋章',  icon:'🌊', color:'#0066cc',
+   desc:'深淵之水。據說世界最深處有一片永不見光的海洋，冥淵紋章便是那片海的意志。',
+   curse:'持有者逐漸被深淵吸引，最終無法離開水域。許多持有者的結局是沉入大海。',
+   lore:'東海王國的漁民有時會在暴風雨中看見海底的藍光。那不是生物——是紋章在呼喚。',
+   effect:'水屬性魔法威力三倍・水中行動自如・召喚海嘯',
+   location:'東海・深海海溝', holder:null, status:'dormant'},
+  {id:'tempest',  cat:'元素', name:'天嵐真紋章',  icon:'🌪️', color:'#88ddaa',
+   desc:'自由之風的具現。風無形無質，卻能摧毀一切。持有者獲得絕對的自由——包括擺脫因果律的自由。',
+   curse:'持有者無法在同一個地方停留超過三天。永恆的流浪者。',
+   lore:'翠林域上空有時會出現不自然的氣流螺旋。精靈長老說那是「風的紋章在散步」。',
+   effect:'風屬性魔法威力三倍・移動速度倍增・迴避率大幅提升',
+   location:'翠林域・風之迴廊', holder:null, status:'dormant'},
+  {id:'thunder',  cat:'元素', name:'雷霆真紋章',  icon:'⚡', color:'#ffdd00',
+   desc:'天罰之雷。傳說這是世界用來懲罰違背法則者的力量。閃電是天意的裁決，雷鳴是判決的宣告。',
+   curse:'持有者會不自覺地審判周圍的一切。所有的灰色地帶在他眼中都變成非黑即白。',
+   lore:'王冠峰山頂的落雷頻率是其他地方的一百倍。那裡有一把被雷劈成焦炭的古劍——它曾經是某個持有者的武器。',
+   effect:'雷屬性魔法威力三倍・攻擊附帶麻痺・命中率100%',
+   location:'中央王國・王冠峰', holder:null, status:'dormant'},
+  {id:'terra',    cat:'元素', name:'磐石真紋章',  icon:'🏔️', color:'#8b6914',
+   desc:'大地之力的根源。山脈、荒野、沃土——一切堅實之物的法則都源於此紋章。不動如山，沉穩如石。',
+   curse:'持有者身體逐漸石化。最終會化為一座雕像，永遠守護腳下的土地。',
+   lore:'霧山山脈的地質異常。矮人族傳說山脈本身就是遠古持有者石化後的遺體。',
+   effect:'地屬性魔法威力三倍・防禦力倍增・免疫擊退和擊飛',
+   location:'霧山山脈・地心', holder:null, status:'dormant'},
+
+  // ── 天體紋章群（4）── 星辰運行之力
+  {id:'solar',    cat:'天體', name:'曜日真紋章',  icon:'☀️', color:'#ffaa00',
+   desc:'太陽之力。光明、溫暖、希望——但也是灼燒、旱災、毀滅。太陽不分善惡地照耀一切。',
+   curse:'持有者的情感會傳染給周圍所有人。快樂時眾人狂喜，悲傷時眾人痛哭。孤獨成為唯一的選擇。',
+   lore:'中央王國的王位繼承者曾持有此紋章。「太陽王」的統治帶來黃金時代——也帶來了帝國末期的瘋狂。',
+   effect:'光屬性魔法・全隊攻擊+15・驅散黑暗系狀態',
+   location:'鏽城・帝國王座', holder:null, status:'dormant'},
+  {id:'lunar',    cat:'天體', name:'月輪真紋章',  icon:'🌙', color:'#aabbdd',
+   desc:'月亮之力。陰影、秘密、變化。月有陰晴圓缺，持有者的力量也隨月相增減。',
+   curse:'滿月之夜力量暴走，新月之夜力量歸零。持有者永遠無法擁有穩定的力量。',
+   lore:'銀月城之名來源於此。建城者在城中心封印了月輪紋章的碎片，使城市永遠沐浴在銀色月光中。',
+   effect:'暗屬性魔法・滿月時全素質+20・新月時變身能力解鎖',
+   location:'銀月城・月之地窖', holder:null, status:'dormant'},
+  {id:'stellar',  cat:'天體', name:'星命真紋章',  icon:'✦', color:'#ddc0ff',
+   desc:'與108命運之星直接相關的紋章。掌控星辰降世與聚合的法則。持有者能感知所有星辰之人的位置與命運。',
+   curse:'持有者看見所有人的命運軌跡，卻無法改變任何一條。全知帶來的是無盡的無力感。',
+   lore:'北斗星・先行者可能曾經觸及此紋章——這或許就是他能感知108星降世的原因，也可能是他倒下的原因。',
+   effect:'感知所有星辰位置・招募成功率+50%・解鎖星辰共鳴',
+   location:'unknown', holder:null, status:'dormant'},
+  {id:'eclipse',  cat:'天體', name:'蝕真紋章',    icon:'🌑', color:'#553355',
+   desc:'日蝕與月蝕之力。光與暗的交錯、秩序與混沌的邊界。代表「例外」與「異變」的力量。',
+   curse:'持有者的存在本身就是異變。周圍的因果律會扭曲，巧合頻繁發生，命運不再可預測。',
+   lore:'帝國崩裂之夜，天象記錄中除了108顆流星外，還有一次短暫的日蝕——在夜晚。這在天文學上不可能發生。',
+   effect:'無視屬性相剋・敵方增益全部反轉・觸發隨機奇蹟事件',
+   location:'unknown', holder:null, status:'dormant'},
+
+  // ── 生滅紋章群（4）── 生死輪轉之力
+  {id:'vitality', cat:'生滅', name:'生命真紋章',  icon:'💚', color:'#00cc66',
+   desc:'生命力的源泉。能治癒一切傷病、甚至復活死者。但生命紋章的持有者會發現——給予生命的代價是自己的生命。',
+   curse:'每次使用治癒力量，持有者自身的壽命會等量減少。治癒他人一年的傷，就失去自己一年的壽命。',
+   lore:'傳說帝國時代有一位持有者在瘟疫中治癒了整座城市三萬人。之後她在一夜之間老去，含笑而終。',
+   effect:'全隊HP回復+100%・復活已死亡同伴・免疫所有負面狀態',
+   location:'翠林域・世界樹根部', holder:null, status:'dormant'},
+  {id:'souleater',cat:'生滅', name:'魂噬真紋章',  icon:'💀', color:'#880088',
+   desc:'吞噬靈魂的紋章。每當持有者身邊有人死去，那個靈魂就會被紋章吸收。積累的靈魂越多，力量越強大。',
+   curse:'紋章會主動製造死亡來餵養自己。持有者身邊的人會以各種方式接連死去——事故、疾病、戰場。',
+   lore:'這是所有真紋章中最被詛咒的一枚。據說每一任持有者最終都會成為孤身一人——因為身邊所有人都已被紋章吞噬。',
+   effect:'每次擊殺敵人永久+1全素質・召喚亡靈軍團・即死魔法',
+   location:'鏽城・帝國地下墓穴', holder:null, status:'dormant'},
+  {id:'samsara',  cat:'生滅', name:'輪迴真紋章',  icon:'♾️', color:'#cc8800',
+   desc:'死與生的循環之力。萬物終將消亡，萬物終將重生。這枚紋章記錄了世界誕生以來每一次死亡與重生。',
+   curse:'持有者能看見所有事物的「前世」。每一棵樹、每一塊石頭、每一個人——你看見的不是他們，而是他們曾經是誰。',
+   lore:'108星的降世本身，或許就是輪迴紋章運作的結果。那些星辰之人，會不會是前世某群人的轉生？',
+   effect:'戰鬥不敵時自動復活一次・察覺隱藏的前世因緣・解鎖輪迴劇情',
+   location:'unknown', holder:null, status:'dormant'},
+  {id:'nihil',    cat:'生滅', name:'虛無真紋章',  icon:'⬛', color:'#444444',
+   desc:'一切的終結。不是死亡——死亡之後還有輪迴。虛無是比死亡更深的消滅：連存在的痕跡都不會留下。',
+   curse:'持有者周圍的事物會逐漸「消失」。先是顏色，然後是聲音，然後是記憶——最終，連持有者自己是否存在都變得可疑。',
+   lore:'帝國崩裂之夜，帝都有三個街區在一瞬間消失。不是毀滅——是消失。連廢墟都沒有留下。沒有人記得那裡曾經有什麼。',
+   effect:'消滅魔法（無視一切防禦）・概念抹除・觸發虛無侵蝕事件',
+   location:'鏽城・消失街區的中心', holder:null, status:'dormant'},
+
+  // ── 支配紋章群（4）── 權力與法則之力
+  {id:'sovereign',cat:'支配', name:'霸王真紋章',  icon:'👑', color:'#ffd700',
+   desc:'統治的力量。持有者的命令對所有生命具有強制力。王權的極致——但絕對的權力帶來絕對的孤獨。',
+   curse:'持有者無法分辨真心的服從和紋章的強制。每一句「是的，陛下」都可能是紋章的傀儡術，而非真心。',
+   lore:'聖赫倫帝國初代皇帝是此紋章的持有者。六百年帝國——六百年的孤獨。末代皇帝暴斃之夜，紋章消失了。',
+   effect:'統率+30・強制命令（低等級敵人自動投降）・領地內全員增益',
+   location:'鏽城・帝國玉座', holder:null, status:'dormant'},
+  {id:'chaos',    cat:'支配', name:'混沌真紋章',  icon:'🌀', color:'#ff00ff',
+   desc:'秩序的對立面。混沌不是邪惡——它是可能性本身。在混沌中，任何事都可能發生，任何規則都可能被打破。',
+   curse:'持有者周圍的因果律崩壞。計劃永遠趕不上變化，盟友可能突然變成敵人，敵人可能突然成為朋友。',
+   lore:'霧刃幫的崛起速度異常——一個山賊組織怎麼可能在三年內控制整個山口地帶？有人懷疑他們的首領觸及了混沌紋章。',
+   effect:'敵方所有判定隨機化・隨機觸發有利事件・打破任何封印',
+   location:'unknown', holder:null, status:'dormant'},
+  {id:'order',    cat:'支配', name:'秩序真紋章',  icon:'⚖️', color:'#4488cc',
+   desc:'法則之力。秩序紋章維持世界的規則運轉——物理法則、因果律、甚至命運的軌道。',
+   curse:'持有者無法容忍任何「例外」。所有的創造、變革、叛逆在他眼中都是必須被糾正的錯誤。',
+   lore:'帝國的法典不是人寫的——是秩序紋章的碎片投影。所以帝國法律完美到不近人情。',
+   effect:'全隊判定結果穩定化（消除隨機性）・封印敵方技能・結界魔法',
+   location:'中央王國・帝國法院遺址', holder:null, status:'dormant'},
+  {id:'judgment', cat:'支配', name:'審判真紋章',  icon:'⚜️', color:'#cc4444',
+   desc:'罪與罰的紋章。能看穿一切謊言、審視一切罪行、執行一切刑罰。正義的化身——或暴力的正當化。',
+   curse:'持有者眼中所有人都有罪。因為在絕對的正義面前，沒有人是完全清白的。持有者最終會審判自己。',
+   lore:'帝國審判庭曾使用此紋章的碎片製作「審問之眼」。那隻眼睛能逼迫任何人說出真話——也逼瘋了三任審判長。',
+   effect:'看穿謊言和隱藏意圖・對「有罪者」傷害倍增・免疫精神攻擊',
+   location:'鏽城・審判庭廢墟', holder:null, status:'dormant'},
+
+  // ── 奧義紋章群（4）── 超越常理之力
+  {id:'illusion', cat:'奧義', name:'夢幻真紋章',  icon:'🦋', color:'#ee88cc',
+   desc:'夢境與幻象的力量。現實與虛幻的界線在持有者手中變得模糊。創造幻象、潛入夢境、甚至將夢境變為現實。',
+   curse:'持有者逐漸無法分辨夢與現實。最終可能永遠沉睡在自己創造的完美夢境中——或者，那才是真正的現實？',
+   lore:'影沼地的瘴氣不是毒——是夢幻紋章的殘餘力量。沼澤居民長期暴露後產生幻覺，分不清真假。',
+   effect:'創造幻象欺騙敵人・潛入NPC夢境獲取情報・解鎖夢境地圖',
+   location:'影沼地・霧之核心', holder:null, status:'dormant'},
+  {id:'chronos',  cat:'奧義', name:'時律真紋章',  icon:'⏳', color:'#aa88ff',
+   desc:'時間之力。加速、減速、暫停、甚至回溯。但時間是世界最脆弱的法則——任何干涉都可能造成災難性的後果。',
+   curse:'持有者的時間感知紊亂。一秒可能感覺像一年，一年可能感覺像一秒。與他人的時間永遠不同步。',
+   lore:'帝國崩裂之夜，有人試圖用時律紋章阻止皇帝的死亡。結果不但沒有成功——還讓整座帝都陷入時間裂縫。',
+   effect:'戰鬥中暫停時間一回合・預知下回合敵人行動・回溯一次選擇',
+   location:'鏽城・時間裂縫', holder:null, status:'dormant'},
+  {id:'gateway',  cat:'奧義', name:'門扉真紋章',  icon:'🚪', color:'#66ccaa',
+   desc:'連接一切空間的力量。開啟通往任何地方的門——不僅是物理空間，也包括異界、夢境、甚至其他時間線。',
+   curse:'持有者身邊會自發性出現空間裂縫。不知道什麼時候會踏入另一個世界，也不知道另一個世界的什麼會踏入這裡。',
+   lore:'影沼地深處通往「地底世界」的通道——可能就是門扉紋章造成的永久空間裂縫。',
+   effect:'瞬間移動到已知地點・召喚異界生物・打開次元裂縫',
+   location:'影沼地・地底入口', holder:null, status:'dormant'},
+  {id:'sage',     cat:'奧義', name:'智慧真紋章',  icon:'📖', color:'#88aacc',
+   desc:'全知之力。持有者能閱讀世界的「源碼」——理解一切現象背後的原理，包括其他紋章的運作方式。',
+   curse:'知識是沉重的。持有者會被無窮無盡的資訊淹沒。很多持有者在獲得全知後選擇了沉默，因為語言無法表達他們看見的東西。',
+   lore:'翠林域的禁忌書庫——傳說是某任智慧紋章持有者將自己的全知投影為實體書籍。但沒有人能讀完。',
+   effect:'知力+30・看穿敵人弱點・解鎖所有隱藏情報・辨識一切紋章',
+   location:'翠林域・禁忌書庫', holder:null, status:'dormant'},
+
+  // ── 命運紋章群（3）── 改變世界之力
+  {id:'revolution',cat:'命運', name:'變革真紋章', icon:'🔄', color:'#ff8844',
+   desc:'變化與革命之力。一切停滯都將被打破，一切舊秩序都將被推翻。這是「逼上梁山」之力的根源。',
+   curse:'持有者無法安於現狀。即使建立了新秩序，紋章也會驅使持有者再次推翻它。永恆的革命者。',
+   lore:'每一次大陸歷史的劇變背後，都有變革紋章的影子。帝國的建立、帝國的崩裂——或許都是同一枚紋章在推動。',
+   effect:'逆境中全素質+10・推翻任何「不可能」的判定・觸發革命劇情線',
+   location:'unknown', holder:null, status:'dormant'},
+  {id:'polaris',  cat:'命運', name:'北斗真紋章',  icon:'🌟', color:'#ffe4b5',
+   desc:'指引之力。北斗星永遠指向北方——這枚紋章永遠指向「正確的道路」。與北斗星・先行者直接相關的核心紋章。',
+   curse:'持有者能看見正確的路，卻未必能走到終點。先行者的宿命——照亮他人的路，自己卻倒在半途。',
+   lore:'北斗星・先行者倒下時，這枚紋章碎裂為數個碎片散落各地。蒐集碎片或許能解開先行者的真相。與北斗星線索系統直接關聯。',
+   effect:'指引星辰之人所在方向・解鎖北斗星主線・全隊幸運+15',
+   location:'碎裂散落', holder:null, status:'dormant'},
+  {id:'dawn',     cat:'命運', name:'黎明真紋章',  icon:'🌅', color:'#ffcc88',
+   desc:'新紀元之力。當黑夜最深沉的時刻過去，黎明終將到來。這是終結亂世、開啟新時代的力量——108星聚齊之時覺醒。',
+   curse:'黎明到來之前，持有者必須承受最深沉的黑夜。所有的苦難、所有的犧牲，都在黎明前最後的黑暗中積累。',
+   lore:'占星師的預言中記載：「當108星齊聚於北斗之下，黎明紋章將在命運之錨的見證下覺醒，亂世終結，新紀元開始。」',
+   effect:'108星全員齊聚時覺醒・終結亂世・觸發最終章・全員素質+20',
+   location:'命運之座（據點最終設施）', holder:null, status:'dormant'},
+];
+
+// 一般紋章：真紋章的碎片化衍生，可透過商店、寶箱、掉落獲得
+const REGULAR_CRESTS=[
+  // 元素系
+  {id:'fire_1',      cat:'元素', name:'火焰紋章',    icon:'🔥', rarity:'普通', desc:'基礎火屬性紋章。裝備後可使用火焰箭術。', effect:'火焰箭：單體火傷害', slot:'magic', price:800},
+  {id:'fire_2',      cat:'元素', name:'業火紋章',    icon:'🔥', rarity:'精良', desc:'進階火屬性紋章。火焰範圍擴大。', effect:'業火陣：範圍火傷害', slot:'magic', price:3500},
+  {id:'water_1',     cat:'元素', name:'流水紋章',    icon:'💧', rarity:'普通', desc:'基礎水屬性紋章。裝備後可使用治癒術。', effect:'治癒術：回復單體HP', slot:'magic', price:800},
+  {id:'water_2',     cat:'元素', name:'激流紋章',    icon:'💧', rarity:'精良', desc:'進階水屬性紋章。治癒範圍擴大。', effect:'激流癒：回復全體HP', slot:'magic', price:3500},
+  {id:'wind_1',      cat:'元素', name:'微風紋章',    icon:'🍃', rarity:'普通', desc:'基礎風屬性紋章。裝備後可使用風刃術。', effect:'風刃：單體風傷害+減速', slot:'magic', price:800},
+  {id:'wind_2',      cat:'元素', name:'暴風紋章',    icon:'🍃', rarity:'精良', desc:'進階風屬性紋章。催眠之風。', effect:'暴風眠：範圍催眠', slot:'magic', price:3500},
+  {id:'thunder_1',   cat:'元素', name:'電擊紋章',    icon:'⚡', rarity:'普通', desc:'基礎雷屬性紋章。裝備後可使用雷擊術。', effect:'雷擊：單體雷傷害+麻痺', slot:'magic', price:800},
+  {id:'thunder_2',   cat:'元素', name:'雷雲紋章',    icon:'⚡', rarity:'精良', desc:'進階雷屬性紋章。連鎖落雷。', effect:'連鎖雷：多體雷傷害', slot:'magic', price:3500},
+  {id:'earth_1',     cat:'元素', name:'岩石紋章',    icon:'🪨', rarity:'普通', desc:'基礎地屬性紋章。裝備後可使用防壁術。', effect:'岩壁：單體防禦+30%', slot:'magic', price:800},
+  {id:'earth_2',     cat:'元素', name:'地脈紋章',    icon:'🪨', rarity:'精良', desc:'進階地屬性紋章。大地之護。', effect:'地脈護：全體防禦+20%', slot:'magic', price:3500},
+  // 戰技系
+  {id:'fury',        cat:'戰技', name:'狂戰士紋章',  icon:'💢', rarity:'精良', desc:'裝備者進入狂暴狀態。攻擊大幅提升但無法防禦。', effect:'攻擊+50%・防禦-30%・無法逃跑', slot:'combat', price:2500},
+  {id:'falcon',      cat:'戰技', name:'隼擊紋章',    icon:'🦅', rarity:'精良', desc:'裝備者攻擊速度大幅提升。', effect:'先制攻擊・連擊機率+30%', slot:'combat', price:2500},
+  {id:'counter',     cat:'戰技', name:'反擊紋章',    icon:'↩️', rarity:'普通', desc:'受到物理攻擊時有機率自動反擊。', effect:'被攻擊時40%機率反擊', slot:'combat', price:1500},
+  {id:'critical',    cat:'戰技', name:'會心紋章',    icon:'💥', rarity:'普通', desc:'暴擊率大幅提升。', effect:'暴擊率+25%', slot:'combat', price:1500},
+  {id:'double',      cat:'戰技', name:'雙擊紋章',    icon:'⚔️', rarity:'稀有', desc:'每次攻擊額外追加一次攻擊。', effect:'每次攻擊二連擊', slot:'combat', price:5000},
+  // 守護系
+  {id:'shield',      cat:'守護', name:'守護紋章',    icon:'🛡️', rarity:'普通', desc:'基礎防禦紋章。減少受到的傷害。', effect:'受傷-15%', slot:'defense', price:1000},
+  {id:'resist',      cat:'守護', name:'抗性紋章',    icon:'🔰', rarity:'普通', desc:'提升對異常狀態的抵抗力。', effect:'異常抵抗+50%', slot:'defense', price:1200},
+  {id:'barrier',     cat:'守護', name:'結界紋章',    icon:'🔮', rarity:'精良', desc:'魔法防禦大幅提升。', effect:'魔法傷害-30%', slot:'defense', price:3000},
+  {id:'regenerate',  cat:'守護', name:'再生紋章',    icon:'💗', rarity:'精良', desc:'每回合自動回復少量HP。', effect:'每回合回復5%HP', slot:'defense', price:3000},
+  // 強化系
+  {id:'power',       cat:'強化', name:'力量紋章',    icon:'💪', rarity:'普通', desc:'武力提升。', effect:'武力+10', slot:'boost', price:1500},
+  {id:'intel_c',     cat:'強化', name:'聰慧紋章',    icon:'🧠', rarity:'普通', desc:'知力提升。', effect:'知力+10', slot:'boost', price:1500},
+  {id:'command',     cat:'強化', name:'指揮紋章',    icon:'🎖️', rarity:'普通', desc:'統率提升。', effect:'統率+10', slot:'boost', price:1500},
+  {id:'charm',       cat:'強化', name:'魅惑紋章',    icon:'✨', rarity:'普通', desc:'魅力提升。', effect:'魅力+10', slot:'boost', price:1500},
+  {id:'fortune',     cat:'強化', name:'幸運紋章',    icon:'🍀', rarity:'普通', desc:'幸運提升。', effect:'幸運+10', slot:'boost', price:1500},
+  // 特殊系
+  {id:'exp_boost',   cat:'特殊', name:'成長紋章',    icon:'📈', rarity:'稀有', desc:'經驗值獲取倍增。', effect:'經驗值+100%', slot:'special', price:8000},
+  {id:'gold_boost',  cat:'特殊', name:'聚財紋章',    icon:'💰', rarity:'稀有', desc:'金幣獲取倍增。', effect:'金幣獲取+100%', slot:'special', price:8000},
+  {id:'escape',      cat:'特殊', name:'脫兔紋章',    icon:'🐇', rarity:'普通', desc:'逃跑必定成功。', effect:'逃跑成功率100%', slot:'special', price:2000},
+  {id:'stealth',     cat:'特殊', name:'隱匿紋章',    icon:'👤', rarity:'精良', desc:'降低敵人察覺機率。', effect:'遇敵率-50%・先制率+30%', slot:'special', price:4000},
+  {id:'holy',        cat:'特殊', name:'聖光紋章',    icon:'✝️', rarity:'稀有', desc:'淨化一切不潔。對不死系敵人特效。', effect:'對不死系傷害+200%・驅散詛咒', slot:'special', price:6000},
+  {id:'dark',        cat:'特殊', name:'暗影紋章',    icon:'🖤', rarity:'稀有', desc:'黑暗之力。提升暗屬性攻擊。', effect:'暗屬性攻擊・吸收HP', slot:'special', price:6000},
+];
+
+const CREST_RARITY_COLOR={普通:'#888',精良:'#6ab4c8',稀有:'var(--gold)',傳說:'rgba(200,120,220,.9)',真紋章:'#e0c0ff'};
+const CREST_CAT_ICON={始源:'🌌',元素:'🔮',天體:'✦',生滅:'♾️',支配:'👑',奧義:'📖',命運:'🌟',戰技:'⚔️',守護:'🛡️',強化:'💪',特殊:'🔰'};
+
+// G.crests = { discovered:{id:true}, equipped:{charId:crestId}, inventory:[crestId,...], trueCrestStatus:{id:{found,holder,awakened}} }
+function initCrests(){
+  if(!G.crests) G.crests={discovered:{},equipped:{},inventory:[],trueCrestStatus:{}};
+  if(!G.crests.discovered) G.crests.discovered={};
+  if(!G.crests.equipped) G.crests.equipped={};
+  if(!G.crests.inventory) G.crests.inventory=[];
+  if(!G.crests.trueCrestStatus) G.crests.trueCrestStatus={};
+}
+
+function applyCrestUpdate(data){
+  if(!data)return;
+  initCrests();
+  const items=Array.isArray(data)?data:[data];
+  items.forEach(cr=>{
+    if(!cr||!cr.id)return;
+    // True Crest discovery
+    const tc=TRUE_CRESTS.find(t=>t.id===cr.id);
+    if(tc){
+      const st=G.crests.trueCrestStatus[cr.id]||{};
+      if(cr.found) st.found=true;
+      if(cr.holder) st.holder=cr.holder;
+      if(cr.awakened) st.awakened=true;
+      if(cr.location) tc.location=cr.location;
+      G.crests.trueCrestStatus[cr.id]=st;
+      G.crests.discovered[cr.id]=true;
+      const col=tc.color||'#e0c0ff';
+      appendEntryToDOM({type:'sys',v:`✦ 真紋章發現：【${tc.icon} ${tc.name}】`});
+      if(tc.desc) appendEntryToDOM({type:'sys',v:tc.desc});
+      if(cr.holder) appendEntryToDOM({type:'sys',v:`持有者：${cr.holder}`});
+      showToast(`真紋章：${tc.name}`,'ok');
+      // Auto-add intel
+      addIntel({id:'crest_'+cr.id, title:tc.name, content:tc.desc+(tc.curse?'\n詛咒：'+tc.curse:''),
+        src:cr.src||'紋章感知', rel:5, cat:'紋章'});
+    }else{
+      // Regular crest acquisition
+      const rc=REGULAR_CRESTS.find(r=>r.id===cr.id);
+      if(rc){
+        G.crests.discovered[cr.id]=true;
+        const qty=cr.qty||1;
+        for(let i=0;i<qty;i++) G.crests.inventory.push(cr.id);
+        appendEntryToDOM({type:'sys',v:`◈ 獲得紋章：【${rc.icon} ${rc.name}】${qty>1?'×'+qty:''}`});
+        showToast(`紋章：${rc.name}`,'ok');
+      }
+    }
+  });
+  renderChanged('crest','inv');
+  saveGame();
+}
+
+function equipCrest(charId,crestIdx){
+  initCrests();
+  if(crestIdx<0||crestIdx>=G.crests.inventory.length)return;
+  const crestId=G.crests.inventory[crestIdx];
+  // Unequip current if any
+  const curEquipped=G.crests.equipped[charId];
+  if(curEquipped){
+    G.crests.inventory.push(curEquipped);
+  }
+  G.crests.equipped[charId]=crestId;
+  G.crests.inventory.splice(crestIdx,1);
+  const rc=REGULAR_CRESTS.find(r=>r.id===crestId);
+  const name=rc?rc.name:crestId;
+  const ch=getCharData(charId);
+  showToast(`${ch?.name||charId} 裝備了 ${name}`,'ok');
+  markDirty('crest');renderBoth('crest');
+  saveGame();
+}
+
+function unequipCrest(charId){
+  initCrests();
+  const crestId=G.crests.equipped[charId];
+  if(!crestId)return;
+  G.crests.inventory.push(crestId);
+  delete G.crests.equipped[charId];
+  showToast('紋章已卸下','ok');
+  markDirty('crest');renderBoth('crest');
+  saveGame();
+}
+
+let _crestFilter='true';
+function setCrestFilter(k){_crestFilter=k;markDirty('crest');renderBoth('crest');}
+
+function buildCrest(){
+  initCrests();
+  const f=_crestFilter;
+  const filterRow=`<div class="sfrow" style="flex-wrap:wrap;">${[['true','真紋章'],['regular','一般紋章'],['equipped','裝備中']].map(([k,l])=>`<button class="sfb ${f===k?'ac':''}" onclick="setCrestFilter('${k}')">${l}</button>`).join('')}</div>`;
+
+  let h=filterRow;
+
+  if(f==='true'){
+    // 真紋章總覽
+    const found=Object.keys(G.crests.trueCrestStatus).filter(id=>G.crests.trueCrestStatus[id].found).length;
+    h+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:.4rem .2rem .2rem;">
+      <span style="font-size:.62rem;color:var(--goldd);">✦ 27 真紋章</span>
+      <span style="font-size:.52rem;color:var(--sild);">發現 ${found} / 27</span>
+    </div>`;
+    // Group by category
+    const cats=['始源','元素','天體','生滅','支配','奧義','命運'];
+    cats.forEach(cat=>{
+      const crests=TRUE_CRESTS.filter(c=>c.cat===cat);
+      const catIcon=CREST_CAT_ICON[cat]||'◈';
+      h+=`<div style="margin-bottom:.5rem;">
+        <div style="font-size:.58rem;color:var(--goldd);letter-spacing:.06em;margin:.4rem 0 .25rem;padding-left:.1rem;">${catIcon} ${cat}紋章群</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:.3rem;">`;
+      crests.forEach(tc=>{
+        const st=G.crests.trueCrestStatus[tc.id]||{};
+        const isFound=st.found;
+        const isAwakened=st.awakened;
+        const borderCol=isFound?(isAwakened?tc.color:'rgba(200,180,100,.4)'):'rgba(80,80,80,.3)';
+        const bgCol=isFound?'rgba(255,255,255,.03)':'rgba(30,30,30,.3)';
+        h+=`<div onclick="${isFound?`openTrueCrest('${tc.id}')`:''}" style="background:${bgCol};border:1px solid ${borderCol};border-radius:4px;padding:.4rem;cursor:${isFound?'pointer':'default'};transition:border-color .2s;">
+          <div style="display:flex;align-items:center;gap:.3rem;margin-bottom:.15rem;">
+            <span style="font-size:.9rem;opacity:${isFound?1:.3}">${tc.icon}</span>
+            <span style="font-size:.62rem;color:${isFound?tc.color:'var(--sild)'};font-weight:${isFound?600:400}">${isFound?tc.name:'？？？'}</span>
+          </div>
+          ${isFound?`<div style="font-size:.5rem;color:var(--sild);line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">${tc.desc.substring(0,40)}⋯</div>
+          ${st.holder?`<div style="font-size:.48rem;color:${tc.color};margin-top:.1rem;">持有者：${st.holder}</div>`:''}
+          ${isAwakened?`<div style="font-size:.48rem;color:#6ab46a;margin-top:.1rem;">✦ 已覺醒</div>`:''}`
+          :`<div style="font-size:.5rem;color:rgba(80,80,80,.5);line-height:1.4;">尚未發現</div>`}
+        </div>`;
+      });
+      h+=`</div></div>`;
+    });
+    // Lore section
+    h+=`<div style="margin-top:.6rem;padding:.5rem;background:rgba(255,255,255,.02);border:1px solid var(--brd);border-radius:4px;">
+      <div style="font-size:.58rem;color:var(--goldd);margin-bottom:.3rem;">📜 紋章創世記</div>
+      <div style="font-size:.56rem;color:var(--sild);line-height:1.7;">
+        太初，唯有虛空。虛空孤寂而落淚，淚水化為兩兄弟——劍與盾。<br>
+        劍與盾激戰七晝夜。劍劈碎了盾，碎片化為大地；盾折斷了劍，碎片化為蒼穹。<br>
+        戰鬥的火花化為星辰，兩者身上的 27 枚寶石化為 27 枚真紋章。<br>
+        世界開始運轉。真紋章散落各地，選擇持有者，塑造歷史的走向。<br>
+        帝國曆 1077 年，帝國崩裂之夜，沉睡的真紋章再度覺醒——與108顆命運之星的降世同步。這不是巧合。
+      </div>
+    </div>`;
+  }
+  else if(f==='regular'){
+    // 持有的一般紋章
+    const inv=G.crests.inventory;
+    const countMap={};
+    inv.forEach(id=>{countMap[id]=(countMap[id]||0)+1;});
+    const uniqueIds=[...new Set(inv)];
+    h+=`<div style="padding:.4rem .2rem .2rem;display:flex;justify-content:space-between;align-items:center;">
+      <span style="font-size:.62rem;color:var(--goldd);">◈ 持有紋章</span>
+      <span style="font-size:.52rem;color:var(--sild);">${inv.length} 枚</span>
+    </div>`;
+    if(!uniqueIds.length){
+      h+=`<div style="font-size:.62rem;color:var(--sild);padding:.5rem .2rem;">尚無一般紋章。可透過商店購買、寶箱發現或擊敗敵人獲得。</div>`;
+    }else{
+      const catOrder=['元素','戰技','守護','強化','特殊'];
+      catOrder.forEach(cat=>{
+        const catCrests=uniqueIds.map(id=>REGULAR_CRESTS.find(r=>r.id===id)).filter(r=>r&&r.cat===cat);
+        if(!catCrests.length)return;
+        h+=`<div style="font-size:.55rem;color:var(--goldd);margin:.4rem 0 .2rem;">${CREST_CAT_ICON[cat]||'◈'} ${cat}系</div>`;
+        catCrests.forEach(rc=>{
+          const qty=countMap[rc.id]||0;
+          const col=CREST_RARITY_COLOR[rc.rarity]||'#888';
+          h+=`<div style="display:flex;gap:.5rem;align-items:center;padding:.35rem .1rem;border-bottom:1px solid rgba(255,255,255,.04);">
+            <span style="font-size:.9rem;flex-shrink:0">${rc.icon}</span>
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;align-items:center;gap:.3rem;">
+                <span style="font-size:.66rem;color:${col};font-weight:600">${rc.name}</span>
+                <span style="font-size:.46rem;color:${col};border:1px solid ${col};border-radius:2px;padding:.01rem .2rem;opacity:.7">${rc.rarity}</span>
+                <span style="font-size:.52rem;color:var(--sild);">×${qty}</span>
+              </div>
+              <div style="font-size:.54rem;color:var(--sild);margin-top:.06rem">${rc.effect}</div>
+            </div>
+          </div>`;
+        });
+      });
+    }
+  }
+  else if(f==='equipped'){
+    // 裝備中的紋章
+    h+=`<div style="padding:.4rem .2rem .2rem;font-size:.62rem;color:var(--goldd);">⚙ 裝備中紋章</div>`;
+    const party=allParty();
+    let anyEquipped=false;
+    party.forEach(ch=>{
+      const crestId=G.crests.equipped[ch.id];
+      const rc=crestId?REGULAR_CRESTS.find(r=>r.id===crestId):null;
+      h+=`<div style="display:flex;align-items:center;gap:.5rem;padding:.35rem .2rem;border-bottom:1px solid rgba(255,255,255,.04);">
+        <span style="font-size:.8rem">${ch.emoji||'👤'}</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:.62rem;color:var(--sil)">${ch.name}</div>
+          ${rc?`<div style="display:flex;align-items:center;gap:.25rem;margin-top:.08rem;">
+            <span style="font-size:.7rem">${rc.icon}</span>
+            <span style="font-size:.58rem;color:${CREST_RARITY_COLOR[rc.rarity]||'#888'}">${rc.name}</span>
+            <span style="font-size:.5rem;color:var(--sild);">${rc.effect}</span>
+          </div>
+          <button onclick="unequipCrest('${ch.id}')" style="margin-top:.15rem;font-size:.52rem;padding:.1rem .3rem;background:transparent;border:1px solid rgba(204,68,68,.35);border-radius:2px;color:rgba(204,68,68,.7);cursor:pointer;">卸下</button>`
+          :`<div style="font-size:.56rem;color:var(--sild);margin-top:.06rem">— 未裝備紋章 —</div>
+          ${G.crests.inventory.length?`<select onchange="if(this.value!=='')equipCrest('${ch.id}',parseInt(this.value))" style="margin-top:.15rem;font-size:.52rem;padding:.12rem .25rem;background:var(--bg3);border:1px solid var(--brd);border-radius:2px;color:var(--sil);cursor:pointer;">
+            <option value="">選擇紋章⋯</option>
+            ${G.crests.inventory.map((cid,idx)=>{const r=REGULAR_CRESTS.find(x=>x.id===cid);return r?`<option value="${idx}">${r.icon} ${r.name}（${r.effect}）</option>`:''}).join('')}
+          </select>`:''}`}
+        </div>
+      </div>`;
+      if(rc) anyEquipped=true;
+    });
+    if(!anyEquipped&&!G.crests.inventory.length){
+      h+=`<div style="font-size:.58rem;color:var(--sild);padding:.4rem .2rem;">尚無紋章可裝備。</div>`;
+    }
+  }
+
+  return h;
+}
+
+function openTrueCrest(id){
+  const tc=TRUE_CRESTS.find(t=>t.id===id);if(!tc)return;
+  const st=G.crests.trueCrestStatus[id]||{};
+  document.getElementById('modal-inner').innerHTML=`
+    <div style="text-align:center;padding:.5rem 0;">
+      <div style="font-size:2rem;">${tc.icon}</div>
+      <div style="font-size:.9rem;color:${tc.color};font-weight:600;margin:.3rem 0;">${tc.name}</div>
+      <div style="font-size:.52rem;color:var(--sild);letter-spacing:.08em;">${tc.cat}紋章群 ・ 真紋章</div>
+    </div>
+    <div style="font-size:.64rem;color:#7a8fa0;line-height:1.75;padding:.3rem 0;border-top:1px solid var(--brd);margin-top:.3rem;">
+      ${tc.desc}
+    </div>
+    <div style="margin-top:.4rem;padding:.3rem;background:rgba(200,60,60,.08);border:1px solid rgba(200,60,60,.2);border-radius:3px;">
+      <div style="font-size:.56rem;color:rgba(200,80,80,.8);font-weight:600;">⚠ 詛咒</div>
+      <div style="font-size:.58rem;color:rgba(200,100,100,.7);line-height:1.6;margin-top:.15rem;">${tc.curse}</div>
+    </div>
+    <div style="margin-top:.4rem;padding:.3rem;background:rgba(255,255,255,.03);border:1px solid var(--brd);border-radius:3px;">
+      <div style="font-size:.56rem;color:var(--goldd);font-weight:600;">✦ 效果</div>
+      <div style="font-size:.58rem;color:#6ab46a;line-height:1.6;margin-top:.15rem;">${tc.effect}</div>
+    </div>
+    ${tc.lore?`<div style="margin-top:.4rem;font-size:.58rem;color:rgba(150,140,100,.6);line-height:1.6;font-style:italic;padding:.3rem;border-left:2px solid rgba(150,140,100,.3);">
+      ${tc.lore}
+    </div>`:''}
+    <div style="margin-top:.4rem;display:flex;flex-wrap:wrap;gap:.4rem;font-size:.54rem;">
+      ${st.holder?`<span style="color:${tc.color};">持有者：${st.holder}</span>`:`<span style="color:var(--sild);">持有者：不明</span>`}
+      <span style="color:var(--sild);">所在：${tc.location||'不明'}</span>
+      ${st.awakened?`<span style="color:#6ab46a;">✦ 已覺醒</span>`:`<span style="color:var(--sild);">休眠中</span>`}
+    </div>
+  `;
+  document.getElementById('modal-wrap').classList.add('open');
+}
+
 function repPriceMultiplier(factionId){
   const v=getRep(factionId);
   if(v>=60)return 0.8;
@@ -3711,6 +4179,8 @@ function buildLog(){
       <p style="margin-bottom:.4rem;">帝國崩裂之夜，天象異變，北斗星下 108 顆流星劃過艾爾薩上空。占星師記錄下這一刻：「北斗指引，命運之星降世，聚者終結輪迴，散者萬劫不復。」這 108 顆星分為<span style="color:var(--gold);">天罡三十六星</span>（將領、英雄、智者）與<span style="color:var(--gold);">地煞七十二星</span>（工匠、商人、密探、學者）。</p>
       <div style="font-size:.58rem;color:rgba(180,140,220,.8);letter-spacing:.08em;margin:.5rem 0 .3rem;">⚜ 北斗星・先行者</div>
       <p style="margin-bottom:.4rem;">最初感知到星辰降世的人。他如同北斗般指引方向，召集了最早的同伴，踏上聚星之路——卻在途中倒下。他的名字已被遺忘，但他留下的線索與未竟之志，成為後繼者的遺產。北斗雖墜，其光仍照亮前路。</p>
+      <div style="font-size:.58rem;color:var(--goldd);letter-spacing:.08em;margin:.5rem 0 .3rem;">🔮 27 真紋章</div>
+      <p style="margin-bottom:.4rem;">世界創生時，始源之劍與盾的碰撞產生 27 枚真紋章，蘊含世界根源法則。真紋章賦予持有者強大力量，但伴隨詛咒。帝國崩裂之夜，沉睡的真紋章開始覺醒——與 108 星辰的降世同步。紋章與星辰的關係，是解開這個亂世之謎的關鍵。</p>
       <div style="font-size:.58rem;color:var(--goldd);letter-spacing:.08em;margin:.5rem 0 .3rem;">✦ 逼上梁山</div>
       <p style="margin-bottom:.4rem;">艾爾法並非英雄。她只是一個因堅持「糧食應該分給飢餓的人」而被解僱的城衛。橘子也只是一隻五枚銅幣的貓——卻是北斗星下聚義的起點，如同晁蓋般的存在。但命運選中了她們——或者說，命運沒有給她們別的選擇。108 顆星辰，每一顆背後都有一個「被逼上絕路」的故事。</p>
     </div>
@@ -3786,7 +4256,17 @@ const WIKI_DATA={
     {title:'時間與天氣',icon:'🌤️',body:'遊戲內時間以小時推進。每日 24 小時，跨日時隨機生成天氣。天氣影響行動：暴雨無法長距移動、濃霧視野受限、異常寒冷體力消耗加快。休息、趕路、過夜都會推進時間。'},
     {title:'據點系統',icon:'🏛️',body:'招募 10 位星辰之人後解鎖。隨招募人數增加，可建設更多設施（鍛冶坊、炊煙閣、藏星閣等）。非戰鬥星辰經營據點：鐵匠強化武器、廚師恢復HP、密探偵查情報。108 星全員到齊時解鎖「天命之座」。'},
     {title:'橘子秘密線',icon:'⚓',body:'橘子的真實身份透過五個階段逐步揭露。觸發條件包括：與橘子互動（聊天、餵魚）、好感度達標、蒐集北斗星線索、特定劇情事件。每階段解鎖新的情報和能力。第五階段=命運之錨覺醒。'},
+    {title:'紋章系統',icon:'🔮',body:'世界創生時誕生的27枚真紋章蘊含世界根源法則，持有者獲得強大力量但承受詛咒。一般紋章是真紋章的碎片衍生，可裝備於角色的紋章槽位。\n紋章分類：元素系（火水風雷地魔法）、戰技系（物理強化）、守護系（防禦能力）、強化系（素質提升）、特殊系（特殊效果）。'},
     {title:'密技',icon:'💡',body:'在自由行動欄輸入特殊指令：\n・@錢：獲得大量金幣（測試用）\n・@骰子：開啟骰子面板'},
+  ],
+  '紋章':[
+    {title:'紋章創世記',icon:'🌌',body:'太初，唯有虛空。虛空孤寂而落淚，淚水化為兩兄弟——劍與盾。劍與盾激戰七晝夜。劍劈碎了盾，碎片化為大地；盾折斷了劍，碎片化為蒼穹。戰鬥的火花化為星辰，兩者身上的27枚寶石化為27枚真紋章。世界開始運轉。'},
+    {title:'27真紋章',icon:'✦',body:'世界根源法則的結晶。分為七群：\n・始源紋章群（3）：創世・劍・盾\n・元素紋章群（5）：炎獄・冥淵・天嵐・雷霆・磐石\n・天體紋章群（4）：曜日・月輪・星命・蝕\n・生滅紋章群（4）：生命・魂噬・輪迴・虛無\n・支配紋章群（4）：霸王・混沌・秩序・審判\n・奧義紋章群（4）：夢幻・時律・門扉・智慧\n・命運紋章群（3）：變革・北斗・黎明'},
+    {title:'真紋章與詛咒',icon:'⚠️',body:'每枚真紋章都伴隨詛咒。力量越強，代價越大。劍真紋章讓持有者渴望戰鬥無法停止；生命真紋章以持有者的壽命換取治癒力量；魂噬真紋章製造周圍人的死亡來餵養自己。真紋章選擇持有者，而非持有者選擇真紋章。'},
+    {title:'一般紋章',icon:'◈',body:'真紋章力量的碎片化衍生。威力遠不及真紋章，但沒有詛咒。可透過商店購買、寶箱發現或敵人掉落獲得。每個角色有一個紋章槽位，可裝備一枚一般紋章。\n分類：元素系（魔法攻擊/治癒）、戰技系（物理強化）、守護系（防禦能力）、強化系（素質提升）、特殊系（特殊效果）。'},
+    {title:'真紋章與帝國崩裂',icon:'👑',body:'聖赫倫帝國的建立與六百年統治，與霸王真紋章密切相關。初代皇帝是霸王紋章持有者，以紋章之力統一大陸。末代皇帝暴斃之夜，霸王紋章消失——同一夜，108命運之星降世，多枚沉睡的真紋章開始覺醒。這不是巧合。'},
+    {title:'真紋章與108星',icon:'🌟',body:'星命真紋章掌控108星的降世與聚合法則。北斗真紋章與北斗星・先行者直接相關——他的倒下可能與紋章碎裂有關。黎明真紋章在108星全員齊聚時覺醒。真紋章與星辰的關係是遊戲最核心的主線之一。'},
+    {title:'紋章與西方魔法',icon:'🔮',body:'艾爾薩大陸的魔法體系建立在紋章之上。所有魔法本質上都是紋章力量的微弱共鳴。翠林域的精靈透過與大地紋章的親和力使用自然魔法；帝國的術士透過研究紋章碎片開發攻擊魔法。真正的紋章持有者能使用遠超常規的魔法。'},
   ],
 };
 const WIKI_CATS=Object.keys(WIKI_DATA);
@@ -4021,7 +4501,7 @@ function applyQuestUpdate(qt){
 
 function renderBoth(tab){
   let h;
-  const cacheable=['stars','inv','quest','intel','wiki','hq','guild','activities']; // party/log change often, skip cache
+  const cacheable=['stars','inv','quest','intel','wiki','hq','guild','activities','crest']; // party/log change often, skip cache
   if(cacheable.includes(tab)&&!_dirty[tab]&&_renderCache[tab]){
     h=_renderCache[tab];
   }else{
@@ -4035,6 +4515,7 @@ function renderBoth(tab){
     else if(tab==='guild')h=buildGuild();
     else if(tab==='activities')h=buildActivities();
     else if(tab==='hq')h=buildHQ();
+    else if(tab==='crest')h=buildCrest();
     else h='';
     if(cacheable.includes(tab)){_renderCache[tab]=h;}_dirty[tab]=false;
   }
