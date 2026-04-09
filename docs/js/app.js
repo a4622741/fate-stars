@@ -206,9 +206,14 @@ function appendSysLog(text){
   markDirty('sysinfo');
 }
 function buildSysInfo(){
-  if(!_sysInfoLog.length) return `<div style="font-size:.62rem;color:var(--sild);padding:.5rem .2rem;">尚無系統訊息。</div>`;
+  const btns=`<div style="display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:.6rem;">
+    <button onclick="syncAll()" style="flex:1;min-width:120px;padding:.4rem .5rem;font-size:.64rem;background:rgba(201,168,76,.1);border:1px solid var(--goldd);border-radius:3px;color:var(--gold);cursor:pointer;font-family:'Noto Serif TC',serif;">🔄 同步所有狀態</button>
+    <button onclick="toggleBGM()" style="flex:1;min-width:120px;padding:.4rem .5rem;font-size:.64rem;background:rgba(100,180,220,.08);border:1px solid rgba(100,180,220,.4);border-radius:3px;color:rgba(130,200,230,.9);cursor:pointer;font-family:'Noto Serif TC',serif;">🎵 背景音樂</button>
+    <button onclick="openSettings()" style="flex:1;min-width:120px;padding:.4rem .5rem;font-size:.64rem;background:rgba(150,130,200,.08);border:1px solid rgba(150,130,200,.4);border-radius:3px;color:rgba(180,160,230,.9);cursor:pointer;font-family:'Noto Serif TC',serif;">⚙ 設定</button>
+  </div>`;
+  if(!_sysInfoLog.length) return btns+`<div style="font-size:.62rem;color:var(--sild);padding:.5rem .2rem;">尚無系統訊息。</div>`;
   const rows=[..._sysInfoLog].reverse();
-  return `<div style="font-size:.62rem;color:var(--goldd);margin-bottom:.4rem;">⚙ 系統紀錄（${rows.length}）</div>`+
+  return btns+`<div style="font-size:.62rem;color:var(--goldd);margin-bottom:.4rem;">⚙ 系統紀錄（${rows.length}）</div>`+
     rows.map(r=>{
       const col=r.cls==='gold'?'var(--goldd)':r.cls==='item'?'#6ab46a':r.cls==='warn'?'var(--orange)':'var(--sild)';
       return `<div style="font-size:.62rem;color:${col};line-height:1.5;padding:.12rem 0;border-bottom:1px solid rgba(255,255,255,.03);">${escHtml(r.text)}</div>`;
