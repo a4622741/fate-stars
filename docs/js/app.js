@@ -19,7 +19,7 @@ const G={
   storyData:[],
   currentChoices:[],
   sceneTitle:'序章・Day 1　傍晚',
-  sceneLoc:'📍 鐵霧城・城門前',
+  sceneLoc:'📍 鐵霧城・大街',
   partyIds:['alfar','orange'],
   upgrade:{},
   inv:null,
@@ -1585,13 +1585,13 @@ const PCFG={
   alfar:{
     prompt:`young woman traveler, long straight silver white hair, pale skin, deadpan emotionless face, grey eyes, worn dark hooded cloak, short sword at waist, ${PORTRAIT_STYLE}`,
     seed:4821,
-    default:null,
+    get default(){return `https://image.pollinations.ai/prompt/${encodeURIComponent(this.prompt)}?width=260&height=148&seed=${this.seed}&model=flux`;},
     label:'艾爾法',color:'#a8b5cc',emoji:'😒',
   },
   orange:{
     prompt:`ragdoll cat, blue eyes, white and cream bicolor fur, dark seal points on face and ears, fluffy round face, sitting regally, mysterious aura, ${PORTRAIT_STYLE}`,
     seed:2733,
-    default:null,
+    get default(){return `https://image.pollinations.ai/prompt/${encodeURIComponent(this.prompt)}?width=260&height=148&seed=${this.seed}&model=flux`;},
     label:'橘子',color:'#c9a84c',emoji:'🐈',
   },
 };
@@ -5175,50 +5175,36 @@ function initStory(){
     // ── 序幕：天象 ──
     {type:'sec',v:'序幕'},
     {type:'narr',v:'帝國曆 1077 年，深秋之夜。聖赫倫帝國末代皇帝駕崩的那個晚上，北斗星下 108 顆流星劃過艾爾薩大陸的天空。沒有人知道這意味著什麼。'},
-    {type:'narr',v:'三年後，帝國已成廢墟。十二位總督各據一方稱王，邊境燃起戰火，商路斷絕，盜匪橫行。在這個義人無處容身的時代——'},
-    {type:'narr',v:'一個無名的旅人走進了鐵霧城。'},
+    {type:'narr',v:'三年後，帝國已成廢墟。十二位總督各據一方稱王，邊境燃起戰火，商路斷絕，盜匪橫行。'},
 
-    // ── Day 1：抵達 ──
+    // ── Day 1：抵達鐵霧城 ──
     {type:'sec',v:'序章　Day 1　傍晚'},
-    {type:'narr',v:'鐵霧城。霧山聯邦的工業重鎮，終年濃霧不散，空氣裡永遠帶著鐵鏽的味道。這座城市不歡迎陌生人，但也不拒絕——只要你有銅幣。'},
-    {type:'narr',v:'城門前排著長長的隊伍。逃難的農民、找活的傭兵、鬼鬼祟祟的行商。艾爾法拉低斗篷的帽沿，銀色的長髮在霧中若隱若現。'},
+    {type:'narr',v:'鐵霧城。霧山聯邦的工業重鎮，終年濃霧不散，空氣裡永遠帶著鐵鏽的味道。'},
+    {type:'narr',v:'城門前排著長長的隊伍。逃難的農民、找活的傭兵、鬼鬼祟祟的行商。一個拉低斗篷帽沿的銀髮女人混在隊伍中，看起來和其他旅人沒什麼不同。'},
     {type:'narr',v:'她不記得自己從哪裡來，也不知道要往哪裡去。身上只有一把磨損的無銘短劍、一件破舊的斗篷、兩塊乾糧，和一隻五枚銅幣買的貓。'},
-    {type:'dial',sp:'橘子🐈😒',ln:'喵——'},
-    {type:'sys',v:'〔系統翻譯：又是一座充滿鐵鏽味的城市。你的品味一如既往地差。〕'},
-    {type:'narr',v:'肩上的布偶貓懶洋洋地趴著，藍眼睛半睜半閉。這隻貓從不撒嬌，從不示弱，只是一直在那裡——彷彿她才是主人，而艾爾法不過是代步工具。'},
     {type:'dial',sp:'守門衛兵',ln:'入城費五銅。有通行證的減免。'},
     {type:'dial',sp:'艾爾法😒',ln:'⋯⋯沒有通行證。'},
     {type:'narr',v:'五枚銅幣落入衛兵的手中。城門在她面前緩緩打開，霧氣從門內湧出，像是迎接，又像是吞噬。'},
 
-    // ── Day 1：城內 ──
+    // ── 城內 ──
     {type:'narr',v:'城內比城外更灰暗。鐵匠的錘聲迴盪在街道上，酒館門口有人在爭吵，告示欄前圍了一群人。'},
-    {type:'sys',v:'【懸賞令】山口劫匪「霧刃幫」，已劫三支商隊。線索賞銀50，首領賞金5。——代理城主 恩佐·卡羅'},
-    {type:'narr',v:'艾爾法瞥了一眼告示欄，沒有停留。她需要的是一頓飯和一個能過夜的地方。'},
-    {type:'dial',sp:'橘子🐈😒',ln:'喵。'},
+    {type:'narr',v:'艾爾法沒有看告示欄。她需要的是一頓飯和一個能過夜的地方。'},
+    {type:'dial',sp:'橘子🐈😒',ln:'喵——'},
     {type:'sys',v:'〔系統翻譯：那邊的酒館有魚的味道。建議前往。這不是商量。〕'},
-    {type:'narr',v:'橘子的耳朵忽然轉向另一個方向——不是酒館，是山口方向。尾巴微微豎起。'},
-    {type:'narr',v:'下一秒，巷子裡衝出一個人影。紅髮。左臂繃帶纏到手肘。腰間一把缺口彎刀。眼神是被追殺過的人才有的那種鋒利。'},
-    {type:'narr',v:'她撞上了艾爾法的肩膀，險些摔倒，然後猛地站穩——喘息未平，目光鎖住艾爾法腰間的劍。'},
-    {type:'dial',sp:'紅髮女人',ln:'你會用劍嗎？'},
-    {type:'dial',sp:'艾爾法😒',ln:'⋯⋯看情況。'},
-    {type:'dial',sp:'紅髮女人',ln:'霧刃幫搶了我的東西——不是錢，是一封信。那封信牽扯到很多人的命。我需要幫手。'},
-    {type:'narr',v:'她的手在發抖。不是因為冷。背後的巷子裡傳來粗獷的叫罵聲——追兵不遠。'},
-    {type:'dial',sp:'紅髮女人',ln:'幫我，我付得起報酬。不幫，就當我沒出現過。'},
-    {type:'narr',v:'橘子從艾爾法肩上跳下來，走向紅髮女人，在她靴子旁邊繞了一圈。然後坐下，望向艾爾法。'},
-    {type:'dial',sp:'橘子🐈😒',ln:'喵。'},
-    {type:'sys',v:'〔系統翻譯：這個人在說真話。但她沒有說完全部。〕'},
+    {type:'narr',v:'肩上的布偶貓懶洋洋地趴著，藍眼睛半睜半閉。這隻貓從不撒嬌，從不示弱，只是一直在那裡——彷彿她才是主人，而艾爾法不過是代步工具。'},
+    {type:'narr',v:'暮色漸深，霧越來越濃。鐵霧城的夜晚即將降臨。'},
   ];
 
   opening.forEach(e=>appendEntryToDOM(e));
   G.history=[
-    {role:'user',content:'故事開始。場景：鐵霧城城門前，傍晚。艾爾法是來歷不明的旅人，沒有職業沒有背景，帶著一隻五銅幣買的布偶貓橘子剛抵達鐵霧城。一名受傷的紅髮女人從巷子裡衝出來撞上她，說霧刃幫搶了她一封「牽扯很多人命」的信，需要會用劍的幫手。背後有追兵。橘子判斷她「說真話但沒說完全部」。請繼續並給出行動選項。'},
-    {role:'assistant',content:'{"st":"序章 Day 1","sl":"📍 鐵霧城・城門前","nv":["紅髮女人在等待回答。霧越來越濃，巷子深處傳來粗獷的叫罵聲——追兵很近。"],"dl":[],"sm":null,"gd":{"g":0,"s":0,"c":0},"ch":[{"t":"「信裡寫了什麼？先說清楚，我再決定。」","h":"冷靜・可能觸發讀心"},{"t":"「跟我沒關係。」轉身走向酒館","h":"冷漠・但橘子可能不同意"},{"t":"拉她閃進旁邊的貨棧——追兵的聲音近了","h":"實際・時間緊迫"},{"t":"低頭看橘子。橘子通常比她更清楚該怎麼做","h":"橘子感知・安全選項"}],"nm":null,"cb":null,"iv":null,"sp":null,"shop":null,"fa":null,"hp":null,"qt":null,"tm":null,"rp":null,"info":null,"relic":null,"clue":null,"or":null,"job":null,"gu":null,"cr":null}'}
+    {role:'user',content:'故事開始。場景：鐵霧城，傍晚。艾爾法是來歷不明的旅人，沒有職業沒有背景，帶著一隻五銅幣買的布偶貓橘子剛抵達鐵霧城。她需要找到食物和住處。城裡有酒館、告示欄、碼頭、市集等地點可探索。這是一個西方劍與魔法的奇幻世界，水滸傳風格的亂世冒險。請給出自由探索的行動選項。'},
+    {role:'assistant',content:'{"st":"序章 Day 1","sl":"📍 鐵霧城・大街","nv":["暮色漸深。鐵霧城的街道在霧中延伸，幾個方向各有不同的光景——酒館的燈火、告示欄的人群、碼頭方向隱約的號角聲。"],"dl":[{"sp":"橘子🐈😒","ln":"喵。"},{"sp":"系統","ln":"〔翻譯：我餓了。你也是。先解決這個。〕"}],"sm":null,"gd":{"g":0,"s":0,"c":0},"ch":[{"t":"走進酒館，先填飽肚子再說","h":"可能遇到有趣的人・花費銅幣"},{"t":"去告示欄看看有沒有能賺錢的工作","h":"情報收集・了解城市狀況"},{"t":"往碼頭方向走走","h":"探索・可能有打工機會"},{"t":"找個便宜的旅店先住下","h":"安全・消耗少量銅幣"}],"nm":null,"cb":null,"iv":null,"sp":null,"shop":null,"fa":null,"hp":null,"qt":null,"tm":null,"rp":null,"info":null,"relic":null,"clue":null,"or":null,"job":null,"gu":null,"cr":null}'}
   ];
   const initChoices=[
-    {t:'「信裡寫了什麼？先說清楚，我再決定。」',h:'冷靜・可能觸發讀心'},
-    {t:'「跟我沒關係。」轉身走向酒館',h:'冷漠・但橘子可能不同意'},
-    {t:'拉她閃進旁邊的貨棧——追兵的聲音近了',h:'實際・時間緊迫'},
-    {t:'低頭看橘子。橘子通常比她更清楚該怎麼做',h:'橘子感知・安全選項'}
+    {t:'走進酒館，先填飽肚子再說',h:'可能遇到有趣的人・花費銅幣'},
+    {t:'去告示欄看看有沒有能賺錢的工作',h:'情報收集・了解城市狀況'},
+    {t:'往碼頭方向走走',h:'探索・可能有打工機會'},
+    {t:'找個便宜的旅店先住下',h:'安全・消耗少量銅幣'}
   ];
   renderChoices(initChoices);
   saveGame();
