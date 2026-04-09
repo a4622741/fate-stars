@@ -170,7 +170,17 @@ function appendEntryToDOM(e,save=true){
   const w=mk('div','sentry');
   if(e.type==='sec'){const el=mk('div','s-sec');el.textContent=e.v;w.appendChild(el);}
   else if(e.type==='narr'){const el=mk('div','s-narr');el.textContent=e.v;w.appendChild(el);}
-  else if(e.type==='dial'){const el=mk('div','s-dial');el.innerHTML=`<span class="sp">${escHtml(e.sp)}：</span><span class="wd">「${escHtml(e.ln)}」</span>`;w.appendChild(el);}
+  else if(e.type==='dial'){
+    const el=mk('div','s-dial');
+    // 查找角色頭像
+    const spName=String(e.sp||'').replace(/[\u{1F000}-\u{1FFFF}]|[\u{2600}-\u{27BF}]|[\u{FE00}-\u{FEFF}]/gu,'').trim();
+    const npcId='npc_'+spName.replace(/\s/g,'_');
+    const charMatch=allParty().find(m=>String(e.sp).includes(m.name));
+    const portrait=charMatch?getPortraitSrc(charMatch.id):getCustomPortrait(npcId);
+    const avatarHtml=portrait?`<img src="${portrait}" style="width:22px;height:22px;border-radius:50%;object-fit:cover;flex-shrink:0;border:1px solid var(--brd);" onerror="this.style.display='none'"/>`:'';
+    el.innerHTML=`<div style="display:flex;align-items:flex-start;gap:.3rem;">${avatarHtml}<div><span class="sp">${escHtml(e.sp)}：</span><span class="wd">「${escHtml(e.ln)}」</span></div></div>`;
+    w.appendChild(el);
+  }
   else if(e.type==='sys'){const el=mk('div','s-sys');el.textContent=e.v;w.appendChild(el);}
   else if(e.type==='action'){const el=mk('div','s-action');el.textContent='▶ '+e.v;w.appendChild(el);}
   else if(e.type==='err'){const el=mk('div','s-err');el.textContent='⚠ '+e.v;w.appendChild(el);}
@@ -1365,6 +1375,8 @@ function renderResp(d){
   G.log.push({sec:d.st||'',loc:(d.sl||'').replace('📍 ',''),lines:[...(Array.isArray(d.nv)?d.nv:d.nv?[d.nv]:[]).filter(Boolean).map(v=>({t:'txt',v:String(v)})),...(Array.isArray(d.dl)?d.dl:d.dl?[d.dl]:[]).filter(x=>x&&x.sp).map(dl=>({t:'txt',v:`${dl.sp||''}：「${dl.ln||''}」`})),...(d.sm&&d.sm!=='null'?[{t:'sys',v:String(d.sm)}]:[]) ]});
   if(G.log.length>200)G.log.splice(0,G.log.length-200);
   markDirty('log');
+  // 掃描對話中的新角色，自動生成頭像
+  autoPortraitFromDialogue(d);
   // 每次 AI 回應後強制同步所有面板
   renderAll();
   updateShopBtn();
@@ -4129,6 +4141,42 @@ function openSettings(){
 }
 
 // 自動為所有有 prompt 但無頭像的角色生成 AI 頭像
+// 從AI回應的對話中偵測新角色並自動生成頭像
+const _knownSpeakers=new Set(['系統','橘子🐈😒','艾爾法😒','旁白','系統翻譯']);
+function autoPortraitFromDialogue(d){
+  const dls=Array.isArray(d.dl)?d.dl:d.dl?[d.dl]:[];
+  const nv=Array.isArray(d.nv)?d.nv:d.nv?[d.nv]:[];
+  const allText=nv.join(' ');
+  dls.forEach(dl=>{
+    if(!dl||!dl.sp)return;
+    const speaker=String(dl.sp).trim();
+    if(!speaker||_knownSpeakers.has(speaker))return;
+    // 從 speaker 提取名字（去掉 emoji）
+    const name=speaker.replace(/[\u{1F000}-\u{1FFFF}]|[\u{2600}-\u{27BF}]|[\u{FE00}-\u{FEFF}]/gu,'').trim();
+    if(!name||name.length<1)return;
+    // 檢查是否已有頭像設定
+    const npcId='npc_'+name.replace(/\s/g,'_');
+    if(getCustomPortrait(npcId))return;
+    if(PCFG[npcId]||(G.extraPcfg&&G.extraPcfg[npcId]))return;
+    // 已知隊伍角色跳過
+    if(allParty().some(m=>speaker.includes(m.name)))return;
+    _knownSpeakers.add(speaker);
+    // 從敘述中嘗試提取外貌描述
+    let desc=name;
+    const descMatch=allText.match(new RegExp(`${name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}[^。，]{0,30}`))||[];
+    if(descMatch[0])desc=descMatch[0];
+    // 建立 prompt 並生成
+    const prompt=`2d japanese anime character, ${desc}, bust portrait, dark fantasy style, clean cel shading`;
+    const seed=Math.floor(Math.random()*9000)+1000;
+    if(!G.extraPcfg)G.extraPcfg={};
+    G.extraPcfg[npcId]={prompt,seed,label:name,emoji:speaker};
+    // 背景生成
+    const url=`https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=260&height=148&seed=${seed}&model=flux`;
+    const img=new Image();
+    img.onload=()=>{setCustomPortrait(npcId,url);saveGame();};
+    img.src=url;
+  });
+}
 function generatePortraitNow(id){
   if(getCustomPortrait(id))return; // 已有
   const cfg=PCFG[id]||(G.extraPcfg&&G.extraPcfg[id]);
