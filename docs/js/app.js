@@ -4759,7 +4759,7 @@ function openPortraitSettings(id){
   panel.innerHTML=`<div style="font-size:.68rem;color:var(--goldd);margin-bottom:.45rem;">🖼 ${label} 頭像設定</div>
     <div style="margin-bottom:.5rem;padding:.4rem;background:rgba(201,168,76,.06);border:1px solid var(--brd);border-radius:3px;">
       <div style="font-size:.6rem;color:var(--goldd);margin-bottom:.3rem;">✦ 用描述生成頭像</div>
-      <textarea id="port-desc-${id}" style="width:100%;height:50px;background:var(--bg);border:1px solid var(--brd);border-radius:2px;color:var(--sil);font-family:'Noto Serif TC',serif;font-size:.62rem;padding:.3rem;resize:vertical;" placeholder="輸入角色描述（中英文皆可）\n例：可愛的藍眼布偶貓，蓬鬆白毛，圓臉">${cfg?.prompt||''}</textarea>
+      <textarea id="port-desc-${id}" style="width:100%;height:50px;background:var(--bg);border:1px solid var(--brd);border-radius:2px;color:var(--sil);font-family:'Noto Serif TC',serif;font-size:.62rem;padding:.3rem;resize:vertical;" placeholder="輸入描述，中文OK！\n例：可愛的藍眼布偶貓，蓬鬆白毛，大眼睛">${cfg?.prompt||''}</textarea>
       <div style="display:flex;gap:.3rem;margin-top:.3rem;">
         <button onclick="generateFromDesc('${id}')" id="gen-btn-${id}" class="sbn c" style="flex:1;font-size:.62rem;padding:.3rem;">✦ 生成頭像</button>
       </div>
@@ -4916,13 +4916,16 @@ function generateFromDesc(id){
   let desc=textarea.value.trim();
   if(!desc){status.textContent='請輸入描述';status.style.color='#f99';return;}
   if(btn)btn.disabled=true;
-  if(status){status.textContent='生成中，約 10~30 秒…';status.style.color='var(--sild)';}
+  if(status){status.textContent='生成中，約 10~30 秒… 支援中文描述';status.style.color='var(--sild)';}
   // Save prompt to config
   const cfg=PCFG[id]||(G.extraPcfg&&G.extraPcfg[id]);
   if(cfg)cfg.prompt=desc;
   const seed=Math.floor(Math.random()*9000)+1000;
   if(cfg)cfg.seed=seed;
-  const url=`https://image.pollinations.ai/prompt/${encodeURIComponent(desc)}?width=260&height=148&seed=${seed}&model=flux`;
+  // 自動補上畫風提示（如果用戶沒寫英文風格詞）
+  const hasStyle=/portrait|illustration|style|fantasy|anime|painting/i.test(desc);
+  const finalPrompt=hasStyle?desc:desc+', character portrait, fantasy illustration';
+  const url=`https://image.pollinations.ai/prompt/${encodeURIComponent(finalPrompt)}?width=260&height=148&seed=${seed}&model=flux`;
   const img=new Image();
   img.onload=()=>{
     setCustomPortrait(id,url);
