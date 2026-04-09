@@ -1,5 +1,5 @@
 // ═══ 命運之星 v2.0 ═══
-const VERSION='2.0';
+const VERSION='3.0';
 // ═══ CONFIG ═══
 const CFG={
   get key(){return localStorage.getItem('fate_key')||'';},
@@ -6050,13 +6050,21 @@ updateShopBtn();
 
 const hasSave=loadGame();
 if(hasSave){
+  const savedVer=localStorage.getItem('fate_game_ver')||'1.0';
+  if(savedVer!==VERSION){
+    localStorage.setItem('fate_game_ver',VERSION);
+    setTimeout(()=>{
+      const doReset=confirm('偵測到舊版存檔（v'+savedVer+' → v'+VERSION+'）\n\n新版大幅更新了商店、紋章、角色設定、城市設施等。\n建議「重新開始」以獲得最佳體驗。\n\n確定 = 重新開始\n取消 = 繼續舊存檔');
+      if(doReset){localStorage.removeItem(SAVE_KEY);localStorage.removeItem('fate_save_v1');location.reload();}
+    },500);
+  }
   updateGold();
   renderStoryFromData();
   markDirty('log');
-  // 開機完整性檢查
   const fixed=integrityCheck();
   showToast(fixed?`✦ 讀取存檔・修正${fixed}項`:'✦ 讀取存檔成功','ok');
 }else{
+  localStorage.setItem('fate_game_ver',VERSION);
   G.log=initLog();
   markDirty('log');
   initStory();
