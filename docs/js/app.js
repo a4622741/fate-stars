@@ -66,7 +66,7 @@ function _doSave(){
       sceneTitle:G.sceneTitle,sceneLoc:G.sceneLoc,
       extraParty:G.extraParty,extraPcfg:G.extraPcfg,
       partyIds:G.partyIds,upgrade:G.upgrade,inv:getInv(),favor:G.favor,bellyFlipCount:G.bellyFlipCount||0,specialOv:G.specialOv||{},
-      hp:G.hp,quests:G.quests,time:G.time,rep:G.rep,relics:G.relics,presetRelicOv:Object.fromEntries(Object.entries(PRESET_RELICS).filter(([k,v])=>v.status&&v.status!=='equipped').map(([k,v])=>[k,{status:v.status,effect:v.effect}])),founderClues:G.founderClues,orangeStage:G.orangeStage||0,intel:G.intel||[],lastShop:G.lastShop||null,inShop:G.inShop||false,shopCatalogs:G.shopCatalogs||{},
+      hp:G.hp,quests:G.quests,time:G.time,rep:G.rep,relics:G.relics,presetRelicOv:Object.fromEntries(Object.entries(PRESET_RELICS).map(([k,v])=>[k,{status:v.status,effect:v.effect,bonus:v.bonus,equippedTo:v.equippedTo}])),founderClues:G.founderClues,orangeStage:G.orangeStage||0,intel:G.intel||[],lastShop:G.lastShop||null,inShop:G.inShop||false,shopCatalogs:G.shopCatalogs||{},
       guilds:G.guilds||{},baseWorkers:G.baseWorkers||{},_lastCollect:G._lastCollect||null,_cookBuff:G._cookBuff||null,crests:G.crests||null,starOv,saveVersion:G._saveVersion||3,savedAt:Date.now(),
     };
     localStorage.setItem(SAVE_KEY,JSON.stringify(data));
@@ -99,7 +99,11 @@ function loadGame(){
     G.time=data.time||{day:1,hour:18,weather:'濃霧'};
     G.rep=data.rep||{};
     G.relics=data.relics||{};
-    if(data.presetRelicOv){Object.entries(data.presetRelicOv).forEach(([k,v])=>{if(PRESET_RELICS[k]){PRESET_RELICS[k].status=v.status;PRESET_RELICS[k].effect=v.effect;}});}
+    if(data.presetRelicOv){Object.entries(data.presetRelicOv).forEach(([k,v])=>{if(PRESET_RELICS[k]){PRESET_RELICS[k].status=v.status;PRESET_RELICS[k].effect=v.effect;if(v.bonus)PRESET_RELICS[k].bonus=v.bonus;if(v.equippedTo!==undefined)PRESET_RELICS[k].equippedTo=v.equippedTo;}});}
+    // 修復舊存檔缺少 equippedTo 的問題
+    if(!PRESET_RELICS.alfar.equippedTo&&PRESET_RELICS.alfar.status==='equipped')PRESET_RELICS.alfar.equippedTo='alfar';
+    if(!PRESET_RELICS.orange.equippedTo)PRESET_RELICS.orange.equippedTo='orange';
+    if(!PRESET_RELICS.alfar.bonus)PRESET_RELICS.alfar.bonus={武力:15};
     G.founderClues=data.founderClues||[];
     G.orangeStage=data.orangeStage||0;
     G.intel=data.intel||[];
@@ -304,7 +308,9 @@ const INV_DEFAULT={
 // ═══ ITEM DATABASE — 完整道具資料庫 ═══
 // 所有道具的基準資料，買賣/劇情/掉落皆參照此表
 const ITEM_DB={
-  // ══ 消耗品 ══
+  // ════════════════════════════════════════
+  // ══ 消耗品 - HP回復 ══
+  // ════════════════════════════════════════
   '乾糧':{cat:'消耗',t:'基礎口糧・HP+5',effect:{hp:5},price:{g:0,s:0,c:20},icon:'🍞'},
   '魚乾':{cat:'消耗',t:'橘子最愛・好感+8',effect:{favor:{orange:8}},price:{g:0,s:0,c:30},icon:'🐟'},
   '繃帶':{cat:'消耗',t:'緊急止血・HP+10',effect:{hp:10},price:{g:0,s:0,c:25},icon:'🩹'},
