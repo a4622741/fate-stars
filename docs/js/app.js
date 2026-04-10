@@ -6900,6 +6900,8 @@ function processTurnStart(unit){
 }
 function combatAttack(targetId){
   if(!_combat||_combat.phase!=='player_turn')return;
+  const _cur=getCurrentTurnUnit();
+  if(_cur&&_cur.isPlayer&&!_cur._turnProcessed){_cur._turnProcessed=true;processTurnStart(_cur);}
   const attacker=getCurrentTurnUnit();const target=getCombatUnit(targetId);
   if(!attacker||!target||target.hp<=0)return;
   const atkStat=attacker.stats.武力||10;const defStat=Math.floor((target.stats.統率||target.stats.武力||10)/3);
@@ -6923,6 +6925,31 @@ function combatUseItem(itemName){
   if(idx>=0){const item=inv.items[idx];const qm=item.q.match(/(\d+)/);const qty=qm?parseInt(qm[1]):1;if(qty<=1)inv.items.splice(idx,1);else item.q='×'+(qty-1);}
   endPlayerTurn();
 }
+function combatMagicAttack(){
+  if(!_combat||_combat.phase!=='player_turn')return;
+  const attacker=getCurrentTurnUnit();
+  if(!attacker)return;
+  const intStat=attacker.stats.知力||10;
+  if(intStat<20){addCombatLog('知力不足，無法使用魔法');renderCombat();return;}
+
+  // Magic hits all enemies for knowledge-based damage
+  const roll=Math.floor(Math.random()*20)+1;
+  const crit=roll===20;
+  const fumble=roll===1;
+
+  if(fumble){
+    addCombatLog(`${attacker.name} 🎲${roll} 魔法失控！`);
+  }else{
+    _combat.enemies.forEach(e=>{
+      if(e.hp<=0)return;
+      let dmg=Math.max(1,Math.floor(intStat/4)+Math.floor(Math.random()*4)+1);
+      if(crit)dmg=dmg*2;
+      e.hp=Math.max(0,e.hp-dmg);
+      addCombatLog(`${attacker.name} ✦魔法${crit?' 暴擊！':''} → ${e.name} ${dmg} 傷害${e.hp<=0?' 💀':''}`);
+    });
+  }
+  endPlayerTurn();
+}
 function combatFlee(){
   if(!_combat||_combat.phase!=='player_turn')return;const unit=getCurrentTurnUnit();if(!unit)return;
   if(_combat.isBoss){addCombatLog('⚠ BOSS戰無法逃跑！');renderCombat();return;}
@@ -6930,7 +6957,12 @@ function combatFlee(){
   if(roll+mod>=8+maxEnemyLv){addCombatLog(`${unit.name} 成功逃脫！`);endCombat('flee');return;}
   addCombatLog(`${unit.name} 🎲${roll}+${mod}=${roll+mod} 逃跑失敗！`);endPlayerTurn();
 }
-function endPlayerTurn(){if(!_combat)return;if(_combat.enemies.every(e=>e.hp<=0)){endCombat('victory');return;}_combat.turnIdx++;advanceTurn();renderCombat();if(_combat&&_combat.phase==='enemy_turn'){setTimeout(executeEnemyTurn,800);}}
+function endPlayerTurn(){if(!_combat)return;if(_combat.enemies.every(e=>e.hp<=0)){endCombat('victory');return;}_combat.turnIdx++;
+  // New round check
+  if(_combat.turnIdx % _combat.turnOrder.length === 0) _combat.round++;
+  const _next=getCombatUnit(_combat.turnOrder[_combat.turnIdx % _combat.turnOrder.length]);
+  if(_next)_next._turnProcessed=false;
+  advanceTurn();renderCombat();if(_combat&&_combat.phase==='enemy_turn'){setTimeout(executeEnemyTurn,800);}}
 function executeEnemyTurn(){
   if(!_combat||_combat.phase!=='enemy_turn')return;const enemy=getCurrentTurnUnit();
   if(!enemy||enemy.hp<=0){_combat.turnIdx++;advanceTurn();renderCombat();return;}
@@ -6940,7 +6972,23 @@ function executeEnemyTurn(){
   const target=alive.reduce((a,b)=>a.hp<b.hp?a:b);
   const atkStat=enemy.stats.武力||10;const defStat=Math.floor((target.stats.統率||10)/3);const roll=Math.floor(Math.random()*20)+1;const crit=roll===20;
   if(roll===1){addCombatLog(`${enemy.icon} ${enemy.name} 🎲1 攻擊落空！`);}
-  else{let dmg=Math.max(1,Math.floor(atkStat/3)+Math.floor(Math.random()*4)+1-defStat);if(target.defended)dmg=Math.floor(dmg*0.5);const defBonus=target.buffs.reduce((a,b)=>a+(STATUS_EFFECTS[b.id]?.defBonus||0),0);dmg=Math.max(1,dmg-defBonus);if(crit)dmg=dmg*2;target.hp=Math.max(0,target.hp-dmg);addCombatLog(`${enemy.icon} ${enemy.name} → ${target.name} ${crit?'暴擊！':''}${dmg} 傷害${target.hp<=0?' 💀':` (HP:${target.hp}/${target.maxHp})`}`);}
+  else{let dmg=Math.max(1,Math.floor(atkStat/3)+Math.floor(Math.random()*4)+1-defStat);if(target.defended)dmg=Math.floor(dmg*0.5);const defBonus=target.buffs.reduce((a,b)=>a+(STATUS_EFFECTS[b.id]?.defBonus||0),0);dmg=Math.max(1,dmg-defBonus);if(crit)dmg=dmg*2;target.hp=Math.max(0,target.hp-dmg);addCombatLog(`${enemy.icon} ${enemy.name} → ${target.name} ${crit?'暴擊！':''}${dmg} 傷害${target.hp<=0?' 💀':` (HP:${target.hp}/${target.maxHp})`}`);
+    // Status effect chance based on enemy type
+    const tmpl=ENEMY_DB[enemy.templateId];
+    if(tmpl&&target.hp>0){
+      if(enemy.templateId==='snake'||enemy.templateId==='lizardman'){
+        if(Math.random()<0.3){target.buffs.push({id:'poison',dur:3});addCombatLog(`${target.name} 被毒液命中！☠️ 中毒`);}
+      }else if(enemy.templateId==='fire_elemental'||enemy.templateId==='dragon_spawn'||enemy.templateId==='ancient_dragon'){
+        if(Math.random()<0.25){target.buffs.push({id:'burn',dur:2});addCombatLog(`${target.name} 被火焰灼燒！🔥`);}
+      }else if(enemy.templateId==='ice_elemental'||enemy.templateId==='ice_wolf'||enemy.templateId==='frost_wyrm'){
+        if(Math.random()<0.2){target.buffs.push({id:'freeze',dur:1});addCombatLog(`${target.name} 被冰凍！❄️`);}
+      }else if(enemy.templateId==='ghost'||enemy.templateId==='lich'){
+        if(Math.random()<0.2){target.buffs.push({id:'blind',dur:2});addCombatLog(`${target.name} 被黑暗籠罩！🌑 致盲`);}
+      }else if(enemy.templateId==='cave_troll'||enemy.templateId==='marsh_golem'){
+        if(Math.random()<0.25){target.buffs.push({id:'stun',dur:1});addCombatLog(`${target.name} 被震暈！💫`);}
+      }
+    }
+  }
   if(_combat.party.every(p=>p.hp<=0)){endCombat('defeat');return;}
   _combat.turnIdx++;advanceTurn();renderCombat();if(_combat&&_combat.phase==='enemy_turn'){setTimeout(executeEnemyTurn,800);}
 }
@@ -6957,7 +7005,7 @@ function endCombat(result){
     if(drops.length)addCombatLog(`📦 掉落：${drops.join('、')}`);
     _combat.party.forEach(p=>{if(G.hp[p.id])G.hp[p.id].cur=p.hp;else G.hp[p.id]={cur:p.hp,max:p.maxHp};});
     renderCombat();saveGame();renderChanged('inv','party');
-    setTimeout(()=>{closeCombatModal();const enemies=_combat?_combat.enemies.map(e=>e.name).join('、'):'';const summary=`【戰鬥結束・勝利】擊敗：${enemies}。獲得${priceStr(gold)}${exp?' 經驗+'+exp:''}${drops.length?' 掉落：'+drops.join('、'):''}。請繼續劇情。`;_combat=null;BGM.setMood('explore');sendChoice(summary);},2500);
+    setTimeout(()=>{closeCombatModal();const enemies=_combat?_combat.enemies.map(e=>e.name).join('、'):'';const summary=`【戰鬥結束・勝利】擊敗：${enemies}。獲得${priceStr(gold)}${exp?' 經驗+'+exp:''}${drops.length?' 掉落：'+drops.join('、'):''}。請繼續劇情。`;_combat=null;BGM.setMood('explore');sendChoice(summary);},3000);
   }else if(result==='defeat'){
     addCombatLog('═══ 戰鬥失敗⋯⋯ ═══');
     G._defeatCount=(G._defeatCount||0)+1;
@@ -6976,7 +7024,7 @@ function renderCombat(){
   let actHtml='';
   if(isPlayerTurn){const inv=getInv();const usable=inv.items.filter(i=>{const db=ITEM_DB[i.n];return db&&(db.effect?.hp||db.effect?.buff||db.effect?.cure);}).slice(0,6);
     const itemBtns=usable.map(i=>'<button onclick="combatUseItem(\''+i.n.replace(/'/g,"\\'")+'\') " style="font-size:.5rem;padding:.12rem .25rem;background:rgba(100,180,100,.1);border:1px solid rgba(100,180,100,.3);border-radius:2px;color:#6ab46a;cursor:pointer;">'+(ITEM_DB[i.n]?.icon||'')+' '+i.n+'</button>').join('');
-    actHtml='<div style="display:flex;flex-wrap:wrap;gap:.3rem;justify-content:center;padding:.3rem 0;"><button onclick="combatDefend()" style="font-size:.55rem;padding:.2rem .5rem;background:rgba(100,130,200,.12);border:1px solid rgba(100,130,200,.4);border-radius:3px;color:#88aacc;cursor:pointer;">🛡️ 防禦</button><button onclick="combatFlee()" style="font-size:.55rem;padding:.2rem .5rem;background:rgba(180,160,80,.1);border:1px solid rgba(180,160,80,.4);border-radius:3px;color:var(--goldd);cursor:pointer;">🏃 逃跑</button></div>'+(usable.length?'<div style="display:flex;flex-wrap:wrap;gap:.2rem;justify-content:center;padding:.15rem 0;">'+itemBtns+'</div>':'');}
+    actHtml='<div style="display:flex;flex-wrap:wrap;gap:.3rem;justify-content:center;padding:.3rem 0;">'+((currentUnit.stats.知力||0)>=20?'<button onclick="combatMagicAttack()" style="font-size:.55rem;padding:.2rem .5rem;background:rgba(130,100,200,.12);border:1px solid rgba(130,100,200,.4);border-radius:3px;color:rgba(160,130,230,.9);cursor:pointer;font-family:\'Noto Serif TC\',serif;">✦ 魔法</button>':'')+'<button onclick="combatDefend()" style="font-size:.55rem;padding:.2rem .5rem;background:rgba(100,130,200,.12);border:1px solid rgba(100,130,200,.4);border-radius:3px;color:#88aacc;cursor:pointer;">🛡️ 防禦</button><button onclick="combatFlee()" style="font-size:.55rem;padding:.2rem .5rem;background:rgba(180,160,80,.1);border:1px solid rgba(180,160,80,.4);border-radius:3px;color:var(--goldd);cursor:pointer;">🏃 逃跑</button></div>'+(usable.length?'<div style="display:flex;flex-wrap:wrap;gap:.2rem;justify-content:center;padding:.15rem 0;">'+itemBtns+'</div>':'');}
   const logHtml=c.log.slice(-8).map(l=>'<div style="font-size:.52rem;color:var(--sild);line-height:1.4;padding:.06rem 0;">'+l+'</div>').join('');
   let resultHtml='';
   if(c.phase==='victory')resultHtml='<div style="text-align:center;padding:.5rem;color:#6ab46a;font-size:.8rem;font-weight:700;letter-spacing:.1em;">✦ 勝利 ✦</div>';
