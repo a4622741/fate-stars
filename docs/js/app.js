@@ -1905,6 +1905,7 @@ function switchShopTab(tab){
   if(tab==='buy')renderShopBuy();else renderShopSell();
 }
 
+const SHOP_GREETINGS={'雜貨':'歡迎光臨！','武器':'好武器配好手。','鐵匠':'鍛造是藝術。','藥':'藥到病除。','旅店':'歡迎投宿。','漁':'今日鮮魚！','市集':'貨通天下。','商街':'月橋商街歡迎您。','補給':'荒野必備，應有盡有。','冰窖':'北方特產。'};
 function openShop(shop){
   _currentShop=shop;
   document.getElementById('shop-name').textContent=shop.name||'商店';
@@ -1912,7 +1913,7 @@ function openShop(shop){
   _shopTab='buy';
   switchShopTab('buy');
   document.getElementById('shop-modal').classList.add('open');
-  const _greetings={'雜貨':'歡迎光臨！','武器':'好武器配好手。','鐵匠':'鍛造是藝術。','藥':'藥到病除。','旅店':'歡迎投宿。','漁':'今日鮮魚！','市集':'貨通天下。','商街':'月橋商街歡迎您。','補給':'荒野必備，應有盡有。','冰窖':'北方特產。'};
+  const _greetings=SHOP_GREETINGS;
   const _gk=Object.entries(_greetings).find(([k])=>(shop.name||'').includes(k));
   if(_gk)showToast(_gk[1],'ok');
 }
@@ -2473,15 +2474,19 @@ function addErrRetry(msg,retryAction,isCors){
   document.getElementById('story-content').appendChild(w);scrollD();
 }
 
+const AMBIENT_TEXTS={
+  morning:['晨光透過雲層灑落。','遠處傳來鳥鳴。','空氣中帶著露水的氣息。','街上開始有行人走動。'],
+  afternoon:['陽光正烈。','街道上行人漸多。','微風吹過，帶起塵土。','商販的叫賣聲此起彼落。'],
+  evening:['暮色漸深。','街燈一盞盞亮起。','酒館裡傳出歡笑聲。','歸巢的鳥群掠過天際。'],
+  night:['夜深了。','星辰在天空閃爍。','橘子的眼睛在黑暗中微微發光。','遠處傳來守夜人的號角聲。'],
+};
 function renderChoices(arr,doSave=true){
   if(doSave)G.currentChoices=arr;
   // Occasional ambient flavor text
   if(Math.random()<0.15&&G.time){
     const hour=G.time.hour||12;
-    const ambients=hour>=6&&hour<12?['晨光透過雲層灑落。','遠處傳來鳥鳴。','空氣中帶著露水的氣息。']:
-      hour>=12&&hour<18?['陽光正烈。','街道上行人漸多。','微風吹過，帶起塵土。']:
-      hour>=18&&hour<22?['暮色漸深。','街燈一盞盞亮起。','酒館裡傳出歡笑聲。']:
-      ['夜深了。','星辰在天空閃爍。','橘子的眼睛在黑暗中微微發光。'];
+    const period=hour>=6&&hour<12?'morning':hour>=12&&hour<18?'afternoon':hour>=18&&hour<22?'evening':'night';
+    const ambients=AMBIENT_TEXTS[period];
     const amb=ambients[Math.floor(Math.random()*ambients.length)];
     appendEntryToDOM({type:'narr',v:amb},false);
   }
@@ -7569,8 +7574,9 @@ function detectCity(){
 }
 
 // 判斷是否可以長途移動
+const TRANSPORT_ITEMS=['馬匹','驛馬','馬車','船票','通行令','驛站令牌','船票（短程）'];
 function canTravel(){
-  const transports=['馬匹','驛馬','馬車','船票','通行令','驛站令牌'];
+  const transports=TRANSPORT_ITEMS;
   const inv=getInv();
   if(inv&&inv.items&&inv.items.some(i=>transports.some(t=>i.n.includes(t))))
     return{can:true,reason:'持有交通工具'};
@@ -7751,6 +7757,15 @@ const REGION_PROMPTS={
   wasteland:'ruined desert fortress, crumbling walls, sand dunes, dragon bones, desolate, top-down map view, dark warm tones, no text',
   north_ice:'frozen northern fortress, snow covered battlements, aurora borealis, icy mountains, top-down map view, blue cold tones, no text',
   shadow_marsh:'dark swamp village on stilts, poisonous mist, dead trees, eerie purple light, top-down map view, dark fantasy, no text',
+};
+const REGION_DESCRIPTIONS={
+  fog_mt:'霧山聯邦：工業城市聯盟。鐵礦豐富，終年霧不散。代理城主恩佐鐵腕治理。',
+  central:'中央王國：帝國故土。銀月城是商貿情報中心。政治暗流湧動。',
+  east_sea:'東海王國：海貿繁盛。走私猖獗，商人公會勢力龐大。',
+  forest:'翠林域：精靈與森民的古老領地。魔法力量最濃厚。外人需通行證。',
+  wasteland:'南荒：流放地與冒險者天堂。龍牙砦有古龍遺跡。弱肉強食。',
+  north_ice:'霜嶺：極寒之地。流亡騎士團駐守。藏有帝國最後的秘密。',
+  shadow_marsh:'影沼地：瘴氣沼澤。毒師與亡命之徒的藏身處。門扉真紋章可能在此。',
 };
 function renderRegionMap(cityId){
   const city=MAP_CITIES[cityId];
