@@ -1914,7 +1914,7 @@ function renderShopBuy(){
       ${isNew?`<span style="position:absolute;top:.3rem;right:.3rem;font-size:.48rem;padding:.06rem .26rem;background:rgba(100,180,100,.2);border:1px solid rgba(100,180,100,.5);border-radius:2px;color:#6ab46a;">NEW</span>`:''}
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:.6rem;margin-top:${isNew?'.5rem':'0'}">
         <div style="flex:1">
-          <div style="font-size:.78rem;color:var(--sil);font-weight:600;">${item.n}${item.slot?` <span style="font-size:.58rem;color:var(--goldd)">[${item.slot}]</span>`:''}</div>
+          <div style="font-size:.78rem;color:var(--sil);font-weight:600;">${(ITEM_DB[item.n]?.icon||'')} ${item.n}${item.slot?` <span style="font-size:.58rem;color:var(--goldd)">[${item.slot}]</span>`:''}</div>
           <div style="font-size:.65rem;color:var(--sild);margin:.1rem 0">${item.t||''}</div>
           ${item.bonus?`<div style="font-size:.58rem;color:#6ab46a">${bonusText(item.bonus)}</div>`:''}
         </div>
@@ -1942,7 +1942,7 @@ function renderShopSell(){
     const sp=calcSellPrice(item,item._src==='equip');
     return`<div style="background:var(--bg3);border:1px solid var(--brd);border-radius:4px;padding:.5rem .7rem;display:flex;align-items:center;gap:.6rem;">
       <div style="flex:1">
-        <div style="font-size:.75rem;color:var(--sil);font-weight:600">${item.n}${item.enhance?` [+${item.enhance}]`:''}</div>
+        <div style="font-size:.75rem;color:var(--sil);font-weight:600">${(ITEM_DB[item.n]?.icon||'')} ${item.n}${item.enhance?` [+${item.enhance}]`:''}</div>
         <div style="font-size:.62rem;color:var(--sild)">${item.t||''}${item.q?' ・ '+item.q:''}</div>
       </div>
       <div style="text-align:right;flex-shrink:0">
@@ -1992,7 +1992,7 @@ function buyItem(idx){
   if(!canPay(item.price)){showToast('金幣不足','err');return;}
   if(item.price)applyGold({g:-(item.price.g||0),s:-(item.price.s||0),c:-(item.price.c||0)});
   const inv=getInv();
-  if(item.action==='rest'){restAllHP();appendEntryToDOM({type:'sys',v:'✦ 入住旅店・全員HP回復・時間推進8小時'});}
+  if(item.action==='rest'){restAllHP();advanceTime(8);appendEntryToDOM({type:'sys',v:'✦ 入住旅店・全員HP回復・時間推進8小時'});setTimeout(()=>checkRandomEncounter('rest'),500);}
   else if(item.action==='meal'){applyHPChange(allParty().map(c=>({id:c.id,delta:15,reason:'熱食套餐'})));advanceTime(1);}
   else if(item.action==='intel'){const rumors=['有人在北方山脈見過巨大的影子','商人工會最近在囤積鐵礦石，不知道在準備什麼','聽說東邊的村莊出現了奇怪的流浪者','霧刃幫的勢力範圍又擴大了','有個戴面具的劍客在酒館出沒','學院工會正在尋找古代遺跡的線索','暗影工會最近很安靜，反而令人不安','城門口的守衛換了一批新面孔'];const r=rumors[Math.floor(Math.random()*rumors.length)];addIntel({id:'rumor_'+Date.now(),title:'酒館傳聞',content:r,src:'旅店打探',rel:2,cat:'謠言'});appendEntryToDOM({type:'sys',v:`📋 打探到情報：${r}`});}
   else if(item.slot){const bi={n:item.n,t:item.t||'',w:null,status:'持有',slot:item.slot,bonus:item.bonus||null};autoBonus(bi);inv.equip.push(bi);}
@@ -7591,11 +7591,16 @@ const POI_SHOP_MAP={
   '商街':'general','大橋市集':'general','邊境商隊':'general',
 };
 
-function getShopKey(poiName){
+function getShopKey(poiName,poiType){
+  // First check by POI type
+  if(poiType==='inn')return 'inn';
+  // Then check by name keywords
   for(const[k,v] of Object.entries(POI_SHOP_MAP)){
     if(poiName.includes(k))return v;
   }
-  return'general';
+  // Fallback based on type
+  if(poiType==='shop')return 'general';
+  return 'general';
 }
 
 function doGoToPoi(cityId,poiName){
@@ -7607,6 +7612,15 @@ function doGoToPoi(cityId,poiName){
   appendEntryToDOM({type:'sys',v:`📍 前往 ${loc}`});
   advanceTime(1);
 
+  const poiObj=city.pois.find(p=>p.name===poiName);
+  if(poiObj?.waystation){
+    G.atWayStation=true;
+    appendEntryToDOM({type:'sys',v:`🐎 ${poiName} — 可從此處出發前往其他城市。`});
+    appendEntryToDOM({type:'sys',v:'📍 開啟地圖選擇目的地即可出發。'});
+    showToast('已到達驛站','ok');
+    scrollD();saveGame();
+    return;
+  }
   const isGuild=/(公會|工會)/.test(poiName);
   const isShop=/(商店|市集|攤販|雜貨|武器|鐵匠|藥舖|酒館|客棧|旅店|旅館|藥店|藥鋪|補給|防具|飾品|商行|商街|冰窖|漁市|珊瑚市場|草藥|工坊)/.test(poiName);
   if(isGuild){
@@ -7620,7 +7634,8 @@ function doGoToPoi(cityId,poiName){
     scrollD();saveGame();
   }else if(isShop){
     // 直接開啟商店 UI，不等 AI
-    const baseKey=getShopKey(poiName);
+    const poi=city.pois.find(p=>p.name===poiName);
+    const baseKey=getShopKey(poiName,poi?.type);
     const shopId=`${cityId}_${poiName}`;
     const shop=mergeShop(shopId,baseKey,[],poiName,cityId);
     _currentShop=shop;G.lastShop=shop;G.inShop=true;saveGame();
@@ -7633,7 +7648,8 @@ function doGoToPoi(cityId,poiName){
     // 背景呼叫 AI 補充新商品（silent，不影響主流程）
     silentShopRefresh(shopId,baseKey,poiName,cityId);
   }else{
-    sendChoice(`【抵達${loc}】`);
+    const poiData=city.pois.find(p=>p.name===poiName);
+    sendChoice(`【抵達${loc}】${poiData?.desc||''}。請描述場景並給出行動選項。`);
   }
 }
 
