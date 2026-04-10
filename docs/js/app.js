@@ -4367,6 +4367,33 @@ function scell(s,t){
     ${statusHtml}
   </div>`;
 }
+function openItemDetail(name){
+  const db=ITEM_DB[name];if(!db)return;
+  const inv=getInv();
+  const item=inv.items.find(i=>i.n===name);
+  const qty=item?item.q:'×0';
+  document.getElementById('modal-inner').innerHTML=`
+    <div style="text-align:center;padding:.5rem 0;">
+      <div style="font-size:2rem;">${db.icon||'📦'}</div>
+      <div style="font-size:.85rem;color:var(--sil);font-weight:600;margin:.2rem 0;">${name}</div>
+      <div style="font-size:.56rem;color:var(--sild);">${db.cat||'道具'} ・ ${qty}</div>
+    </div>
+    <div style="font-size:.64rem;color:#7a8fa0;line-height:1.7;padding:.3rem 0;border-top:1px solid var(--brd);">
+      ${db.t||''}
+    </div>
+    ${db.effect?.hp?`<div style="font-size:.6rem;color:#6ab46a;margin:.2rem 0;">效果：HP +${db.effect.hp}</div>`:''}
+    ${db.effect?.favor?`<div style="font-size:.6rem;color:#6ab46a;margin:.2rem 0;">效果：好感度提升</div>`:''}
+    ${db.effect?.cure?`<div style="font-size:.6rem;color:#6ab46a;margin:.2rem 0;">效果：${db.effect.cure==='all'?'解除所有異常':'解除'+db.effect.cure}</div>`:''}
+    ${db.effect?.buff?`<div style="font-size:.6rem;color:rgba(180,140,220,.8);margin:.2rem 0;">增益：${STATUS_EFFECTS[db.effect.buff]?.name||db.effect.buff}</div>`:''}
+    ${db.bonus?`<div style="font-size:.6rem;color:#6ab46a;margin:.2rem 0;">素質：${bonusText(db.bonus)}</div>`:''}
+    ${db.price?`<div style="font-size:.56rem;color:var(--goldd);margin:.2rem 0;">價值：${priceStr(db.price)}</div>`:''}
+    ${db.slot?`<div style="font-size:.56rem;color:var(--sild);margin:.2rem 0;">部位：${db.slot}</div>`:''}
+    <div style="display:flex;gap:.3rem;margin-top:.4rem;">
+      ${item&&(db.effect?.hp||db.effect?.favor||db.effect?.cure)?`<button onclick="useItem('${name.replace(/'/g,"\\\\'")}');closeD();" style="flex:1;padding:.35rem;font-size:.62rem;background:rgba(100,180,100,.12);border:1px solid rgba(100,180,100,.4);border-radius:3px;color:#6ab46a;cursor:pointer;font-family:'Noto Serif TC',serif;">使用</button>`:''}
+      <button onclick="closeD()" style="flex:1;padding:.35rem;font-size:.62rem;background:transparent;border:1px solid var(--brd);border-radius:3px;color:var(--sild);cursor:pointer;font-family:'Noto Serif TC',serif;">關閉</button>
+    </div>`;
+  document.getElementById('detail-modal').classList.add('open');
+}
 function buildInv(){
   const inv=getInv();
   const equipped=(inv.equip||[]).filter(i=>i.status==='equipped');
@@ -4398,7 +4425,7 @@ function buildInv(){
   return`<div class="gold-box"><div><div class="gl">所持金</div><div class="ga" id="inv-gold-amt">${goldFull()}</div></div><span style="font-size:1.35rem">🪙</span></div>
   <div class="isec"><div class="ittl">裝備中</div>${equipped.length?equipped.map(i=>eqCard(i,inv.equip.indexOf(i),true)).join(''):'<div style="font-size:.65rem;color:var(--sild);padding:.2rem 0">（無裝備中道具）</div>'}</div>
   ${held.length?`<div class="isec"><div class="ittl">持有裝備</div>${held.map(i=>eqCard(i,inv.equip.indexOf(i),false)).join('')}</div>`:''}
-  <div class="isec"><div class="ittl">道具欄</div>${inv.items.map(i=>{const db=ITEM_DB[i.n];const usable=db&&(db.effect?.hp||db.effect?.favor||db.effect?.cure);return`<div class="irow"><div style="flex:1"><div class="inm">${db?.icon||''} ${i.n}</div><div class="int">${db?.t||i.t}</div></div><div style="display:flex;align-items:center;gap:.3rem;"><span class="iqt">${i.q}</span>${usable?`<button onclick="useItem('${i.n.replace(/'/g,"\\\\'")}')" style="font-size:.55rem;padding:.12rem .35rem;background:rgba(100,180,100,.1);border:1px solid rgba(100,180,100,.4);border-radius:2px;color:#6ab46a;cursor:pointer;font-family:'Noto Serif TC',serif;">使用</button>`:''}</div></div>`;}).join('')}</div>
+  <div class="isec"><div class="ittl">道具欄</div>${[...inv.items].sort((a,b)=>{const da=ITEM_DB[a.n],db2=ITEM_DB[b.n];const ca=da?.cat||'',cb=db2?.cat||'';return ca.localeCompare(cb)||a.n.localeCompare(b.n);}).map(i=>{const db=ITEM_DB[i.n];const usable=db&&(db.effect?.hp||db.effect?.favor||db.effect?.cure);return`<div class="irow" onclick="openItemDetail('${i.n.replace(/'/g,"\\\\'")}')" style="cursor:pointer;"><div style="flex:1"><div class="inm">${db?.icon||''} ${i.n}</div><div class="int">${db?.t||i.t}</div></div><div style="display:flex;align-items:center;gap:.3rem;"><span class="iqt">${i.q}</span>${usable?`<button onclick="event.stopPropagation();useItem('${i.n.replace(/'/g,"\\\\'")}')" style="font-size:.55rem;padding:.12rem .35rem;background:rgba(100,180,100,.1);border:1px solid rgba(100,180,100,.4);border-radius:2px;color:#6ab46a;cursor:pointer;font-family:'Noto Serif TC',serif;">使用</button>`:''}</div></div>`;}).join('')}</div>
   <div class="isec"><div class="ittl">重要情報</div>${inv.key.map(i=>{const db=ITEM_DB[i.n];return`<div class="irow"><div><div class="inm">${db?.icon||'📋'} ${i.n}</div><div class="int">${db?.t||i.t}</div></div><div class="iqt">${i.q}</div></div>`;}).join('')}</div>
   ${buildRepSection()}
   ${buildRelicSection()}`;
@@ -7249,12 +7276,12 @@ function endCombat(result){
     if(drops.length)addCombatLog(`📦 掉落：${drops.join('、')}`);
     _combat.party.forEach(p=>{if(G.hp[p.id])G.hp[p.id].cur=p.hp;else G.hp[p.id]={cur:p.hp,max:p.maxHp};});
     renderCombat();saveGame();renderChanged('inv','party');
-    setTimeout(()=>{closeCombatModal();const enemies=_combat?_combat.enemies.map(e=>e.name).join('、'):'';const summary=`【戰鬥結束・勝利】擊敗：${enemies}。獲得${priceStr(gold)}${exp?' 經驗+'+exp:''}${drops.length?' 掉落：'+drops.join('、'):''}。請繼續劇情。`;_combat=null;BGM.setMood('explore');sendChoice(summary);},3000);
+    setTimeout(()=>{closeCombatModal();const enemies=_combat?_combat.enemies.map(e=>e.name).join('、'):'';const rounds=_combat?_combat.round:0;const summary=`【戰鬥結束・勝利】經過${rounds}回合激戰，擊敗了${enemies}。獲得${priceStr(gold)}${exp?' 經驗+'+exp:''}${drops.length?' 掉落：'+drops.join('、'):''}。請描述勝利場景並繼續劇情，給出行動選項。`;_combat=null;BGM.setMood('explore');sendChoice(summary);},3000);
   }else if(result==='defeat'){
     addCombatLog('═══ 戰鬥失敗⋯⋯ ═══');
     G._defeatCount=(G._defeatCount||0)+1;
     _combat.party.forEach(p=>{if(G.hp[p.id])G.hp[p.id].cur=1;else G.hp[p.id]={cur:1,max:p.maxHp};});renderCombat();saveGame();
-    setTimeout(()=>{closeCombatModal();_combat=null;BGM.setMood('explore');sendChoice('【戰鬥結束・敗北】艾爾法倒下了，但被橘子拖回了安全的地方。HP殘存1。請描述失敗後的場景並繼續劇情。');},2500);
+    setTimeout(()=>{closeCombatModal();const defeatEnemies=_combat?_combat.enemies.map(e=>e.name).join('、'):'';_combat=null;BGM.setMood('explore');sendChoice(`【戰鬥結束・敗北】與${defeatEnemies}的戰鬥中落敗。艾爾法重傷倒下，橘子拖著她離開了危險區域。所有人HP殘存1。請描述艱難的敗退場景，讓氣氛沉重但留有希望，然後給出行動選項。`);},2500);
   }else if(result==='flee'){
     renderCombat();setTimeout(()=>{closeCombatModal();_combat=null;BGM.setMood('explore');sendChoice('【戰鬥結束・逃跑】艾爾法成功逃離了戰鬥。請繼續劇情。');},1500);
   }
