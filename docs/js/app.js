@@ -2028,7 +2028,7 @@ function retryP(id,el){
 }
 
 
-// 計算角色實際素質（基礎 + 裝備加成）
+// 計算角色實際素質（基礎 + 裝備加成 + 寶器加成 + 紋章加成 + 職業加成）
 function getEffectiveStats(id){
   const c=getCharData(id);if(!c)return c?.stats||{};
   const stats={...c.stats};
@@ -2041,6 +2041,13 @@ function getEffectiveStats(id){
         if(stats[s]!==null&&v)stats[s]=(stats[s]||0)+v;
       });
     });
+  // 寶器加成
+  if(typeof getRelicBonus==='function'){
+    const rb=getRelicBonus(id);
+    Object.entries(rb).forEach(([s,v])=>{
+      if(stats[s]!==null&&v)stats[s]=(stats[s]||0)+v;
+    });
+  }
   // 職業加成
   const jb=getJobBonus(id);
   Object.entries(jb).forEach(([s,v])=>{
@@ -2219,9 +2226,9 @@ function generateBounties(){
 function acceptBounty(idx){
   const bounties=generateBounties();
   const b=bounties[idx];if(!b)return;
-  // 本地骰子判定
-  const char=getCharData('alfar');
-  const statVal=char?.stats[b.stat]||0;
+  // 本地骰子判定（含裝備+寶器加成）
+  const _es=getEffectiveStats('alfar');
+  const statVal=_es[b.stat]||0;
   const mod=Math.floor(statVal/10)+getResonanceBonus();
   const raw=Math.floor(Math.random()*20)+1;
   const total=raw+mod;
@@ -5641,8 +5648,8 @@ function autoCombat(cb){
   // 展開自由行動列（讓玩家看到骰子）
   const fr=document.getElementById('free-row');
   if(fr)fr.classList.add('open');
-  const char=getCharData('alfar');
-  const statVal=char?.stats[cb.stat]||0;
+  const _esCombat=getEffectiveStats('alfar');
+  const statVal=_esCombat[cb.stat]||0;
   const bondBonus=G.rep['_bond_dice_bonus']||0;
   if(bondBonus>0){G.rep['_bond_dice_bonus']=0;appendEntryToDOM({type:'sys',v:`✦ 羈絆加成 +${bondBonus} 生效中`});}
   const autoSuccess=G.rep['_bond_auto_success']||0;
@@ -5704,8 +5711,8 @@ function autoCombat(cb){
 // ═══ LOCAL COMBAT (no API needed for basic encounters) ═══
 function localCombat(enemyName,difficulty){
   difficulty=difficulty||10;
-  const char=getCharData('alfar');
-  const statVal=char?.stats['武力']||0;
+  const _esLocal=getEffectiveStats('alfar');
+  const statVal=_esLocal['武力']||0;
   const mod=Math.floor(statVal/10);
   const raw=Math.floor(Math.random()*20)+1;
   const total=raw+mod;
@@ -5824,8 +5831,8 @@ function renderDiceModal(){
     </div>`;
   // 結果區域清空（若未投）
   if(!_diceState.rolled){
-    const c2=getCharData(_diceState.charId);
-    const v=c2?.stats[_diceState.stat]||0;
+    const _esDice=getEffectiveStats(_diceState.charId);
+    const v=_esDice[_diceState.stat]||0;
     const mod=Math.floor(v/10);
     document.getElementById('dice-result').innerHTML=`<div style="text-align:center;color:var(--sild);font-size:.72rem;">d20 + ${_diceState.stat}(${v}) 加值 +${mod}<br><span style="font-size:.62rem;opacity:.6">${STAT_MAP[_diceState.stat]||''}</span></div>`;
   }
@@ -5833,7 +5840,8 @@ function renderDiceModal(){
 
 function rollDice(){
   const c=getCharData(_diceState.charId);if(!c)return;
-  const statVal=c.stats[_diceState.stat]||0;
+  const _esRoll=getEffectiveStats(_diceState.charId);
+  const statVal=_esRoll[_diceState.stat]||0;
   const mod=Math.floor(statVal/10);
   const raw=Math.floor(Math.random()*20)+1;
   const total=raw+mod;
