@@ -2023,6 +2023,15 @@ function equipItemToggle(idx){
     // 選擇裝備到哪個角色（簡單版：第一個可戰鬥角色）
     const candidates=allParty().filter(m=>m.id!=='orange');
     if(!candidates.length){showToast('沒有可裝備的角色','err');return;}
+    if(candidates.length>1){
+      // Show character selection
+      const inner=document.getElementById('modal-inner');
+      inner.innerHTML=`<div style="font-size:.72rem;color:var(--gold);text-align:center;margin-bottom:.5rem;">裝備 ${item.n} 給誰？</div>
+        ${candidates.map(c=>`<button onclick="equipToChar('${c.id}',${idx});closeD();" style="display:block;width:100%;padding:.4rem;margin:.2rem 0;font-size:.64rem;background:var(--bg3);border:1px solid var(--brd);border-radius:3px;color:var(--sil);cursor:pointer;font-family:'Noto Serif TC',serif;text-align:left;">${c.emoji} ${c.name}</button>`).join('')}
+        <button onclick="closeD()" style="display:block;width:100%;padding:.35rem;margin-top:.4rem;font-size:.6rem;background:transparent;border:1px solid var(--brd);border-radius:3px;color:var(--sild);cursor:pointer;font-family:'Noto Serif TC',serif;">取消</button>`;
+      document.getElementById('detail-modal').classList.add('open');
+      return;
+    }
     const target=candidates[0];
     // 舊裝備卸下
     const slot=item.slot||'武器';
@@ -2032,6 +2041,18 @@ function equipItemToggle(idx){
     if(target.eq)target.eq[slot]=item.n;
     showToast(`${item.n} 裝備至 ${target.name}`,'ok');
   }
+  renderChanged('inv','party');saveGame();
+}
+function equipToChar(charId,idx){
+  const inv=getInv();
+  const item=inv.equip[idx];if(!item)return;
+  const target=getCharData(charId);if(!target)return;
+  const slot=item.slot||'武器';
+  const old=inv.equip.find(e=>e.w===target.name&&e.slot===slot&&e.status==='equipped');
+  if(old){old.status='持有';old.w=null;}
+  item.status='equipped';item.w=target.name;
+  if(target.eq)target.eq[slot]=item.n;
+  showToast(`${item.n} 裝備至 ${target.name}`,'ok');
   renderChanged('inv','party');saveGame();
 }
 
@@ -5661,6 +5682,7 @@ function buildQuest(){
           <span style="${o.done?'opacity:.6;text-decoration:line-through;':''}">${o.text}</span>
         </div>`).join('')}
       </div>`:''}
+      ${(()=>{const qdb=QUEST_DB[q.id];return qdb?.rewards?`<div style="font-size:.52rem;color:var(--goldd);margin-top:.2rem;margin-bottom:.25rem;">獎勵：${qdb.rewards.gd?priceStr(qdb.rewards.gd)+' ':''} ${qdb.rewards.exp?'EXP+'+qdb.rewards.exp+' ':''}${qdb.rewards.items?qdb.rewards.items.join('、'):''}</div>`:''})()}
       <div style="display:flex;justify-content:space-between;align-items:center;font-size:.55rem;color:var(--sild);">
         <span>${q.loc?'📍 '+q.loc:''}</span>
         <div style="display:flex;gap:.4rem;align-items:center;">
@@ -7675,6 +7697,7 @@ function showCityPanel(cityId){
         ${isCur?'<span style="font-size:.65rem;color:rgba(201,168,76,.55);margin-left:.4rem">◉ 當前位置</span>':''}
       </div>
       <div style="font-size:.68rem;color:var(--sild);line-height:1.5;margin-bottom:.35rem">${city.desc}</div>
+      ${(()=>{const ae=Object.entries(ENEMY_DB).filter(([,e])=>e.area&&e.area.includes(cityId)&&!e.boss);return ae.length?`<div style="font-size:.58rem;color:rgba(200,100,80,.7);margin-bottom:.3rem;">⚔ 出沒敵人：${ae.map(([,e])=>'Lv'+e.lv+' '+e.name).join('、')}</div>`:''})()}
       ${isCur?`<button onclick="renderRegionMap('${cityId}')" style="font-size:.68rem;padding:.25rem .6rem;background:rgba(201,168,76,.12);border:1px solid rgba(201,168,76,.4);border-radius:3px;color:var(--gold);cursor:pointer;font-family:'Noto Serif TC',serif;">🗺 查看區域地圖</button>`:
       `<button onclick="doTravel('${cityId}')" style="font-size:.68rem;padding:.25rem .7rem;background:${travel.can?'rgba(201,168,76,.15)':'rgba(80,80,80,.15)'};border:1px solid ${travel.can?'rgba(201,168,76,.5)':'rgba(100,100,100,.3)'};border-radius:3px;color:${travel.can?'var(--gold)':'var(--sild)'};cursor:${travel.can?'pointer':'not-allowed'};font-family:'Noto Serif TC',serif;"
         ${!travel.can?`title="${travel.reason}"`:''}
