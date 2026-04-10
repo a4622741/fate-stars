@@ -301,6 +301,140 @@ const INV_DEFAULT={
   key:[]
 };
 
+// ═══ ITEM DATABASE — 完整道具資料庫 ═══
+// 所有道具的基準資料，買賣/劇情/掉落皆參照此表
+const ITEM_DB={
+  // ══ 消耗品 ══
+  '乾糧':{cat:'消耗',t:'基礎口糧・HP+5',effect:{hp:5},price:{g:0,s:0,c:20},icon:'🍞'},
+  '魚乾':{cat:'消耗',t:'橘子最愛・好感+8',effect:{favor:{orange:8}},price:{g:0,s:0,c:30},icon:'🐟'},
+  '繃帶':{cat:'消耗',t:'緊急止血・HP+10',effect:{hp:10},price:{g:0,s:0,c:25},icon:'🩹'},
+  '火種':{cat:'消耗',t:'生火用具・野營必備',effect:{misc:'camp'},price:{g:0,s:0,c:10},icon:'🔥'},
+  '麻繩':{cat:'消耗',t:'攀爬・綑綁用',effect:{misc:'climb'},price:{g:0,s:0,c:15},icon:'🪢'},
+  '草藥包':{cat:'消耗',t:'天然藥草・HP+20',effect:{hp:20},price:{g:0,s:2,c:0},icon:'🌿'},
+  '解毒劑':{cat:'消耗',t:'解除中毒狀態',effect:{cure:'poison'},price:{g:0,s:3,c:0},icon:'💊'},
+  '提神藥':{cat:'消耗',t:'恢復疲勞',effect:{cure:'fatigue'},price:{g:0,s:1,c:50},icon:'⚗️'},
+  '恢復藥劑':{cat:'消耗',t:'煉金術製品・HP+40',effect:{hp:40},price:{g:0,s:5,c:0},icon:'🧪'},
+  '燻魚':{cat:'消耗',t:'灰港名產・HP+10',effect:{hp:10},price:{g:0,s:0,c:35},icon:'🐟'},
+  '海鹽':{cat:'消耗',t:'保鮮調味・料理材料',effect:{misc:'cook'},price:{g:0,s:0,c:15},icon:'🧂'},
+  '東方香料':{cat:'消耗',t:'來自東海・料理材料',effect:{misc:'cook'},price:{g:0,s:2,c:0},icon:'🫚'},
+  '防霧面罩':{cat:'消耗',t:'減輕鐵鏽霧害',effect:{misc:'fog_resist'},price:{g:0,s:1,c:50},icon:'😷'},
+  '礦工燈':{cat:'消耗',t:'霧中照明・洞窟探索',effect:{misc:'light'},price:{g:0,s:2,c:0},icon:'🪔'},
+  '防沙頭巾':{cat:'消耗',t:'南荒必備・防風沙',effect:{misc:'sand_resist'},price:{g:0,s:2,c:0},icon:'🧣'},
+  '大容量水壺':{cat:'消耗',t:'荒野求生用',effect:{misc:'water'},price:{g:0,s:3,c:0},icon:'🫗'},
+  '照明彈':{cat:'消耗',t:'荒野求救信號',effect:{misc:'signal'},price:{g:0,s:4,c:0},icon:'🎆'},
+  '防寒皮衣':{cat:'消耗',t:'霜嶺必需品・禦寒',effect:{misc:'cold_resist'},price:{g:0,s:8,c:0},icon:'🧥'},
+  '暖爐石':{cat:'消耗',t:'攜帶式保暖石',effect:{misc:'warmth'},price:{g:0,s:3,c:0},icon:'🪨'},
+  '防瘴面具':{cat:'消耗',t:'影沼地必備・防瘴氣',effect:{misc:'miasma_resist'},price:{g:0,s:5,c:0},icon:'🎭'},
+  '防熱藥':{cat:'消耗',t:'抵禦地熱',effect:{misc:'heat_resist'},price:{g:0,s:5,c:0},icon:'🧴'},
+  '月光精華':{cat:'消耗',t:'銀月城稀有品・HP+60',effect:{hp:60},price:{g:0,s:15,c:0},icon:'🌙'},
+  '精靈藥草':{cat:'消耗',t:'翠林特產・HP+80',effect:{hp:80},price:{g:0,s:25,c:0},icon:'🍀'},
+  '世界樹樹液':{cat:'消耗',t:'解除所有異常狀態',effect:{cure:'all'},price:{g:0,s:40,c:0},icon:'🌳'},
+  '東海珍珠粉':{cat:'消耗',t:'東海王國特產・HP+50',effect:{hp:50},price:{g:0,s:12,c:0},icon:'🦪'},
+  '沼澤解毒劑':{cat:'消耗',t:'對瘴氣特效',effect:{cure:'miasma'},price:{g:0,s:6,c:0},icon:'🧪'},
+  '劇毒萃取':{cat:'消耗',t:'武器塗毒用・下次攻擊附帶毒',effect:{buff:'poison_blade'},price:{g:0,s:10,c:0},icon:'☠️'},
+  '迷幻菇':{cat:'消耗',t:'用途不明・慎用',effect:{misc:'hallucinogen'},price:{g:0,s:4,c:0},icon:'🍄'},
+  '魚肉乾':{cat:'消耗',t:'橘子最愛・好感+8',effect:{favor:{orange:8}},price:{g:0,s:0,c:40},icon:'🍖'},
+  '內陸皮革':{cat:'素材',t:'來自霧山・製甲材料',effect:{misc:'craft'},price:{g:0,s:3,c:0},icon:'🧶'},
+  '礦石樣本':{cat:'素材',t:'可交易的鐵礦石',effect:{misc:'trade'},price:{g:0,s:3,c:0},icon:'�ite'},
+
+  // ══ 武器 ══
+  '短劍':{cat:'武器',t:'標準輕兵器',slot:'武器',bonus:{武力:10},price:{g:0,s:12,c:0},icon:'🗡️'},
+  '長劍':{cat:'武器',t:'平衡型武器',slot:'武器',bonus:{武力:16},price:{g:0,s:25,c:0},icon:'⚔️'},
+  '戰斧':{cat:'武器',t:'重型武器・揮砍為主',slot:'武器',bonus:{武力:20,統率:-3},price:{g:0,s:30,c:0},icon:'🪓'},
+  '弓':{cat:'武器',t:'遠程武器',slot:'武器',bonus:{武力:12,幸運:3},price:{g:0,s:18,c:0},icon:'🏹'},
+  '法杖':{cat:'武器',t:'魔法武器・知力型',slot:'武器',bonus:{知力:15},price:{g:0,s:22,c:0},icon:'🪄'},
+  '無銘短劍':{cat:'武器',t:'磨損嚴重・來歷不明',slot:'武器',bonus:{武力:8},price:{g:0,s:5,c:0},icon:'🗡️'},
+  '鐵霧重錘':{cat:'武器',t:'礦工改造・鐵霧城特產',slot:'武器',bonus:{武力:22,統率:-5},price:{g:0,s:35,c:0},icon:'🔨'},
+  '城衛制式劍':{cat:'武器',t:'鐵霧城衛標配',slot:'武器',bonus:{武力:15,統率:3},price:{g:0,s:28,c:0},icon:'⚔️'},
+  '精鋼礦錘':{cat:'武器',t:'鐵冠城精鍛',slot:'武器',bonus:{武力:25},price:{g:0,s:40,c:0},icon:'🔨'},
+  '魚叉':{cat:'武器',t:'漁夫改造武器',slot:'武器',bonus:{武力:12,幸運:2},price:{g:0,s:15,c:0},icon:'🔱'},
+  '銀月細劍':{cat:'武器',t:'銀月城名匠打造',slot:'武器',bonus:{武力:20,魅力:5},price:{g:1,s:0,c:0},icon:'🗡️'},
+  '符文短杖':{cat:'武器',t:'附魔法杖',slot:'武器',bonus:{知力:22,幸運:3},price:{g:0,s:80,c:0},icon:'🪄'},
+  '帝國遺劍':{cat:'武器',t:'鏽蝕但仍鋒利',slot:'武器',bonus:{武力:18,幸運:-2},price:{g:0,s:20,c:0},icon:'⚔️'},
+  '海軍彎刀':{cat:'武器',t:'海軍規格・適合船戰',slot:'武器',bonus:{武力:18,幸運:5},price:{g:0,s:35,c:0},icon:'🗡️'},
+  '珊瑚弓':{cat:'武器',t:'東海特產・華麗',slot:'武器',bonus:{武力:16,魅力:8},price:{g:0,s:45,c:0},icon:'🏹'},
+  '精靈短弓':{cat:'武器',t:'翠林城精靈工藝',slot:'武器',bonus:{武力:15,知力:10,幸運:5},price:{g:1,s:0,c:0},icon:'🏹'},
+  '龍骨匕首':{cat:'武器',t:'龍牙砦限定・龍骨鍛造',slot:'武器',bonus:{武力:28,幸運:-5},price:{g:0,s:50,c:0},icon:'🗡️'},
+  '騎士團長劍':{cat:'武器',t:'霜守堡騎士團鍛造',slot:'武器',bonus:{武力:22,統率:8},price:{g:1,s:20,c:0},icon:'⚔️'},
+
+  // ══ 防具 ══
+  '皮甲':{cat:'防具',t:'輕型防護',slot:'防具',bonus:{統率:6,幸運:2},price:{g:0,s:15,c:0},icon:'🦺'},
+  '鎖子甲':{cat:'防具',t:'中型防護・較重',slot:'防具',bonus:{統率:12},price:{g:0,s:35,c:0},icon:'🛡️'},
+  '旅人斗篷':{cat:'防具',t:'基礎防護+隱匿',slot:'防具',bonus:{統率:3,幸運:5},price:{g:0,s:10,c:0},icon:'🧥'},
+  '銀月護甲':{cat:'防具',t:'輕便華麗・銀月城製',slot:'防具',bonus:{統率:15,魅力:5},price:{g:1,s:20,c:0},icon:'🛡️'},
+
+  // ══ 飾品 ══
+  '鐵盾':{cat:'飾品',t:'格擋專用',slot:'飾品',bonus:{統率:10},price:{g:0,s:18,c:0},icon:'🛡️'},
+  '銅指環':{cat:'飾品',t:'略有加持',slot:'飾品',bonus:{幸運:4},price:{g:0,s:8,c:0},icon:'💍'},
+  '護身符':{cat:'飾品',t:'祈禱之物',slot:'飾品',bonus:{幸運:6,知力:2},price:{g:0,s:12,c:0},icon:'📿'},
+  '商旅護符':{cat:'飾品',t:'金橋城名物',slot:'飾品',bonus:{魅力:8,幸運:3},price:{g:0,s:15,c:0},icon:'📿'},
+
+  // ══ 關鍵道具 ══
+  '破舊地圖（艾爾薩）':{cat:'關鍵',t:'殘缺不全的大陸地圖',effect:{misc:'map'},price:null,icon:'🗺️'},
+  '走私品地圖':{cat:'關鍵',t:'可疑的標記・灰港地下交易路線',effect:{misc:'smuggle_map'},price:{g:0,s:8,c:0},icon:'🗺️'},
+  '星象圖':{cat:'關鍵',t:'銀月城特產・108星辰位置參考',effect:{misc:'star_map'},price:{g:0,s:5,c:0},icon:'🌌'},
+  '情報書信':{cat:'關鍵',t:'各地傳聞彙整',effect:{misc:'intel'},price:{g:0,s:3,c:0},icon:'📜'},
+  '帝國徽記碎片':{cat:'關鍵',t:'帝國遺物・收藏品或線索',effect:{misc:'empire_relic'},price:{g:0,s:5,c:0},icon:'👑'},
+  '翠林通行證':{cat:'關鍵',t:'精靈域通行必需',effect:{misc:'pass_jade'},price:{g:0,s:20,c:0},icon:'📜'},
+  '船票（短程）':{cat:'關鍵',t:'碼頭間移動',effect:{misc:'boat'},price:{g:0,s:5,c:0},icon:'🎫'},
+  '海圖':{cat:'關鍵',t:'東海航路圖',effect:{misc:'sea_map'},price:{g:0,s:8,c:0},icon:'🗺️'},
+
+  // ══ 劇情道具（不可購買，劇情或探索觸發）══
+  '北斗星碎片':{cat:'關鍵',t:'北斗真紋章的碎片・散發微弱光芒',effect:{clue:true},price:null,icon:'⚜️'},
+  '帝國占星師手記':{cat:'關鍵',t:'記錄108星降世預言的古老手稿',effect:{clue:true},price:null,icon:'📖'},
+  '神秘鑰匙':{cat:'關鍵',t:'不知道能打開什麼',effect:{misc:'key'},price:null,icon:'🔑'},
+  '暗王的信件':{cat:'關鍵',t:'疑似暗王勢力的密函・已加密',effect:{misc:'dark_letter'},price:null,icon:'📨'},
+  '命運之錨碎片':{cat:'關鍵',t:'與橘子產生共鳴的神秘碎片',effect:{orange_stage:true},price:null,icon:'⚓'},
+  '古龍之鱗':{cat:'關鍵',t:'龍牙砦深處發現的龍鱗・散發熱力',effect:{misc:'dragon'},price:null,icon:'🐉'},
+  '時間裂縫結晶':{cat:'關鍵',t:'從鏽城時間裂縫中結晶的物質',effect:{misc:'time_crystal'},price:null,icon:'💎'},
+  '精靈長老的祝福':{cat:'關鍵',t:'翠林長老授予的森之祝福',effect:{buff:'elf_bless'},price:null,icon:'🌿'},
+  '霜守堡騎士徽章':{cat:'關鍵',t:'霜守堡流亡騎士團的認證',effect:{misc:'knight_badge'},price:null,icon:'🛡️'},
+  '影沼地圖':{cat:'關鍵',t:'影沼地的安全路線圖',effect:{misc:'marsh_map'},price:null,icon:'🗺️'},
+  '霧刃幫首領面具':{cat:'關鍵',t:'擊敗霧刃幫首領後獲得',effect:{misc:'boss_trophy'},price:null,icon:'🎭'},
+  '聖赫倫皇冠碎片':{cat:'關鍵',t:'帝國皇冠的碎片・散發霸王紋章殘響',effect:{crest:'sovereign'},price:null,icon:'👑'},
+};
+
+// 從 ITEM_DB 查詢道具資料
+function getItemData(name){return ITEM_DB[name]||null;}
+
+// 使用消耗品
+function useItem(itemName){
+  const inv=getInv();
+  const idx=inv.items.findIndex(i=>i.n===itemName);
+  if(idx===-1){showToast('沒有此道具','err');return;}
+  const data=ITEM_DB[itemName];
+  if(!data){showToast('無法使用此道具','inf');return;}
+  // HP 回復
+  if(data.effect?.hp){
+    applyHPChange([{id:'alfar',delta:data.effect.hp,reason:itemName}]);
+    appendEntryToDOM({type:'sys',v:`✦ 使用 ${itemName}：HP +${data.effect.hp}`});
+  }
+  // 好感度
+  else if(data.effect?.favor){
+    Object.entries(data.effect.favor).forEach(([id,val])=>{
+      setFavor(id,val);
+      const name=getCharData(id)?.name||id;
+      appendEntryToDOM({type:'sys',v:`✦ 使用 ${itemName}：${name} 好感 +${val}`});
+    });
+  }
+  // 解除狀態
+  else if(data.effect?.cure){
+    appendEntryToDOM({type:'sys',v:`✦ 使用 ${itemName}：狀態解除（${data.effect.cure}）`});
+  }
+  // 其他
+  else{
+    appendEntryToDOM({type:'sys',v:`✦ 使用 ${itemName}`});
+  }
+  // 扣除數量
+  const item=inv.items[idx];
+  const qm=item.q.match(/(\d+)/);
+  const qty=qm?parseInt(qm[1]):1;
+  if(qty<=1)inv.items.splice(idx,1);
+  else item.q='×'+(qty-1);
+  renderChanged('inv');saveGame();scrollD();
+  showToast(`使用了 ${itemName}`,'ok');
+}
+
 // ═══ BGM ENGINE — 東野美紀風格・FM合成 ═══
 // 音符頻率（C2-C6）
 const _N=(()=>{const n={};const names=['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];for(let o=2;o<=6;o++)names.forEach((nm,i)=>{n[nm+o]=440*Math.pow(2,(o-4)+(i-9)/12);});return n;})();
@@ -3452,8 +3586,8 @@ function buildInv(){
   return`<div class="gold-box"><div><div class="gl">所持金</div><div class="ga" id="inv-gold-amt">${goldFull()}</div></div><span style="font-size:1.35rem">🪙</span></div>
   <div class="isec"><div class="ittl">裝備中</div>${equipped.length?equipped.map(i=>eqCard(i,inv.equip.indexOf(i),true)).join(''):'<div style="font-size:.65rem;color:var(--sild);padding:.2rem 0">（無裝備中道具）</div>'}</div>
   ${held.length?`<div class="isec"><div class="ittl">持有裝備</div>${held.map(i=>eqCard(i,inv.equip.indexOf(i),false)).join('')}</div>`:''}
-  <div class="isec"><div class="ittl">道具欄</div>${inv.items.map(i=>`<div class="irow"><div><div class="inm">${i.n}</div><div class="int">${i.t}</div></div><div class="iqt">${i.q}</div></div>`).join('')}</div>
-  <div class="isec"><div class="ittl">重要情報</div>${inv.key.map(i=>`<div class="irow"><div><div class="inm">${i.n}</div><div class="int">${i.t}</div></div><div class="iqt">${i.q}</div></div>`).join('')}</div>
+  <div class="isec"><div class="ittl">道具欄</div>${inv.items.map(i=>{const db=ITEM_DB[i.n];const usable=db&&(db.effect?.hp||db.effect?.favor||db.effect?.cure);return`<div class="irow"><div style="flex:1"><div class="inm">${db?.icon||''} ${i.n}</div><div class="int">${db?.t||i.t}</div></div><div style="display:flex;align-items:center;gap:.3rem;"><span class="iqt">${i.q}</span>${usable?`<button onclick="useItem('${i.n.replace(/'/g,"\\\\'")}')" style="font-size:.55rem;padding:.12rem .35rem;background:rgba(100,180,100,.1);border:1px solid rgba(100,180,100,.4);border-radius:2px;color:#6ab46a;cursor:pointer;font-family:'Noto Serif TC',serif;">使用</button>`:''}</div></div>`;}).join('')}</div>
+  <div class="isec"><div class="ittl">重要情報</div>${inv.key.map(i=>{const db=ITEM_DB[i.n];return`<div class="irow"><div><div class="inm">${db?.icon||'📋'} ${i.n}</div><div class="int">${db?.t||i.t}</div></div><div class="iqt">${i.q}</div></div>`;}).join('')}</div>
   ${buildRepSection()}
   ${buildRelicSection()}`;
 }
@@ -3772,14 +3906,16 @@ const PRESET_RELICS={
   'alfar': {starId:'alfar', starName:'艾爾法', starNum:'天1', name:'天命折刃',
     type:'武器', icon:'⚔️', rarity:'稀有',
     desc:'一把來歷不明的無銘短劍。劍身有一道奇異的裂紋，卻怎麼也折不斷。彷彿命運本身的傷痕。',
-    effect:'武力+15・每次大成功額外造成傷害',
-    status:'equipped', // 艾爾法一開始就持有（外觀是普通短劍）
+    effect:'武力+15・大成功時額外傷害',
+    bonus:{武力:15},
+    status:'equipped', equippedTo:'alfar',
     lore:'天魁星降世之器。它選擇了她——或者說，它一直在等她。'},
   'orange': {starId:'orange', starName:'橘子', starNum:'地1', name:'命運之錨',
     type:'神物', icon:'⚓', rarity:'傳說',
     desc:'一枚五枚銅幣買來的貓。帝國最後的占星師說：「凡能找到這隻貓的人，便是命運之主。」',
-    effect:'【封印】真正的效果尚未覺醒',
-    status:'sealed',
+    effect:'【封印中】覺醒後：全隊感知範圍擴大',
+    bonus:null,
+    status:'sealed', equippedTo:'orange',
     lore:'晁蓋之位降世之器。她本身即是寶器——不屬於108星，卻是引導星辰聚合的錨。她選擇了誰，命運便跟隨誰。'},
 };
 
@@ -3791,7 +3927,7 @@ function getRelicCount(){return Object.keys(G.relics).length+Object.keys(PRESET_
 function applyRelic(r){
   if(!r||!r.id)return;
   const existed=!!G.relics[r.id];
-  G.relics[r.id]={...r, foundDay:G.time?.day||1};
+  G.relics[r.id]={...r, foundDay:G.time?.day||1, status:r.status||'held', equippedTo:r.equippedTo||null};
   const col=RELIC_RARITY_COLOR[r.rarity]||'var(--gold)';
   if(!existed){
     appendEntryToDOM({type:'sys',v:`✦ 發現命運寶器：【${r.name}】${r.rarity?'（'+r.rarity+'）':''}`});
@@ -3811,28 +3947,72 @@ function buildRelicSection(){
   return`<div class="isec">
     <div class="ittl" style="display:flex;justify-content:space-between;align-items:center;">
       <span>命運寶器</span>
-      <span style="font-size:.52rem;color:var(--sild);">${foundCount}/${count} 已知（共108件）</span>
+      <span style="font-size:.52rem;color:var(--sild);">${foundCount}/${count} 已知</span>
     </div>
     ${all.map(r=>{
       const col=RELIC_RARITY_COLOR[r.rarity]||'var(--gold)';
       const sealed=r.status==='sealed';
-      return`<div style="display:flex;gap:.5rem;align-items:flex-start;padding:.4rem 0;border-bottom:1px solid rgba(255,255,255,.04);">
+      const equipped=r.status==='equipped';
+      const holder=r.equippedTo?getCharData(r.equippedTo)?.name||r.starName:'';
+      const bText=r.bonus?bonusText(r.bonus):'';
+      return`<div style="display:flex;gap:.5rem;align-items:flex-start;padding:.5rem 0;border-bottom:1px solid rgba(255,255,255,.04);">
         <span style="font-size:1.1rem;flex-shrink:0;opacity:${sealed?0.5:1}">${r.icon||'◈'}</span>
         <div style="flex:1;min-width:0">
-          <div style="display:flex;align-items:center;gap:.3rem;margin-bottom:.1rem;">
+          <div style="display:flex;align-items:center;gap:.3rem;margin-bottom:.1rem;flex-wrap:wrap;">
             <span style="font-size:.72rem;color:${col};font-weight:600">${r.name}</span>
             ${r.rarity?`<span style="font-size:.48rem;color:${col};border:1px solid ${col};border-radius:2px;padding:.02rem .22rem;opacity:.7">${r.rarity}</span>`:''}
             ${r.type?`<span style="font-size:.5rem;color:var(--sild);">${r.type}</span>`:''}
+            ${equipped?`<span style="font-size:.46rem;color:#6ab46a;border:1px solid rgba(100,180,100,.4);border-radius:2px;padding:.02rem .2rem;">裝備中</span>`:''}
           </div>
           <div style="font-size:.6rem;color:var(--sild);line-height:1.45;margin-bottom:.12rem">${r.desc||''}</div>
-          ${r.effect?`<div style="font-size:.58rem;color:${sealed?'var(--sild)':'#6ab46a'};">${sealed?'【封印中】':r.effect}</div>`:''}
-          ${r.lore?`<div style="font-size:.54rem;color:rgba(150,140,100,.5);margin-top:.1rem;font-style:italic">${r.lore}</div>`:''}
-          ${r.starName?`<div style="font-size:.5rem;color:rgba(120,120,100,.5);margin-top:.08rem">持有者：${r.starName}（${r.starNum}）</div>`:''}
+          ${bText?`<div style="font-size:.58rem;color:#6ab46a;margin-bottom:.08rem;">${bText}</div>`:''}
+          ${r.effect?`<div style="font-size:.56rem;color:${sealed?'var(--sild)':'rgba(180,140,220,.8)'};">${r.effect}</div>`:''}
+          ${r.lore?`<div style="font-size:.52rem;color:rgba(150,140,100,.5);margin-top:.08rem;font-style:italic">${r.lore}</div>`:''}
+          ${holder?`<div style="font-size:.5rem;color:rgba(120,120,100,.5);margin-top:.06rem">持有者：${holder}</div>`:''}
+          ${!sealed&&r.starId?`<div style="margin-top:.3rem;">
+            ${equipped?`<button onclick="unequipRelic('${r.starId||r.id}')" style="font-size:.55rem;padding:.15rem .4rem;background:transparent;border:1px solid rgba(204,68,68,.35);border-radius:2px;color:rgba(204,68,68,.7);cursor:pointer;font-family:'Noto Serif TC',serif;">卸下寶器</button>`
+            :`<button onclick="equipRelic('${r.starId||r.id}')" style="font-size:.55rem;padding:.15rem .4rem;background:rgba(201,168,76,.1);border:1px solid rgba(201,168,76,.4);border-radius:2px;color:var(--goldd);cursor:pointer;font-family:'Noto Serif TC',serif;">裝備寶器</button>`}
+          </div>`:''}
         </div>
       </div>`;
     }).join('')}
-    ${found.length===0?`<div style="font-size:.62rem;color:rgba(120,120,100,.5);padding:.3rem 0">其餘106件寶器散落於艾爾薩大陸各處，等待命運之人尋回。</div>`:''}
+    ${found.length===0?`<div style="font-size:.62rem;color:rgba(120,120,100,.5);padding:.3rem 0">其餘寶器散落於艾爾薩大陸各處，等待命運之人尋回。</div>`:''}
   </div>`;
+}
+
+function equipRelic(id){
+  const relic=PRESET_RELICS[id]||G.relics[id];
+  if(!relic||relic.status==='sealed')return;
+  relic.status='equipped';
+  relic.equippedTo=relic.starId||'alfar';
+  showToast(`寶器 ${relic.name} 已裝備`,'ok');
+  renderChanged('inv','party');saveGame();
+}
+function unequipRelic(id){
+  const relic=PRESET_RELICS[id]||G.relics[id];
+  if(!relic)return;
+  relic.status='held';
+  relic.equippedTo=null;
+  showToast(`寶器 ${relic.name} 已卸下`,'ok');
+  renderChanged('inv','party');saveGame();
+}
+
+// 計算寶器加成（用於戰鬥等系統）
+function getRelicBonus(charId){
+  const bonus={武力:0,知力:0,統率:0,魅力:0,幸運:0};
+  // Check preset relics
+  Object.values(PRESET_RELICS).forEach(r=>{
+    if(r.equippedTo===charId&&r.bonus&&r.status==='equipped'){
+      Object.entries(r.bonus).forEach(([k,v])=>{if(bonus[k]!==undefined)bonus[k]+=v;});
+    }
+  });
+  // Check found relics
+  Object.values(G.relics).forEach(r=>{
+    if(r.equippedTo===charId&&r.bonus&&r.status==='equipped'){
+      Object.entries(r.bonus).forEach(([k,v])=>{if(bonus[k]!==undefined)bonus[k]+=v;});
+    }
+  });
+  return bonus;
 }
 
 // ═══ CREST SYSTEM（紋章系統）═══
