@@ -7887,8 +7887,10 @@ function doGoToPoi(cityId,poiName){
   appendEntryToDOM({type:'sys',v:`📍 前往 ${loc}`});
   advanceTime(1);
 
-  const poiObj=city.pois.find(p=>p.name===poiName);
-  if(poiObj?.waystation){
+  const poi=city.pois.find(p=>p.name===poiName);
+
+  // 驛站
+  if(poi?.waystation){
     G.atWayStation=true;
     appendEntryToDOM({type:'sys',v:`🐎 ${poiName} — 可從此處出發前往其他城市。`});
     appendEntryToDOM({type:'sys',v:'📍 開啟地圖選擇目的地即可出發。'});
@@ -7896,36 +7898,377 @@ function doGoToPoi(cityId,poiName){
     scrollD();saveGame();
     return;
   }
-  const isGuild=/(公會|工會)/.test(poiName);
-  const isShop=/(商店|市集|攤販|雜貨|武器|鐵匠|藥舖|酒館|客棧|旅店|旅館|藥店|藥鋪|補給|防具|飾品|商行|商街|冰窖|漁市|珊瑚市場|草藥|工坊)/.test(poiName);
-  if(isGuild){
-    // 工會POI：本地開啟工會面板＋懸賞板，不呼叫AI
-    const guildMap=GUILD_NAME_MAP;
-    const gId=Object.entries(guildMap).find(([k])=>poiName.includes(k));
-    if(gId&&!G.guilds?.[gId[1]]?.joined){joinGuild(gId[1]);}
+
+  const t=poi?.type||'';
+
+  // 工會/公會
+  if(t==='guild'||/(公會|工會)/.test(poiName)){
+    const gId=Object.entries(GUILD_NAME_MAP).find(([k])=>poiName.includes(k));
+    if(gId&&!G.guilds?.[gId[1]]?.joined)joinGuild(gId[1]);
     appendEntryToDOM({type:'narr',v:`你走進${poiName}的大廳。公告板上貼滿了委託和懸賞。`});
     markDirty('guild','activities');
     switchTab(document.querySelector('.ptab'),'p','activities');
     scrollD();saveGame();
-  }else if(isShop){
-    // 直接開啟商店 UI，不等 AI
-    const poi=city.pois.find(p=>p.name===poiName);
-    const baseKey=getShopKey(poiName,poi?.type);
+    return;
+  }
+
+  // 旅店/酒館 → 開啟旅店UI
+  if(t==='inn'){
+    openInn(poi,cityId);
+    scrollD();saveGame();
+    return;
+  }
+
+  // 商店（名稱或type）→ 開啟商店UI
+  const isShop=t==='shop'||/(商店|市集|攤販|雜貨|武器|鐵匠|藥舖|酒館|客棧|旅店|旅館|藥店|藥鋪|補給|防具|飾品|商行|商街|冰窖|漁市|珊瑚市場|草藥|工坊)/.test(poiName);
+  if(isShop){
+    const baseKey=getShopKey(poiName,t);
     const shopId=`${cityId}_${poiName}`;
     const shop=mergeShop(shopId,baseKey,[],poiName,cityId);
     _currentShop=shop;G.lastShop=shop;G.inShop=true;saveGame();
     const sb=document.getElementById('shop-btn');if(sb){sb.style.display='';sb.title=shop.name;}
     const fr2=document.getElementById('free-row');if(fr2)fr2.classList.add('open');
     openShop(shop);
-    // 背景讓 AI 補充劇情描述和可能的特殊商品（不阻塞 UI）
     appendEntryToDOM({type:'sys',v:`🏪 ${shop.name}　點選商品購買・或輸入自由行動繼續`});
     scrollD();saveGame();
-    // 背景呼叫 AI 補充新商品（silent，不影響主流程）
     silentShopRefresh(shopId,baseKey,poiName,cityId);
-  }else{
-    const poiData=city.pois.find(p=>p.name===poiName);
-    sendChoice(`【抵達${loc}】${poiData?.desc||''}。請描述場景並給出行動選項。`);
+    return;
   }
+
+  // 港口
+  if(t==='port'){openPort(poi,cityId);scrollD();saveGame();return;}
+  // 城衛/守衛
+  if(t==='guard'){openGuard(poi,cityId);scrollD();saveGame();return;}
+  // 廣場/公告
+  if(t==='plaza'){openPlaza(poi,cityId);scrollD();saveGame();return;}
+  // 廢墟
+  if(t==='ruins'){openRuins(poi,cityId);scrollD();saveGame();return;}
+  // 危險地帶
+  if(t==='danger'){openDanger(poi,cityId);scrollD();saveGame();return;}
+  // 特殊地點
+  if(t==='special'){openSpecial(poi,cityId);scrollD();saveGame();return;}
+  // 地區/街區
+  if(t==='district'){openDistrict(poi,cityId);scrollD();saveGame();return;}
+
+  // 其他 → 交給AI
+  sendChoice(`【抵達${loc}】${poi?.desc||''}。請描述場景並給出行動選項。`);
+}
+
+// ═══ POI 通用 Modal ═══
+function openPoiModal(title,sub,hdrBg){
+  document.getElementById('poi-modal-title').textContent=title||'';
+  document.getElementById('poi-modal-sub').textContent=sub||'';
+  const hdr=document.getElementById('poi-modal-hdr');
+  hdr.style.background=hdrBg||'linear-gradient(135deg,rgba(68,136,204,.12),transparent)';
+  document.getElementById('poi-modal').classList.add('open');
+}
+function closePoiModal(){document.getElementById('poi-modal').classList.remove('open');}
+function _poiRow(label,desc,price,btnLabel,onclick,canAfford){
+  const a=canAfford!==false;
+  return `<div style="display:flex;justify-content:space-between;align-items:center;background:var(--bg3);border:1px solid var(--brd);border-radius:3px;padding:.4rem .6rem;">
+    <div style="flex:1"><div style="font-size:.72rem;color:var(--goldl);font-weight:600">${label}</div><div style="font-size:.6rem;color:var(--sild)">${desc}</div></div>
+    <div style="text-align:right;flex-shrink:0">
+      ${price?`<div style="font-size:.65rem;color:var(--gold);margin-bottom:.2rem">${price}</div>`:''}
+      <button onclick="${onclick}" ${a?'':'disabled'}
+        style="font-size:.65rem;padding:.2rem .55rem;background:${a?'rgba(201,168,76,.15)':'rgba(80,80,80,.1)'};border:1px solid ${a?'rgba(201,168,76,.5)':'rgba(100,100,100,.3)'};border-radius:3px;color:${a?'var(--gold)':'var(--sild)'};cursor:${a?'pointer':'not-allowed'};font-family:'Noto Serif TC',serif;">${btnLabel}</button>
+    </div></div>`;
+}
+function _poiDesc(desc){
+  return `<div style="font-size:.65rem;color:var(--sild);padding:.35rem .5rem;background:var(--bg2);border-radius:3px;line-height:1.6">${desc}</div>`;
+}
+
+// ═══ 旅店 UI ═══
+function openInn(poi,cityId){
+  const city=MAP_CITIES[cityId];
+  const items=SHOP_TEMPLATES.inn;
+  const inner=items.map((item,i)=>{
+    const ca=canPay(item.price);
+    const iconMap={rest:'🛏',meal:'🍲',intel:'👂'};
+    return _poiRow(
+      `${iconMap[item.action]||'•'} ${item.n}`,item.t,priceStr(item.price),
+      ca?'使用':'金幣不足',`innDo('${item.action}')`,ca
+    );
+  }).join('');
+  document.getElementById('poi-modal-inner').innerHTML=_poiDesc(poi.desc)+inner;
+  openPoiModal(`🍺 ${poi.name}`,`📍 ${city.name}　持有：${goldS()}`,'linear-gradient(135deg,rgba(68,170,102,.12),transparent)');
+}
+function innDo(action){
+  const item=SHOP_TEMPLATES.inn.find(i=>i.action===action);
+  if(!item)return;
+  if(!canPay(item.price)){showToast('金幣不足','err');return;}
+  applyGold({g:-(item.price.g||0),s:-(item.price.s||0),c:-(item.price.c||0)});
+  if(action==='rest'){
+    restAllHP();advanceTime(8);
+    appendEntryToDOM({type:'sys',v:'✦ 入住旅店・全員HP回復・時間推進8小時'});
+    closePoiModal();
+    setTimeout(()=>checkRandomEncounter('rest'),500);
+  }else if(action==='meal'){
+    applyHPChange(allParty().map(c=>({id:c.id,delta:15,reason:'熱食套餐'})));
+    advanceTime(1);
+    appendEntryToDOM({type:'sys',v:'✦ 熱食套餐・全員HP+15'});
+    closePoiModal();
+  }else if(action==='intel'){
+    const rumors=['有人在北方山脈見過巨大的影子','商人公會最近在囤積鐵礦石，動機不明','東邊村莊出現了奇怪的流浪者','霧刃幫的勢力範圍又擴大了','有個戴面具的劍客在酒館出沒','學院工會正在尋找古代遺跡的線索','暗影工會最近沉寂，令人不安','城門守衛換了一批新面孔','一隊失蹤的商隊留下了奇怪的痕跡','有人說廢墟裡有活著的帝國士兵'];
+    const r=rumors[Math.floor(Math.random()*rumors.length)];
+    addIntel({id:'rumor_'+Date.now(),title:'酒館傳聞',content:r,src:G.sceneLoc,rel:2,cat:'謠言'});
+    appendEntryToDOM({type:'sys',v:`👂 打探情報：${r}`});
+    closePoiModal();
+    showToast('獲得情報','ok');
+  }
+  scrollD();saveGame();renderChanged('inv','party');
+}
+
+// ═══ 港口 UI ═══
+function openPort(poi,cityId){
+  const city=MAP_CITIES[cityId];
+  const ca3=canPay({g:0,s:3,c:0}),ca1=canPay({g:0,s:1,c:0});
+  const inner=
+    _poiDesc(poi.desc)+
+    _poiRow('⚓ 搭船前往','查看可到達的港口城市','銀3',ca3?'查詢航班':'金幣不足',`portTravel('${cityId}')`,ca3)+
+    _poiRow('💪 碼頭打工','在此打工一天・賺取銀幣','4小時','接受工作',`portWork('${cityId}')`,true)+
+    _poiRow('🗣 詢問消息','向水手和商人打探情報','銀1',ca1?'詢問':'金幣不足',`portIntel('${cityId}')`,ca1);
+  document.getElementById('poi-modal-inner').innerHTML=inner;
+  openPoiModal(`⚓ ${poi.name}`,`📍 ${city.name}　持有：${goldS()}`,'linear-gradient(135deg,rgba(68,136,204,.12),transparent)');
+}
+function portTravel(cityId){
+  closePoiModal();
+  applyGold({g:0,s:-3,c:0});
+  appendEntryToDOM({type:'sys',v:'⚓ 購買船票。開啟地圖選擇目的港口。'});
+  G.atWayStation=true;
+  saveGame();scrollD();
+  setTimeout(()=>openMap(),300);
+}
+function portWork(cityId){
+  closePoiModal();
+  const earn=Math.floor(Math.random()*3)+2;
+  applyGold({g:0,s:earn,c:0});
+  advanceTime(4);
+  appendEntryToDOM({type:'sys',v:`💪 碼頭打工4小時・賺得銀${earn}`});
+  scrollD();saveGame();renderChanged('inv');
+}
+function portIntel(cityId){
+  closePoiModal();
+  applyGold({g:0,s:-1,c:0});
+  const intels=['最近有一艘神秘帆船在夜間停靠，沒有申報貨物','南方航線出現了海怪目擊報告','東海王國正在擴充海軍艦隊','有一批稀有貨物從北方運來，買家是匿名的','某個水手說他在霧中看到了消失的島嶼'];
+  const r=intels[Math.floor(Math.random()*intels.length)];
+  addIntel({id:'port_'+Date.now(),title:'港口消息',content:r,src:G.sceneLoc,rel:3,cat:'情報'});
+  appendEntryToDOM({type:'sys',v:`🗣 港口消息：${r}`});
+  showToast('獲得港口情報','ok');
+  scrollD();saveGame();
+}
+
+// ═══ 城衛/守衛 UI ═══
+function openGuard(poi,cityId){
+  const city=MAP_CITIES[cityId];
+  const bounties=generateBounties();
+  const bRows=bounties.slice(0,3).map((b,i)=>{
+    const rStr=`銀${b.reward.s}・銅${b.reward.c}`;
+    return _poiRow(`📋 ${b.type}：${b.target}`,`${b.stat}判定・難度${b.diff}`,rStr,'接受',`guardBounty(${i})`,true);
+  }).join('');
+  const inner=
+    _poiDesc(poi.desc)+
+    `<div style="font-size:.62rem;color:var(--goldd);letter-spacing:.1em;padding:.2rem 0 .1rem;font-weight:600">⚔ 通緝令 / 委託任務</div>`+
+    bRows+
+    _poiRow('📜 申請通行證','需繳納手續費','銀5',canPay({g:0,s:5,c:0})?'申請':'金幣不足',`guardPass('${cityId}')`,canPay({g:0,s:5,c:0}))+
+    _poiRow('🗣 詢問城中情報','守衛偶爾會透露消息','免費','詢問',`guardIntel('${cityId}')`,true);
+  document.getElementById('poi-modal-inner').innerHTML=inner;
+  openPoiModal(`🛡 ${poi.name}`,`📍 ${city.name}　持有：${goldS()}`,'linear-gradient(135deg,rgba(204,136,68,.12),transparent)');
+}
+function guardBounty(idx){closePoiModal();acceptBounty(idx);}
+function guardPass(cityId){
+  closePoiModal();
+  applyGold({g:0,s:-5,c:0});
+  appendEntryToDOM({type:'sys',v:'📜 繳納手續費・取得通行證。可以通行各城關卡。'});
+  G.inv=G.inv||getInv();
+  (G.inv.items=G.inv.items||[]).push({n:'通行證',t:'各城關卡通用',q:'×1'});
+  showToast('取得通行證','ok');scrollD();saveGame();
+}
+function guardIntel(cityId){
+  closePoiModal();
+  const intels=['最近城裡有陌生面孔增加，要小心','有懸賞令還未被領取，可去告示欄看看','城主有令，禁止在市場鬧事','騎士團昨晚追查了一個可疑人物，沒有結果','據說北方有異動，但上頭沒有說明'];
+  const r=intels[Math.floor(Math.random()*intels.length)];
+  addIntel({id:'guard_'+Date.now(),title:'城衛消息',content:r,src:G.sceneLoc,rel:2,cat:'情報'});
+  appendEntryToDOM({type:'sys',v:`🛡 城衛說：「${r}」`});
+  scrollD();saveGame();
+}
+
+// ═══ 廣場/公告欄 UI ═══
+function openPlaza(poi,cityId){
+  const city=MAP_CITIES[cityId];
+  const board=buildBountyBoard();
+  const inner=_poiDesc(poi.desc)+`<div style="font-size:.62rem;color:var(--goldd);letter-spacing:.1em;padding:.2rem 0 .1rem;font-weight:600">📋 公告欄</div>`+board+
+    _poiRow('🗣 詢問路人','打聽城中近況','免費','詢問',`plazaIntel('${cityId}')`,true);
+  document.getElementById('poi-modal-inner').innerHTML=inner;
+  openPoiModal(`📋 ${poi.name}`,`📍 ${city.name}　Day ${G.time?.day||1}`,'linear-gradient(135deg,rgba(201,168,76,.12),transparent)');
+}
+function plazaIntel(cityId){
+  closePoiModal();
+  const intels=['廣場上有人在低聲談論最近的失蹤事件','公告欄的懸賞額提高了，說明情況越來越糟','商人說最近物價上漲是有原因的','有個小孩說他看見了奇怪的光從地下冒出來','路人匆匆走過，神色緊張'];
+  const r=intels[Math.floor(Math.random()*intels.length)];
+  addIntel({id:'plaza_'+Date.now(),title:'廣場見聞',content:r,src:G.sceneLoc,rel:1,cat:'謠言'});
+  appendEntryToDOM({type:'sys',v:`🗣 廣場見聞：${r}`});
+  scrollD();saveGame();
+}
+
+// ═══ 廢墟 UI ═══
+function openRuins(poi,cityId){
+  const city=MAP_CITIES[cityId];
+  const inner=
+    _poiDesc(poi.desc)+
+    _poiRow('🔍 探索廢墟','進行素質判定・可能發現物品或遭遇危險','時間×2','探索',`ruinsExplore('${cityId}')`,true)+
+    _poiRow('⛺ 在廢墟紮營','恢復部分HP・推進4小時','時間×4','紮營',`ruinsCamp('${cityId}')`,true)+
+    _poiRow('📖 尋找文獻','在廢墟中翻找資料','時間×2','搜尋',`ruinsSearch('${cityId}')`,true);
+  document.getElementById('poi-modal-inner').innerHTML=inner;
+  openPoiModal(`🏚 ${poi.name}`,`📍 ${city.name}　HP: ${getHP('alfar').cur}/${getHP('alfar').max}`,'linear-gradient(135deg,rgba(136,119,85,.12),transparent)');
+}
+function ruinsExplore(cityId){
+  closePoiModal();
+  const es=getEffectiveStats('alfar');
+  const stat=Math.max(es['武力']||0,es['速度']||0,es['知力']||0);
+  const mod=Math.floor(stat/10);
+  const raw=Math.floor(Math.random()*20)+1;
+  const total=raw+mod;
+  advanceTime(2);
+  appendEntryToDOM({type:'sys',v:`🔍 探索廢墟・判定：投${raw}+${mod}=${total}`});
+  if(raw===20||total>=16){
+    const finds=['廢棄的短刀（仍鋒利）','古舊的皮製護腕','帝國銅幣×5','半本燒焦的筆記','一枚不知用途的金屬徽章'];
+    const f=finds[Math.floor(Math.random()*finds.length)];
+    const inv=getInv();inv.items.push({n:f,t:'廢墟發現',q:'×1'});
+    appendEntryToDOM({type:'sys',v:`✦ 大發現！找到：${f}`});
+    showToast('發現物品！','ok');
+  }else if(total>=10){
+    appendEntryToDOM({type:'sys',v:'✦ 發現一些舊跡，但沒有特別的東西。獲得少量情報線索。'});
+    addIntel({id:'ruins_'+Date.now(),title:'廢墟線索',content:'廢墟中發現了一些帝國時代的符文痕跡',src:G.sceneLoc,rel:2,cat:'線索'});
+  }else{
+    applyHPChange([{id:'alfar',delta:-(raw===1?12:5),reason:'廢墟危險'}]);
+    appendEntryToDOM({type:'sys',v:`✗ 探索出意外！受到傷害。`});
+    showToast('探索遇險','err');
+  }
+  scrollD();saveGame();renderChanged('party','inv');
+}
+function ruinsCamp(cityId){
+  closePoiModal();
+  allParty().forEach(c=>{const hp=getHP(c.id);applyHPChange([{id:c.id,delta:Math.floor(hp.max*0.3),reason:'廢墟紮營'}]);});
+  advanceTime(4);
+  appendEntryToDOM({type:'sys',v:'⛺ 在廢墟中紮營休息・HP小幅回復'});
+  scrollD();saveGame();renderChanged('party');
+}
+function ruinsSearch(cityId){
+  closePoiModal();
+  advanceTime(2);
+  const finds=['一份帝國時代的佈告','殘破的地圖碎片','神秘符文的拓印','一本破舊的日誌（大部分已被燒燬）'];
+  const f=finds[Math.floor(Math.random()*finds.length)];
+  addIntel({id:'ruins_doc_'+Date.now(),title:'廢墟文獻',content:`在廢墟中發現：${f}`,src:G.sceneLoc,rel:3,cat:'線索'});
+  appendEntryToDOM({type:'sys',v:`📖 搜尋文獻・發現：${f}`});
+  scrollD();saveGame();
+}
+
+// ═══ 危險地帶 UI ═══
+function openDanger(poi,cityId){
+  const city=MAP_CITIES[cityId];
+  const inner=
+    _poiDesc(poi.desc)+
+    _poiRow('👁 偵察','進行速度判定・觀察敵情','時間×1','偵察',`dangerScout('${cityId}')`,true)+
+    _poiRow('⚔ 強行突入','直接闖入・必然遭遇危險','','突入',`dangerForce('${cityId}')`,true)+
+    _poiRow('↩ 撤退','回頭是安全的','','撤退','closePoiModal()',true);
+  document.getElementById('poi-modal-inner').innerHTML=inner;
+  openPoiModal(`⚠ ${poi.name}`,`📍 ${city.name}　⚠ 危險區域`,'linear-gradient(135deg,rgba(204,68,68,.12),transparent)');
+}
+function dangerScout(cityId){
+  closePoiModal();
+  const es=getEffectiveStats('alfar');
+  const spd=es['速度']||0;
+  const mod=Math.floor(spd/10);
+  const raw=Math.floor(Math.random()*20)+1;
+  const total=raw+mod;
+  advanceTime(1);
+  appendEntryToDOM({type:'sys',v:`👁 偵察・速度判定：投${raw}+${mod}=${total}`});
+  if(total>=12){
+    const obs=['發現有巡邏規律可利用','找到一個隱蔽的入口','確認了敵方人數（約3-5人）','看到了貴重的物品被藏在其中'];
+    const o=obs[Math.floor(Math.random()*obs.length)];
+    addIntel({id:'scout_'+Date.now(),title:'偵察情報',content:o,src:G.sceneLoc,rel:3,cat:'情報'});
+    appendEntryToDOM({type:'sys',v:`✦ 偵察結果：${o}`});
+    showToast('偵察成功','ok');
+  }else{
+    appendEntryToDOM({type:'sys',v:'✗ 偵察無所獲，甚至差點暴露了蹤跡。'});
+    if(raw===1){applyHPChange([{id:'alfar',delta:-5,reason:'偵察受傷'}]);}
+  }
+  scrollD();saveGame();renderChanged('party');
+}
+function dangerForce(cityId){
+  closePoiModal();
+  appendEntryToDOM({type:'sys',v:'⚔ 強行突入危險地帶！觸發戰鬥遭遇...'});
+  scrollD();saveGame();
+  // 嘗試觸發travel類型遭遇（含戰鬥事件），無則直接讓AI生成
+  const area=detectCity()||cityId;
+  const combatEvents=EVENT_DB.filter(ev=>ev.type==='combat'&&(ev.area==='all'||ev.area.includes(area)));
+  if(combatEvents.length){
+    const ev=combatEvents[Math.floor(Math.random()*combatEvents.length)];
+    appendEntryToDOM({type:'narr',v:ev.desc});
+    setTimeout(()=>startCombat(ev.enemies,false),600);
+  }else{
+    sendChoice(`【強行闖入${G.sceneLoc}】遭遇了潛伏在此的敵人，描述戰鬥遭遇並觸發戰鬥。`);
+  }
+}
+
+// ═══ 特殊地點 UI ═══
+function openSpecial(poi,cityId){
+  const city=MAP_CITIES[cityId];
+  const inner=
+    _poiDesc(poi.desc)+
+    _poiRow('🔮 探索此地','讓AI描述這個特殊場所・展開故事','','探索',`specialExplore('${cityId}','${poi.name.replace(/'/g,"\\'")}')`,true)+
+    _poiRow('👀 觀察四周','在此觀察周遭環境','免費','觀察',`specialObserve('${cityId}','${poi.name.replace(/'/g,"\\'")}')`,true);
+  document.getElementById('poi-modal-inner').innerHTML=inner;
+  openPoiModal(`✦ ${poi.name}`,`📍 ${city.name}　神秘地點`,'linear-gradient(135deg,rgba(136,170,204,.12),transparent)');
+}
+function specialExplore(cityId,poiName){
+  closePoiModal();
+  const city=MAP_CITIES[cityId];
+  const poi=city?.pois.find(p=>p.name===poiName);
+  sendChoice(`【探索特殊地點：${poiName}】${poi?.desc||''}。請描述此地的特殊氛圍、可能發現的線索，以及可採取的行動。`);
+}
+function specialObserve(cityId,poiName){
+  closePoiModal();
+  const city=MAP_CITIES[cityId];
+  const poi=city?.pois.find(p=>p.name===poiName);
+  advanceTime(1);
+  addIntel({id:'special_'+Date.now(),title:`${poiName}觀察`,content:`仔細觀察了${poiName}：${poi?.desc||'充滿神秘氣息的場所'}`,src:G.sceneLoc,rel:3,cat:'線索'});
+  appendEntryToDOM({type:'sys',v:`👀 觀察 ${poiName}：${poi?.desc||''}`});
+  scrollD();saveGame();
+}
+
+// ═══ 地區/街區 UI ═══
+function openDistrict(poi,cityId){
+  const city=MAP_CITIES[cityId];
+  const inner=
+    _poiDesc(poi.desc)+
+    _poiRow('🗣 與居民交談','探訪此地居民','時間×1','交談',`districtTalk('${cityId}','${poi.name.replace(/'/g,"\\'")}')`,true)+
+    _poiRow('🔎 四處探查','在街區中尋找線索或機會','時間×2','探查',`districtSearch('${cityId}','${poi.name.replace(/'/g,"\\'")}')`,true);
+  document.getElementById('poi-modal-inner').innerHTML=inner;
+  openPoiModal(`🏘 ${poi.name}`,`📍 ${city.name}`,'linear-gradient(135deg,rgba(119,136,153,.12),transparent)');
+}
+function districtTalk(cityId,poiName){
+  closePoiModal();
+  const talks=['居民對外地人保持戒備，但透露了一個奇怪的傳聞','一個老人說這裡以前不是這樣的，他話說了一半就住嘴了','有人偷偷問你有沒有工作要做，但沒說是什麼工作','一個孩子追著你，把一張紙條塞進你手裡就跑掉了'];
+  const t=talks[Math.floor(Math.random()*talks.length)];
+  addIntel({id:'district_'+Date.now(),title:`${poiName}見聞`,content:t,src:G.sceneLoc,rel:2,cat:'謠言'});
+  appendEntryToDOM({type:'sys',v:`🗣 ${poiName}：${t}`});
+  advanceTime(1);scrollD();saveGame();
+}
+function districtSearch(cityId,poiName){
+  closePoiModal();
+  advanceTime(2);
+  const raw=Math.floor(Math.random()*20)+1;
+  appendEntryToDOM({type:'sys',v:`🔎 探查 ${poiName}・判定：${raw}`});
+  if(raw>=13){
+    const finds=['發現一個隱蔽的小道可以繞過城衛巡邏','找到一家沒有掛招牌的小店','發現牆上有奇怪的記號'];
+    const f=finds[Math.floor(Math.random()*finds.length)];
+    addIntel({id:'dsearch_'+Date.now(),title:`${poiName}探查`,content:f,src:G.sceneLoc,rel:3,cat:'線索'});
+    appendEntryToDOM({type:'sys',v:`✦ 發現：${f}`});
+  }else{
+    appendEntryToDOM({type:'sys',v:'✗ 沒有特別的發現。'});
+  }
+  scrollD();saveGame();
 }
 
 const _shopRefreshCache={};
