@@ -231,6 +231,7 @@ function buildSysInfo(){
     <button onclick="syncAll()" style="flex:1;min-width:120px;padding:.4rem .5rem;font-size:.64rem;background:rgba(201,168,76,.1);border:1px solid var(--goldd);border-radius:3px;color:var(--gold);cursor:pointer;font-family:'Noto Serif TC',serif;">🔄 同步所有狀態</button>
     <button onclick="toggleBGM()" style="flex:1;min-width:120px;padding:.4rem .5rem;font-size:.64rem;background:rgba(100,180,220,.08);border:1px solid rgba(100,180,220,.4);border-radius:3px;color:rgba(130,200,230,.9);cursor:pointer;font-family:'Noto Serif TC',serif;">🎵 背景音樂</button>
     <button onclick="openSettings()" style="flex:1;min-width:120px;padding:.4rem .5rem;font-size:.64rem;background:rgba(150,130,200,.08);border:1px solid rgba(150,130,200,.4);border-radius:3px;color:rgba(180,160,230,.9);cursor:pointer;font-family:'Noto Serif TC',serif;">⚙ 設定</button>
+    <button onclick="openHelp()" style="flex:1;min-width:120px;padding:.4rem .5rem;font-size:.64rem;background:rgba(100,180,180,.08);border:1px solid rgba(100,180,180,.4);border-radius:3px;color:rgba(130,200,200,.9);cursor:pointer;font-family:'Noto Serif TC',serif;">❓ 遊戲說明</button>
   </div>`;
   if(!_sysInfoLog.length) return btns+`<div style="font-size:.62rem;color:var(--sild);padding:.5rem .2rem;">尚無系統訊息。</div>`;
   const rows=[..._sysInfoLog].reverse();
@@ -5591,6 +5592,81 @@ function saveKey(){
   if(!k.startsWith('sk-ant-')){w.textContent='格式不正確，應以 sk-ant- 開頭';w.classList.add('show');return;}
   CFG.key=k;document.getElementById('api-modal').classList.remove('open');showToast('✦ API 金鑰已設定','ok');
 }
+function openHelp(){
+  document.getElementById('modal-inner').innerHTML=`
+    <div style="padding:.3rem 0;">
+      <div style="font-size:.85rem;color:var(--gold);font-weight:700;text-align:center;margin-bottom:.6rem;">❓ 命運之星・遊戲說明</div>
+
+      <div style="font-size:.68rem;color:var(--goldl);margin:.5rem 0 .2rem;">🎮 基本操作</div>
+      <div style="font-size:.6rem;color:var(--sild);line-height:1.7;">
+        ・選擇下方的行動選項推進故事<br>
+        ・在輸入欄直接打字進行自由行動<br>
+        ・直接打字 = 艾爾法說的話或做的事<br>
+        ・「角色名：內容」格式可指定角色對話<br>
+        ・用「」包住的文字視為對話
+      </div>
+
+      <div style="font-size:.68rem;color:var(--goldl);margin:.5rem 0 .2rem;">⚔️ 戰鬥系統</div>
+      <div style="font-size:.6rem;color:var(--sild);line-height:1.7;">
+        ・遭遇敵人時自動進入回合制戰鬥<br>
+        ・點擊敵人圖示進行攻擊<br>
+        ・可使用防禦（傷害減半）、道具（藥劑等）、逃跑<br>
+        ・暴擊(骰20)傷害翻倍，大失敗(骰1)落空<br>
+        ・BOSS戰無法逃跑<br>
+        ・勝利獲得金幣、經驗值、掉落物品
+      </div>
+
+      <div style="font-size:.68rem;color:var(--goldl);margin:.5rem 0 .2rem;">📈 成長系統</div>
+      <div style="font-size:.6rem;color:var(--sild);line-height:1.7;">
+        ・戰鬥勝利和任務完成獲得EXP<br>
+        ・升級獲得3點素質點數（自由分配）和HP+5<br>
+        ・在同伴頁面點角色可分配素質點數<br>
+        ・裝備武器/防具/飾品提升素質<br>
+        ・寶器（命運寶器）也提供素質加成
+      </div>
+
+      <div style="font-size:.68rem;color:var(--goldl);margin:.5rem 0 .2rem;">🗺️ 探索與旅行</div>
+      <div style="font-size:.6rem;color:var(--sild);line-height:1.7;">
+        ・點擊地圖按鈕開啟大陸地圖<br>
+        ・點擊城市查看設施（商店、旅店、公會等）<br>
+        ・點擊設施可直接前往互動<br>
+        ・旅行途中可能遭遇隨機事件<br>
+        ・長途旅行需在驛站搭乘
+      </div>
+
+      <div style="font-size:.68rem;color:var(--goldl);margin:.5rem 0 .2rem;">⚒️ 鍛造與煉金</div>
+      <div style="font-size:.6rem;color:var(--sild);line-height:1.7;">
+        ・在活動頁面進行製作<br>
+        ・料理：使用食材恢復HP或增益<br>
+        ・鍛造：使用礦石打造武器防具<br>
+        ・煉金：調配藥劑和特殊道具<br>
+        ・材料來自商店、怪物掉落、探索
+      </div>
+
+      <div style="font-size:.68rem;color:var(--goldl);margin:.5rem 0 .2rem;">✦ 108星辰</div>
+      <div style="font-size:.6rem;color:var(--sild);line-height:1.7;">
+        ・故事中遇到星辰之人時橘子會感知<br>
+        ・與星辰之人建立關係後可選擇招募<br>
+        ・招募10人解鎖據點系統<br>
+        ・108星全員齊聚觸發最終章
+      </div>
+
+      <div style="font-size:.68rem;color:var(--goldl);margin:.5rem 0 .2rem;">🔮 紋章系統</div>
+      <div style="font-size:.6rem;color:var(--sild);line-height:1.7;">
+        ・世界有27枚真紋章（主線相關）<br>
+        ・一般紋章可在紋章頁面裝備到角色<br>
+        ・真紋章發現是重大劇情事件<br>
+        ・真紋章賦予強大力量但伴隨詛咒
+      </div>
+
+      <div style="font-size:.68rem;color:var(--goldl);margin:.5rem 0 .2rem;">💡 密技</div>
+      <div style="font-size:.6rem;color:var(--sild);line-height:1.7;">
+        ・在自由行動欄輸入 @錢 → 獲得大量金幣<br>
+        ・在自由行動欄輸入 @骰子 → 開啟骰子面板
+      </div>
+    </div>`;
+  document.getElementById('detail-modal').classList.add('open');
+}
 function openSettings(){
   const k=CFG.key;
   document.getElementById('key-disp').textContent=k?k.slice(0,14)+'…'+k.slice(-4):'—';
@@ -6579,6 +6655,34 @@ const NPC_DB={
   // 影沼地
   'marsh_doc':{name:'毒蛛・梅拉',title:'影沼鎮藥師',city:'shadow_marsh',icon:'🕷️',faction:null,
     desc:'影沼地最好的藥師，同時也是最危險的毒師。治療和毒殺只在一念之間。',personality:'陰沉、專業',disposition:'neutral'},
+  // 灰港
+  'haven_fisherman':{name:'老漁夫・巴恩',title:'灰港漁民代表',city:'grey_haven',icon:'🐟',faction:'ironmist',
+    desc:'灰港最資深的漁夫。看似單純的老人，實際上對海上走私路線瞭若指掌。',personality:'和藹、世故',disposition:'friendly'},
+  // 金橋城
+  'bridge_tax':{name:'稅務官・雷蒙',title:'金橋城稅務署長',city:'golden_bridge',icon:'📜',faction:null,
+    desc:'中央王國派駐金橋城的稅務官。對每一枚銅幣都斤斤計較，但在其位謀其政。',personality:'精明、公正',disposition:'neutral'},
+  // 王冠峰
+  'peak_scout':{name:'鷹眼・薩拉',title:'邊境斥候隊長',city:'crown_peak',icon:'🦅',faction:null,
+    desc:'駐守王冠峰瞭望塔的斥候隊長。能看見三國邊境的一切動靜。',personality:'警覺、直率',disposition:'friendly'},
+  // 珊瑚灣
+  'coral_pirate':{name:'紅鬍子・葛瑞格',title:'珊瑚灣海盜頭目',city:'coral_bay',icon:'🏴‍☠️',faction:null,
+    desc:'珊瑚灣暗礁附近活動的海盜首領。與其說是海盜，不如說是收保護費的漁霸。',personality:'粗獷、講義氣',disposition:'neutral'},
+  // 霧海關
+  'pass_commander':{name:'鐵壁・沃爾夫',title:'霧海關守備隊長',city:'fog_sea_pass',icon:'🚧',faction:null,
+    desc:'霧海關的守備隊長。嚴格執行盤查制度，但據說可以用「特殊方式」通關。',personality:'嚴肅、可收買',disposition:'neutral'},
+  // 古樹隱村
+  'elder_sage':{name:'星語者・伊凡',title:'古樹隱村隱士',city:'elder_grove',icon:'🧙',faction:null,
+    desc:'隱居在禁忌書庫中的老學者。據說他讀遍了帝國時代所有的禁書，知道許多不該知道的事。',personality:'古怪、博學',disposition:'neutral'},
+  // 龍牙砦
+  'dragon_hunter':{name:'屠龍者・雷克斯',title:'南荒最強戰士',city:'dragon_valley',icon:'🐉',faction:null,
+    desc:'唯一進入古龍遺跡並活著出來的人。身上的傷疤比故事還多。',personality:'沉默、驕傲',disposition:'neutral'},
+  // 各城市商人
+  'iron_blacksmith':{name:'鐵錘・德溫',title:'鐵霧城鐵匠',city:'iron_fog',icon:'⚒️',faction:'ironmist',
+    desc:'鐵霧城最好的鐵匠。礦工出身，打出的武器以耐用著稱。',personality:'寡言、專注',disposition:'friendly'},
+  'moon_alchemist':{name:'銀瓶・蘿拉',title:'銀月城煉金術士',city:'silver_moon',icon:'⚗️',faction:null,
+    desc:'銀月城藥鋪的老闆。擅長調配各種藥劑，也販售一些「不太合法」的東西。',personality:'神秘、健談',disposition:'friendly'},
+  'port_shipwright':{name:'老船匠・約翰',title:'東港城造船師',city:'east_port',icon:'⚓',faction:null,
+    desc:'東港城最資深的造船師。每艘從東港出海的船都經過他的手。',personality:'固執、自豪',disposition:'friendly'},
 };
 
 // ═══ 怪物/敵人資料庫 ═══
@@ -6604,6 +6708,30 @@ const ENEMY_DB={
   'imperial_shade':{name:'帝國亡靈將軍',lv:12,hp:300,stats:{武力:55,知力:35},drops:['聖赫倫皇冠碎片','帝國禁衛甲'],exp:150,gold:{g:2,s:0,c:0},area:['rust_city'],boss:true,icon:'👻'},
   'sea_serpent':{name:'海蛇王',lv:10,hp:250,stats:{武力:45,知力:20},drops:['海蛇鱗','深海珊瑚'],exp:120,gold:{g:1,s:50,c:0},area:['coral_bay','fog_sea_pass'],boss:true,icon:'🐉'},
   'ancient_dragon':{name:'遠古巨龍',lv:15,hp:500,stats:{武力:70,知力:50},drops:['古龍之鱗','龍骨劍','創世碎片'],exp:300,gold:{g:5,s:0,c:0},area:['dragon_valley'],boss:true,icon:'🐲'},
+  // ── 中級敵人 ──
+  'thief':{name:'盜賊',lv:3,hp:32,stats:{武力:16,知力:15},drops:['銅幣袋','匕首'],exp:14,gold:{s:1,c:50},area:['silver_moon','golden_bridge','east_port'],icon:'🥷'},
+  'mercenary':{name:'傭兵',lv:5,hp:60,stats:{武力:26,知力:14},drops:['長劍','皮甲'],exp:25,gold:{s:3,c:0},area:['silver_moon','rust_city','sand_gate'],icon:'⚔️'},
+  'mage_apprentice':{name:'術士學徒',lv:4,hp:35,stats:{武力:8,知力:28},drops:['法杖','月光蘑菇'],exp:20,gold:{s:2,c:0},area:['silver_moon','jade_forest'],icon:'🧙'},
+  'smuggler':{name:'走私客',lv:3,hp:38,stats:{武力:15,知力:18},drops:['走私品地圖','東方香料'],exp:16,gold:{s:2,c:50},area:['grey_haven','east_port','fog_sea_pass'],icon:'🤫'},
+  'guard_dog':{name:'守衛犬',lv:2,hp:22,stats:{武力:16,知力:4},drops:['獸肉'],exp:7,gold:{s:0,c:15},area:['iron_fog','iron_crown','silver_moon'],icon:'🐕'},
+  'wild_boar':{name:'野豬',lv:2,hp:30,stats:{武力:18,知力:3},drops:['獸肉','皮革'],exp:9,gold:{s:0,c:20},area:['jade_forest','crown_peak','sand_gate'],icon:'🐗'},
+  'cave_troll':{name:'洞穴巨魔',lv:6,hp:90,stats:{武力:30,知力:6},drops:['巨魔牙','鐵礦'],exp:35,gold:{s:4,c:0},area:['iron_crown','dragon_valley'],icon:'👹'},
+  'ghost':{name:'幽靈',lv:5,hp:40,stats:{武力:15,知力:30},drops:['暗影精華','幽靈布'],exp:28,gold:{s:2,c:50},area:['rust_city','shadow_marsh'],icon:'👻'},
+  'harpy':{name:'鷹身女妖',lv:5,hp:45,stats:{武力:22,知力:20},drops:['鷹羽','風之結晶'],exp:26,gold:{s:3,c:0},area:['crown_peak','frost_keep'],icon:'🦅'},
+  'lizardman':{name:'蜥蜴人',lv:4,hp:50,stats:{武力:20,知力:10},drops:['蜥蜴鱗','毒囊'],exp:22,gold:{s:2,c:0},area:['shadow_marsh','dragon_valley'],icon:'🦎'},
+  'undead_knight':{name:'不死騎士',lv:7,hp:110,stats:{武力:35,知力:15},drops:['暗黑騎士甲','骷髏骨'],exp:50,gold:{s:7,c:0},area:['rust_city'],icon:'⚔️'},
+  'sea_monster':{name:'海獸',lv:6,hp:85,stats:{武力:28,知力:12},drops:['海獸牙','深海珊瑚'],exp:38,gold:{s:5,c:0},area:['east_port','coral_bay','fog_sea_pass'],icon:'🦑'},
+  'fire_elemental':{name:'火焰精靈',lv:7,hp:75,stats:{武力:20,知力:35},drops:['火焰結晶','紅寶石'],exp:42,gold:{s:6,c:0},area:['dragon_valley'],icon:'🔥'},
+  'ice_elemental':{name:'冰霜精靈',lv:7,hp:75,stats:{武力:18,知力:38},drops:['冰霜結晶','藍寶石'],exp:42,gold:{s:6,c:0},area:['frost_keep'],icon:'❄️'},
+  'forest_guardian':{name:'森之守衛',lv:8,hp:130,stats:{武力:30,知力:35},drops:['精靈木','世界樹果實'],exp:55,gold:{s:8,c:0},area:['jade_forest','elder_grove'],icon:'🌳'},
+  'shadow_assassin':{name:'暗影刺客',lv:9,hp:95,stats:{武力:42,知力:30},drops:['暗影精華','暗殺匕首'],exp:65,gold:{s:10,c:0},area:['shadow_marsh','rust_city'],icon:'🗡️'},
+  'wyvern':{name:'飛龍',lv:11,hp:180,stats:{武力:48,知力:25},drops:['龍鱗','龍牙'],exp:90,gold:{s:15,c:0},area:['dragon_valley','crown_peak'],icon:'🐲'},
+  'lich':{name:'巫妖',lv:12,hp:160,stats:{武力:25,知力:55},drops:['暗影精華','虛無之塵','巫妖法杖'],exp:110,gold:{s:20,c:0},area:['rust_city'],icon:'💀'},
+  // ── 更多BOSS ──
+  'frost_wyrm':{name:'霜龍',lv:13,hp:350,stats:{武力:55,知力:40},drops:['冰霜結晶','龍鱗','龍骨劍'],exp:200,gold:{g:3,s:0,c:0},area:['frost_keep'],boss:true,icon:'🐉'},
+  'shadow_lord':{name:'暗影領主',lv:14,hp:400,stats:{武力:50,知力:55},drops:['暗影精華','虛無之塵','暗影劍'],exp:250,gold:{g:4,s:0,c:0},area:['shadow_marsh'],boss:true,icon:'👁️'},
+  'forest_king':{name:'森林之王',lv:11,hp:280,stats:{武力:40,知力:45},drops:['世界樹果實','精靈木','翠林之杖'],exp:180,gold:{g:2,s:50,c:0},area:['elder_grove'],boss:true,icon:'🌲'},
+  'merchant_king':{name:'黃金海盜王',lv:12,hp:320,stats:{武力:45,知力:35},drops:['海軍彎刀','鑽石','海圖'],exp:200,gold:{g:5,s:0,c:0},area:['coral_bay'],boss:true,icon:'🏴‍☠️'},
 };
 
 // ═══ QUEST DATABASE ═══
@@ -7366,6 +7494,8 @@ if(hasSave){
   G.log=initLog();
   markDirty('log');
   initStory();
+  // First time: show help
+  setTimeout(openHelp,1500);
 }
 scrollD();
 BGM.restore();
