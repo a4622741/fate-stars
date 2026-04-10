@@ -1,5 +1,5 @@
 // ═══ 命運之星 v2.0 ═══
-const VERSION='3.0';
+const VERSION='4.0';
 // ═══ CONFIG ═══
 const CFG={
   get key(){return localStorage.getItem('fate_key')||'';},
@@ -1285,11 +1285,13 @@ async function callAPI(action){
   if(!CFG.key){document.getElementById('api-modal').classList.add('open');throw new Error('請先設定 API 金鑰');}
   await apiGate();
   const _p=allParty();
-  const partySnap=_p.filter(m=>m.id!=='orange').map(m=>`${m.name}/${getJob(m.id)||'?'}/HP${getHP(m.id).cur}`).join(',')+'；橘子HP'+getHP('orange').cur+'/好感'+getFavor('orange');
+  const partySnap=_p.filter(m=>m.id!=='orange').map(m=>{const u=G.upgrade[m.id];const lv=u?u.lv||1:1;return`${m.name}/Lv${lv}/${getJob(m.id)||'?'}/HP${getHP(m.id).cur}`;}).join(',')+'；橘子HP'+getHP('orange').cur+'/好感'+getFavor('orange');
   const goldStr=`金${G.gold.gold}銀${G.gold.silver}銅${G.gold.copper}`;
   const goldSnap=goldStr!==_lastSentGold?goldStr:'';
   _lastSentGold=goldStr;
-  let stateNote=`【狀態】${getTimeContext()}|${goldSnap?goldSnap+'|':''}隊:${partySnap}|道具${(getInv().items||[]).length}|任務${(G.quests||[]).filter(q=>q.status==='active').length}`;
+  const activeQ=(G.quests||[]).filter(q=>q.status==='active');
+  const questSnap=activeQ.length?activeQ.slice(0,3).map(q=>q.title||q.name||'?').join(','):'無';
+  let stateNote=`【狀態】${getTimeContext()}|${goldSnap?goldSnap+'|':''}隊:${partySnap}|道具${(getInv().items||[]).length}|任務(${activeQ.length}):${questSnap}`;
   if(stateNote.length>200)stateNote=stateNote.slice(0,197)+'…';
   G.history.push({role:'user',content:`${stateNote}\n${action}`});
   // 每次都送完整SYS（AI品質 > 省token）
@@ -5215,6 +5217,12 @@ const WIKI_DATA={
     {title:'橘子秘密線',icon:'⚓',body:'橘子的真實身份透過五個階段逐步揭露。觸發條件包括：與橘子互動（聊天、餵魚）、好感度達標、蒐集北斗星線索、特定劇情事件。每階段解鎖新的情報和能力。第五階段=命運之錨覺醒。'},
     {title:'紋章系統',icon:'🔮',body:'世界創生時誕生的27枚真紋章蘊含世界根源法則，持有者獲得強大力量但承受詛咒。一般紋章是真紋章的碎片衍生，可裝備於角色的紋章槽位。\n紋章分類：元素系（火水風雷地魔法）、戰技系（物理強化）、守護系（防禦能力）、強化系（素質提升）、特殊系（特殊效果）。'},
     {title:'密技',icon:'💡',body:'在自由行動欄輸入特殊指令：\n・@錢：獲得大量金幣（測試用）\n・@骰子：開啟骰子面板'},
+    {title:'戰鬥系統',icon:'⚔️',body:'遭遇敵人時進入回合制戰鬥。行動選項：\n・攻擊：選擇目標，d20+武力修正判定。暴擊(20)傷害翻倍，失敗(1)落空。\n・防禦：本回合受到傷害減半。\n・道具：使用背包中的消耗品（藥劑、食物等）。\n・逃跑：幸運判定，BOSS戰無法逃跑。\n回合順序由幸運決定。勝利獲得金幣、經驗值和掉落物品。'},
+    {title:'經驗與升級',icon:'📈',body:'戰鬥勝利和任務完成可獲得經驗值（EXP）。\n・升級所需EXP = 等級×50+50\n・升級獎勵：素質點數+3、HP上限+5\n・素質點數可自由分配到五項基礎素質\n・橘子不參與升級系統'},
+    {title:'狀態效果',icon:'💫',body:'戰鬥中可能附加的狀態：\n・中毒☠️：每回合損失5HP（3回合）\n・灼燒🔥：每回合損失8HP（2回合）\n・冰凍❄️：無法行動（1回合）\n・暈眩💫：無法行動（1回合）\n・致盲🌑：命中率降低（2回合）\n・再生💚：每回合回復10HP（3回合）\n・護盾🛡️：防禦力提升（2回合）\n・狂暴💢：攻擊提升但防禦降低（3回合）'},
+    {title:'鍛造與煉金',icon:'⚒️',body:'在活動頁面可進行製作：\n・料理🍳：使用食材製作料理，回復HP或提供增益\n・鍛造⚒️：使用礦石和素材打造武器防具\n・煉金⚗️：調配藥劑、毒藥、特殊道具\n需要對應材料，材料可從商店購買、怪物掉落或探索獲得。'},
+    {title:'成就系統',icon:'🏆',body:'完成特定條件可解鎖成就，記錄冒險歷程。共16個成就涵蓋：初次戰鬥、任務完成、星辰招募、等級提升、財富累積、BOSS擊殺、城市探索、紋章發現等。可在活動頁面查看。'},
+    {title:'隨機事件',icon:'🎲',body:'旅行和休息時可能觸發隨機事件：\n・戰鬥遭遇：路途中被怪物或盜賊攻擊\n・寶箱發現：發現被遺忘的物資\n・NPC遭遇：遇到旅人、商人、占卜師等\n・天氣變化：暴風雨、濃霧、暴風雪\n・橘子感知：星辰氣息的線索\n事件類型和機率與所在地區有關。'},
   ],
   '紋章':[
     {title:'紋章創世記',icon:'🌌',body:'太初，唯有虛空。虛空孤寂而落淚，淚水化為兩兄弟——劍與盾。劍與盾激戰七晝夜。劍劈碎了盾，碎片化為大地；盾折斷了劍，碎片化為蒼穹。戰鬥的火花化為星辰，兩者身上的27枚寶石化為27枚真紋章。世界開始運轉。'},
@@ -5224,6 +5232,7 @@ const WIKI_DATA={
     {title:'真紋章與帝國崩裂',icon:'👑',body:'聖赫倫帝國的建立與六百年統治，與霸王真紋章密切相關。初代皇帝是霸王紋章持有者，以紋章之力統一大陸。末代皇帝暴斃之夜，霸王紋章消失——同一夜，108命運之星降世，多枚沉睡的真紋章開始覺醒。這不是巧合。'},
     {title:'真紋章與108星',icon:'🌟',body:'星命真紋章掌控108星的降世與聚合法則。北斗真紋章與北斗星・先行者直接相關——他的倒下可能與紋章碎裂有關。黎明真紋章在108星全員齊聚時覺醒。真紋章與星辰的關係是遊戲最核心的主線之一。'},
     {title:'紋章與西方魔法',icon:'🔮',body:'艾爾薩大陸的魔法體系建立在紋章之上。所有魔法本質上都是紋章力量的微弱共鳴。翠林域的精靈透過與大地紋章的親和力使用自然魔法；帝國的術士透過研究紋章碎片開發攻擊魔法。真正的紋章持有者能使用遠超常規的魔法。'},
+    {title:'紋章與鍛造',icon:'⚒️',body:'部分真紋章的碎片可作為鍛造素材，製作蘊含紋章之力的特殊裝備。例如：星辰碎片可鍛造星辰戒、龍血草可鍛造龍牙劍。在據點的藏星閣研究紋章碎片可加速北斗星線索的收集。'},
   ],
 };
 const WIKI_CATS=Object.keys(WIKI_DATA);
