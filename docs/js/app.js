@@ -2669,15 +2669,7 @@ function collectProduction(){
   Object.entries(w).forEach(([facility,charId])=>{
     const c=getCharData(charId);if(!c)return;
     const job=getJob(charId);
-    const items={
-      鍛造坊:{n:'強化石',t:'裝備強化素材',rate:4},
-      食堂:{n:'便當',t:'全隊HP+20',rate:3},
-      煉藥房:{n:'草藥',t:'煉藥素材',rate:3},
-      商店:{n:'貿易券',t:'可兌換銀幣',rate:5},
-      工坊:{n:'布料',t:'裁縫素材',rate:4},
-      獵場:{n:'獸肉',t:'料理素材',rate:3},
-    };
-    const item=items[facility];if(!item)return;
+    const item=HQ_PRODUCTION[facility];if(!item)return;
     const qty=Math.floor(hours/item.rate);if(qty<1)return;
     const exist=inv.items.find(x=>x.n===item.n);
     if(exist){const m=exist.q.match(/(\d+)/);exist.q='×'+((m?parseInt(m[1]):1)+qty);}
@@ -5081,6 +5073,16 @@ const HQ_FACILITIES=[
   {id:'throne',  name:'天命之座',icon:'👑', stars:108,desc:'108星齊聚。終結輪迴的最後一步。', effect:'???'},
 ];
 
+// 據點設施生產品資料庫
+const HQ_PRODUCTION={
+  鍛造坊:{n:'強化石',t:'裝備強化素材',rate:4},
+  食堂:{n:'便當',t:'全隊HP+20',rate:3},
+  煉藥房:{n:'草藥',t:'煉藥素材',rate:3},
+  商店:{n:'貿易券',t:'可兌換銀幣',rate:5},
+  工坊:{n:'布料',t:'裁縫素材',rate:4},
+  獵場:{n:'獸肉',t:'料理素材',rate:3},
+};
+
 function getHQUnlocked(){
   const recruited=[...TIANGANG,...DISHAT].filter(s=>s.status==='recruited').length;
   return recruited>=HQ_UNLOCK_STARS;
@@ -6281,6 +6283,83 @@ const KINGDOMS=[
   {id:'shadow_marsh',name:'影沼地',color:'rgba(50,40,60,.2)',stroke:'rgba(80,60,100,.25)',path:'M100 270 Q130 290 155 310 Q170 340 160 365 Q140 380 110 375 Q75 360 60 335 Q50 310 60 290 Q75 275 90 272 Z'},
 ];
 
+// ═══ MAP DATA DB ═══
+const POI_ICON_COLORS={port:'#4488cc',plaza:'#c9a84c',guard:'#cc8844',inn:'#44aa66',shop:'#aa6644',guild:'#8844aa',danger:'#cc4444',waystation:'#c9a84c',special:'#88aacc',ruins:'#887755',district:'#778899'};
+const GUILD_NAME_MAP={'冒險者':'adventurer','英雄':'adventurer','商人':'merchant','學院':'scholar','匠人':'craft','暗影':'shadow','傭兵':'adventurer'};
+
+// ═══ NPC 資料庫 ═══
+const NPC_DB={
+  // 鐵霧城
+  'enzzo':{name:'恩佐・卡羅',title:'鐵霧城代理城主',city:'iron_fog',icon:'⚙️',faction:'ironmist',
+    desc:'以鐵腕治理霧山聯邦西部。控制鐵礦與貿易，對底層苛刻。',personality:'冷酷、精於算計',disposition:'hostile'},
+  'gelin':{name:'葛林',title:'碼頭區倉庫老闆',city:'iron_fog',icon:'📦',faction:'ironmist',
+    desc:'碼頭區最大倉庫的經營者。和善但精明，常僱用零工。',personality:'務實、圓滑',disposition:'neutral'},
+  'mist_boss':{name:'霧刃幫首領',title:'山口劫匪頭目',city:'iron_fog',icon:'⚔️',faction:'mistblade',
+    desc:'身份不明的霧刃幫首領。組織規模可能比表面更大。',personality:'不明',disposition:'enemy'},
+  // 銀月城
+  'moon_mayor':{name:'席爾維婭',title:'銀月城商會會長',city:'silver_moon',icon:'🌙',faction:'merchant',
+    desc:'銀月城最有權勢的女商人。掌控情報網路與貿易路線。',personality:'優雅、深不可測',disposition:'neutral'},
+  'hero_master':{name:'鐵拳・馬庫斯',title:'英雄公會會長',city:'silver_moon',icon:'🛡️',faction:'hero',
+    desc:'退役的帝國禁衛隊長。公正嚴厲，對新人要求極高。',personality:'正直、嚴厲',disposition:'friendly'},
+  // 東港城
+  'port_info':{name:'烏鴉',title:'情報屋老闆',city:'east_port',icon:'🕵️',faction:'shadow',
+    desc:'東港城地下情報網的核心人物。什麼消息都能買到，但價格不菲。',personality:'神秘、守信',disposition:'neutral'},
+  'merchant_boss':{name:'金袋・哈羅德',title:'商人公會東港分會長',city:'east_port',icon:'💰',faction:'merchant',
+    desc:'控制東海貿易線的肥胖商人。笑臉背後是精密的算計。',personality:'貪婪、狡猾',disposition:'neutral'},
+  // 翠林域
+  'elf_elder':{name:'艾蕾恩',title:'翠林長老',city:'jade_forest',icon:'🧝',faction:null,
+    desc:'千年精靈長老。守護世界樹與禁忌書庫。對外人保持距離但非敵意。',personality:'睿智、超然',disposition:'neutral'},
+  // 鏽城
+  'imperial_gen':{name:'鐵壁・凱恩',title:'帝國殘軍將軍',city:'rust_city',icon:'👑',faction:'imperial',
+    desc:'效忠已故皇帝的最後將軍。相信帝國會復興，但部下已開始動搖。',personality:'忠誠、固執',disposition:'neutral'},
+  // 霜守堡
+  'knight_cmdr':{name:'冰霜・亞瑟',title:'流亡騎士團團長',city:'frost_keep',icon:'🛡️',faction:null,
+    desc:'率領騎士團駐守北方極寒之地的騎士。嚴守帝國時代的騎士誓言。',personality:'高潔、頑固',disposition:'friendly'},
+  // 南荒
+  'sand_hunter':{name:'沙獵・莉拉',title:'南荒獵人',city:'sand_gate',icon:'🏜️',faction:null,
+    desc:'南荒最強的獵人之一。熟知荒野每條路徑，是進入龍牙砦的最佳嚮導。',personality:'沉默寡言、可靠',disposition:'neutral'},
+  // 影沼地
+  'marsh_doc':{name:'毒蛛・梅拉',title:'影沼鎮藥師',city:'shadow_marsh',icon:'🕷️',faction:null,
+    desc:'影沼地最好的藥師，同時也是最危險的毒師。治療和毒殺只在一念之間。',personality:'陰沉、專業',disposition:'neutral'},
+};
+
+// ═══ 怪物/敵人資料庫 ═══
+const ENEMY_DB={
+  // 一般敵人（各地區）
+  'goblin':{name:'哥布林',lv:1,hp:15,stats:{武力:8,知力:3},drops:['哥布林牙'],exp:5,gold:{s:0,c:10},area:['iron_fog','grey_haven'],icon:'👹'},
+  'wolf':{name:'灰狼',lv:2,hp:25,stats:{武力:14,知力:5},drops:['狼皮'],exp:8,gold:{s:0,c:20},area:['iron_fog','iron_crown'],icon:'🐺'},
+  'bandit':{name:'山賊',lv:3,hp:35,stats:{武力:18,知力:10},drops:['繃帶','銅幣袋'],exp:12,gold:{s:1,c:0},area:['iron_fog','grey_haven','sand_gate'],icon:'🗡️'},
+  'mist_thug':{name:'霧刃幫嘍囉',lv:4,hp:45,stats:{武力:22,知力:12},drops:['鐵匕首','霧刃幫徽章'],exp:18,gold:{s:2,c:0},area:['iron_fog'],icon:'⚔️'},
+  'snake':{name:'毒蛇',lv:2,hp:20,stats:{武力:10,知力:4},drops:['蛇毒囊'],exp:6,gold:{s:0,c:15},area:['shadow_marsh','dragon_valley'],icon:'🐍'},
+  'spider':{name:'巨蛛',lv:3,hp:30,stats:{武力:15,知力:6},drops:['蜘蛛絲'],exp:10,gold:{s:0,c:30},area:['shadow_marsh','elder_grove'],icon:'🕷️'},
+  'bat':{name:'洞窟蝙蝠',lv:1,hp:12,stats:{武力:6,知力:2},drops:['蝙蝠翼'],exp:4,gold:{s:0,c:8},area:['iron_crown','rust_city','dragon_valley'],icon:'🦇'},
+  'skeleton':{name:'骸骨兵',lv:5,hp:55,stats:{武力:25,知力:8},drops:['骷髏骨','帝國遺劍'],exp:22,gold:{s:3,c:0},area:['rust_city'],icon:'💀'},
+  'pirate':{name:'海盜',lv:4,hp:50,stats:{武力:20,知力:14},drops:['海軍彎刀','珊瑚'],exp:20,gold:{s:2,c:50},area:['east_port','coral_bay','fog_sea_pass'],icon:'🏴‍☠️'},
+  'forest_sprite':{name:'森靈',lv:3,hp:28,stats:{武力:10,知力:25},drops:['精靈花','月光蘑菇'],exp:15,gold:{s:1,c:50},area:['jade_forest','elder_grove'],icon:'🧚'},
+  'ice_wolf':{name:'霜狼',lv:5,hp:60,stats:{武力:28,知力:8},drops:['冰霜結晶','狼皮'],exp:25,gold:{s:3,c:50},area:['frost_keep'],icon:'🐺'},
+  'sand_worm':{name:'沙蟲',lv:6,hp:80,stats:{武力:32,知力:5},drops:['沙蟲殼','沙金'],exp:35,gold:{s:5,c:0},area:['dragon_valley','sand_gate'],icon:'🪱'},
+  'marsh_golem':{name:'沼澤巨人',lv:7,hp:100,stats:{武力:35,知力:10},drops:['泥岩核心','沼澤精華'],exp:45,gold:{s:6,c:0},area:['shadow_marsh'],icon:'🗿'},
+  'dark_knight':{name:'暗黑騎士',lv:8,hp:120,stats:{武力:40,知力:20},drops:['暗影精華','暗黑騎士甲'],exp:60,gold:{s:10,c:0},area:['rust_city'],icon:'🖤'},
+  'dragon_spawn':{name:'幼龍',lv:10,hp:200,stats:{武力:50,知力:30},drops:['龍鱗','龍牙','龍血草'],exp:100,gold:{g:1,s:0,c:0},area:['dragon_valley'],icon:'🐉'},
+  // BOSS
+  'mist_leader':{name:'霧刃幫首領',lv:8,hp:150,stats:{武力:38,知力:25},drops:['霧刃幫首領面具','混沌碎片'],exp:80,gold:{g:0,s:50,c:0},area:['iron_fog'],boss:true,icon:'👤'},
+  'imperial_shade':{name:'帝國亡靈將軍',lv:12,hp:300,stats:{武力:55,知力:35},drops:['聖赫倫皇冠碎片','帝國禁衛甲'],exp:150,gold:{g:2,s:0,c:0},area:['rust_city'],boss:true,icon:'👻'},
+  'sea_serpent':{name:'海蛇王',lv:10,hp:250,stats:{武力:45,知力:20},drops:['海蛇鱗','深海珊瑚'],exp:120,gold:{g:1,s:50,c:0},area:['coral_bay','fog_sea_pass'],boss:true,icon:'🐉'},
+  'ancient_dragon':{name:'遠古巨龍',lv:15,hp:500,stats:{武力:70,知力:50},drops:['古龍之鱗','龍骨劍','創世碎片'],exp:300,gold:{g:5,s:0,c:0},area:['dragon_valley'],boss:true,icon:'🐲'},
+};
+
+// ═══ 隨機事件資料庫 ═══
+const EVENT_DB=[
+  {id:'merchant_ambush',type:'combat',trigger:'travel',chance:0.15,desc:'商隊遭遇山賊襲擊！',enemy:'bandit',area:['iron_fog','grey_haven']},
+  {id:'lost_traveler',type:'encounter',trigger:'travel',chance:0.1,desc:'路邊有一個迷路的旅人。',choices:['幫助他','無視','搶劫'],area:'all'},
+  {id:'hidden_chest',type:'loot',trigger:'explore',chance:0.08,desc:'在角落發現了一個被遺忘的寶箱。',area:'all'},
+  {id:'orange_sense',type:'story',trigger:'rest',chance:0.12,desc:'橘子忽然耳朵轉動，凝視某個方向。',effect:{clue_hint:true},area:'all'},
+  {id:'storm',type:'weather',trigger:'travel',chance:0.1,desc:'突如其來的暴風雨迫使你停下腳步。',effect:{time:3},area:['east_port','coral_bay']},
+  {id:'star_vision',type:'story',trigger:'rest',chance:0.05,desc:'夜空中，某顆星辰閃爍得格外明亮。橘子望著天空，久久不語。',effect:{clue_hint:true},area:'all'},
+  {id:'mysterious_merchant',type:'shop',trigger:'travel',chance:0.06,desc:'路邊出現了一個神秘的蒙面商人。他的貨物⋯⋯不太尋常。',area:'all'},
+  {id:'old_ruins',type:'explore',trigger:'travel',chance:0.08,desc:'偏離主道後，發現了一處被藤蔓覆蓋的古老廢墟。',area:['rust_city','dragon_valley','elder_grove']},
+];
+
 // 城市資料（16座城市）
 const MAP_CITIES={
   // ═══ 霧山聯邦 ═══
@@ -6535,7 +6614,7 @@ function renderRegionMap(cityId){
   const container=document.getElementById('map-container');
   container.style.height='420px';
 
-  const iconColors={port:'#4488cc',plaza:'#c9a84c',guard:'#cc8844',inn:'#44aa66',shop:'#aa6644',guild:'#8844aa',danger:'#cc4444',waystation:'#c9a84c',special:'#88aacc',ruins:'#887755',district:'#778899'};
+  const iconColors=POI_ICON_COLORS;
   const regionPrompt=REGION_PROMPTS[city.kingdom]||'dark medieval fantasy city, top-down map view, moody lighting, no text';
   const bgUrl=`https://image.pollinations.ai/prompt/${encodeURIComponent(regionPrompt)}?width=810&height=630&seed=${cityId.length*7+42}&nologo=true`;
 
@@ -6597,7 +6676,7 @@ function renderRegionMap(cityId){
 function showPoiInfo(cityId,poiIdx){
   const poi=MAP_CITIES[cityId]?.pois[poiIdx];
   if(!poi)return;
-  const iconColors={port:'#4488cc',plaza:'#c9a84c',guard:'#cc8844',inn:'#44aa66',shop:'#aa6644',guild:'#8844aa',danger:'#cc4444',waystation:'#c9a84c',special:'#88aacc',ruins:'#887755',district:'#778899'};
+  const iconColors=POI_ICON_COLORS;
   const col=iconColors[poi.type]||'#888';
   const info=document.getElementById('map-info');
   info.style.display='block';
@@ -6646,7 +6725,7 @@ function doGoToPoi(cityId,poiName){
   const isShop=/(商店|市集|攤販|雜貨|武器|鐵匠|藥舖|酒館|客棧|旅店|旅館|藥店|藥鋪|補給|防具|飾品|商行|商街|冰窖|漁市|珊瑚市場|草藥|工坊)/.test(poiName);
   if(isGuild){
     // 工會POI：本地開啟工會面板＋懸賞板，不呼叫AI
-    const guildMap={'冒險者':'adventurer','英雄':'adventurer','商人':'merchant','學院':'scholar','匠人':'craft','暗影':'shadow'};
+    const guildMap=GUILD_NAME_MAP;
     const gId=Object.entries(guildMap).find(([k])=>poiName.includes(k));
     if(gId&&!G.guilds?.[gId[1]]?.joined){joinGuild(gId[1]);}
     appendEntryToDOM({type:'narr',v:`你走進${poiName}的大廳。公告板上貼滿了委託和懸賞。`});
