@@ -2257,7 +2257,7 @@ function checkQuestTriggers(){
     // Check prerequisite
     if(q.prereq&&!G.quests.find(gq=>gq.id===q.prereq&&gq.status==='完成'))return;
     // Auto-trigger
-    if(q.autoTrigger||q.type==='主線'){
+    if(q.autoTrigger||q.type==='主線'||(q.type==='支線'&&Math.random()<0.3)){
       G.quests.push({id:qid,title:q.title,desc:q.desc,type:q.type,status:'進行中',objectives:q.objectives.map(o=>({text:o,done:false}))});
       appendEntryToDOM({type:'sys',v:`📋 新任務：【${q.title}】${q.type}`});
       showToast(`新任務：${q.title}`,'ok');
@@ -2823,6 +2823,23 @@ const RECIPES=[
   {id:'elixir_str',cat:'alchemy',name:'力量藥劑',icon:'💪',ingredients:[{n:'獸肉',q:2},{n:'草藥包',q:1},{n:'鐵礦',q:1}],result:'力量藥劑',desc:'暫時武力提升',diff:2},
   {id:'elixir_int',cat:'alchemy',name:'知力藥劑',icon:'🧠',ingredients:[{n:'月光蘑菇',q:2},{n:'草藥包',q:1}],result:'知力藥劑',desc:'暫時知力提升',diff:2},
   {id:'phoenix_tear',cat:'alchemy',name:'鳳凰之淚',icon:'🔥',ingredients:[{n:'龍血草',q:2},{n:'世界樹果實',q:1},{n:'鳳凰羽',q:1}],result:'鳳凰之淚',desc:'復活藥劑',diff:5},
+
+  // ── 追加料理 ──
+  {id:'cactus_juice',cat:'cook',name:'仙人掌汁',icon:'🌵',ingredients:[{n:'南荒仙人掌汁',q:2}],effect:{hp:20,cure:'fatigue'},desc:'清爽解渴・南荒必備',diff:1},
+  {id:'marsh_soup',cat:'cook',name:'影沼蘑菇湯',icon:'🍄',ingredients:[{n:'迷幻菇',q:2},{n:'草藥包',q:1}],effect:{hp:30},desc:'小心用量・味道意外不錯',diff:2},
+  {id:'royal_feast',cat:'cook',name:'帝國皇宴',icon:'👑',ingredients:[{n:'獸肉',q:3},{n:'東方香料',q:2},{n:'精靈果實',q:1},{n:'月光蘑菇',q:1}],effect:{hp:120,allStats:8},desc:'傳說中帝國時代的宮廷料理',diff:5},
+
+  // ── 追加鍛造 ──
+  {id:'mithril_sword',cat:'smith',name:'秘銀劍',icon:'⚔️',ingredients:[{n:'秘銀錠',q:3},{n:'精靈木',q:1},{n:'星辰碎片',q:1}],result:'附魔劍',desc:'以秘銀和星辰之力鍛造',diff:4},
+  {id:'dragon_shield',cat:'smith',name:'龍鱗盾',icon:'🛡️',ingredients:[{n:'龍鱗',q:3},{n:'鋼錠',q:2}],result:'龍鱗盾',desc:'以龍鱗打造的傳說盾牌',diff:5},
+  {id:'star_amulet',cat:'smith',name:'星辰護符',icon:'📿',ingredients:[{n:'星辰石',q:1},{n:'銀礦',q:2},{n:'精靈絲',q:1}],result:'星辰戒',desc:'蘊含星辰之力的護符',diff:4},
+  {id:'elf_armor',cat:'smith',name:'精靈織甲',icon:'🦺',ingredients:[{n:'精靈絲',q:3},{n:'精靈木',q:2},{n:'月長石',q:1}],result:'精靈織甲',desc:'精靈工藝的極致',diff:4},
+
+  // ── 追加煉金 ──
+  {id:'phoenix_tear_2',cat:'alchemy',name:'鳳凰之淚',icon:'🔥',ingredients:[{n:'龍血草',q:2},{n:'世界樹果實',q:1},{n:'鳳凰羽',q:1}],result:'鳳凰之淚',desc:'傳說的復活藥劑',diff:5},
+  {id:'all_cure',cat:'alchemy',name:'萬靈丹',icon:'💊',ingredients:[{n:'世界樹樹液',q:1},{n:'精靈花',q:2},{n:'月光蘑菇',q:2}],result:'萬靈丹',desc:'解除一切異常+HP回復',diff:4},
+  {id:'invis_pot',cat:'alchemy',name:'透明藥劑',icon:'👤',ingredients:[{n:'蜘蛛絲',q:3},{n:'月光蘑菇',q:2},{n:'蛇毒囊',q:1}],result:'透明藥劑',desc:'暫時隱身',diff:3},
+  {id:'rage_pot',cat:'alchemy',name:'狂暴藥劑',icon:'💢',ingredients:[{n:'獸肉',q:2},{n:'龍血草',q:1},{n:'火焰結晶',q:1}],result:'狂暴藥劑',desc:'攻擊力大幅提升但防禦降低',diff:3},
 ];
 function getCookable(cat){
   const inv=getInv();const items=inv.items;
@@ -5695,6 +5712,27 @@ function updateQuest(q){
   const wasActive=G.quests[idx].status==='active';
   if(q.status)G.quests[idx].status=q.status;
   if(wasActive&&q.status==='completed')applyQuestRewards(G.quests[idx]);
+  // Auto-apply rewards from QUEST_DB
+  const gq=G.quests[idx];
+  if((q.status==='completed'||q.status==='完成')&&wasActive){
+      const qdb=QUEST_DB[gq.id];
+      if(qdb?.rewards){
+        if(qdb.rewards.gd)applyGold(qdb.rewards.gd);
+        if(qdb.rewards.exp&&typeof grantExp==='function')grantExp(G.partyIds.filter(id=>id!=='orange'),qdb.rewards.exp);
+        if(qdb.rewards.items){
+          const inv=getInv();
+          qdb.rewards.items.forEach(itemName=>{
+            const db=ITEM_DB[itemName];
+            if(db?.slot){inv.equip.push({n:itemName,t:db.t||'',w:null,status:'持有',slot:db.slot,bonus:db.bonus||null});}
+            else{const exist=inv.items.find(i=>i.n===itemName);if(exist){const m=exist.q.match(/(\d+)/);exist.q='×'+((m?parseInt(m[1]):1)+1);}else inv.items.push({n:itemName,t:db?.t||'',q:'×1'});}
+          });
+          appendEntryToDOM({type:'sys',v:`📋 任務獎勵：${qdb.rewards.items.join('、')}`});
+        }
+        appendEntryToDOM({type:'sys',v:`📋 任務【${gq.title}】完成！${qdb.rewards.gd?'金幣+'+priceStr(qdb.rewards.gd):''}${qdb.rewards.exp?' 經驗+'+qdb.rewards.exp:''}`});
+        showToast(`任務完成：${gq.title}`,'ok');
+        renderChanged('inv','quest','party');
+      }
+  }
   renderChanged('quest');saveGame();
 }
 
@@ -7107,6 +7145,58 @@ const QUEST_DB={
     objectives:['收集指定素材3個'],
     rewards:{gd:{g:0,s:8,c:0},exp:10},
     repeatable:true,triggerArea:'all'},
+
+  // ── 追加支線任務 ──
+  side_bridge_01:{title:'金橋的商戰',type:'支線',
+    desc:'金橋城的兩大商會正在爭奪貿易路線控制權。選邊站還是保持中立？',
+    objectives:['了解東西方商會的爭端','選擇支持的一方或調停'],
+    rewards:{gd:{g:0,s:40,c:0},exp:50},
+    triggerArea:'golden_bridge'},
+  side_peak_01:{title:'王冠峰的秘密',type:'支線',
+    desc:'王冠峰瞭望塔的斥候發現了異常——北方有不尋常的光芒。',
+    objectives:['與斥候隊長交談','前往北方調查光源','報告發現'],
+    rewards:{gd:{g:0,s:30,c:0},exp:45,items:['北斗星碎片・貳']},
+    triggerArea:'crown_peak'},
+  side_coral_01:{title:'珊瑚灣的傳說',type:'支線',
+    desc:'漁民們說海底有一座沉沒的神殿。最近退潮時有人看到了神殿的尖頂。',
+    objectives:['向漁民打聽神殿位置','尋找潛入方法','探索沉沒神殿'],
+    rewards:{gd:{g:1,s:0,c:0},exp:70,items:['深海珊瑚']},
+    triggerArea:'coral_bay'},
+  side_pass_01:{title:'走私者的困境',type:'支線',
+    desc:'霧海關的走私客被守備隊盯上了。他有一批重要的貨物需要帶出去。',
+    objectives:['接觸走私客','決定是否幫助他','處理貨物'],
+    rewards:{gd:{g:0,s:50,c:0},exp:40},
+    triggerArea:'fog_sea_pass'},
+  side_grove_01:{title:'古樹的低語',type:'支線',
+    desc:'古樹隱村的世界樹最近發出了奇怪的聲音。長老們說這是千年未有的現象。',
+    objectives:['傾聽世界樹的聲音','與精靈長老討論','找出原因'],
+    rewards:{gd:{g:0,s:60,c:0},exp:90,items:['世界樹果實']},
+    triggerArea:'elder_grove'},
+  side_dragon_01:{title:'龍之試煉',type:'支線',
+    desc:'龍牙砦深處有古龍留下的試煉場。只有通過試煉的人才能進入龍之寶庫。',
+    objectives:['找到試煉場入口','通過三重試煉','面對守衛龍'],
+    rewards:{gd:{g:2,s:0,c:0},exp:150,items:['龍骨劍']},
+    triggerArea:'dragon_valley'},
+  side_rust_01:{title:'帝國的幽靈',type:'支線',
+    desc:'鏽城的地下墓穴中，不死生物的數量正在增加。帝國殘軍將軍懷疑有人在背後操縱。',
+    objectives:['調查地下墓穴','找出不死生物的源頭','消滅或封印根源'],
+    rewards:{gd:{g:1,s:50,c:0},exp:120,items:['暗影精華']},
+    triggerArea:'rust_city'},
+  side_iron_01:{title:'礦工的反抗',type:'支線',
+    desc:'鐵霧城的礦工們再也忍受不了恩佐的壓榨。一場罷工正在醞釀。',
+    objectives:['了解礦工的處境','決定是否支持罷工','面對後果'],
+    rewards:{gd:{g:0,s:25,c:0},exp:35},
+    triggerArea:'iron_fog'},
+  side_haven_01:{title:'幽靈船',type:'支線',
+    desc:'灰港鎮的漁民最近在夜間看到一艘幽靈船在霧中航行。船上閃爍著詭異的藍光。',
+    objectives:['向漁民收集目擊情報','在夜間出海尋找幽靈船','登上幽靈船'],
+    rewards:{gd:{g:0,s:35,c:0},exp:55,items:['海圖']},
+    triggerArea:'grey_haven'},
+  side_moon_02:{title:'銀月夜市',type:'支線',
+    desc:'銀月城每月一次的夜市開張了。據說這次有人在販售來歷不明的紋章碎片。',
+    objectives:['前往銀月夜市','調查紋章碎片','追查來源'],
+    rewards:{gd:{g:0,s:40,c:0},exp:60},
+    triggerArea:'silver_moon'},
 };
 
 // ═══ COMBAT SYSTEM ═══
