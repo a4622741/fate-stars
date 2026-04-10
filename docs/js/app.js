@@ -1362,7 +1362,7 @@ const SYS=`你是文字RPG引擎。只輸出純JSON，從{開始到}結束，不
 主角艾爾法😒（天魁星）：銀髮旅人，面無表情，來歷不明。沒有職業、沒有過去。玩家扮演她——玩家的每一句選擇就是艾爾法說的話或做的事。
 橘子🐈😒（晁蓋之位・命運之錨）：布偶貓，不屬於108星，卻是引導星辰聚合的關鍵存在。只說「喵」，之後緊接系統翻譯。知力99。如同水滸傳中的晁蓋。
 
-核心原則：水滸傳＋幻想水滸傳風格，西方奇幻劍與魔法世界。逼上梁山、義氣為核、招募即主線。文風：劍與魔法戰鬥＋吐槽日常。
+核心原則：水滸傳＋幻想水滸傳風格，西方奇幻劍與魔法世界。逼上梁山、義氣為核、招募即主線。文風：劍與魔法戰鬥＋吐槽日常。敘述要有畫面感，像小說一樣描寫場景、動作、表情。對話要有個性，每個角色有獨特的說話方式。橘子永遠是冷面吐槽擔當。適時加入幽默元素。戰鬥場面要緊湊刺激。
 紋章系統：世界有27枚真紋章（始源/元素/天體/生滅/支配/奧義/命運），持有者獲得強大力量但承受詛咒。一般紋章為真紋章碎片衍生，可裝備使用。
 
 ═══ 回應格式（所有欄位必填，不用的填null）═══
@@ -1447,7 +1447,7 @@ async function callAPI(action){
   if(!CFG.key){document.getElementById('api-modal').classList.add('open');throw new Error('請先設定 API 金鑰');}
   await apiGate();
   const _p=allParty();
-  const partySnap=_p.filter(m=>m.id!=='orange').map(m=>{const u=G.upgrade[m.id];const lv=u?u.lv||1:1;return`${m.name}/Lv${lv}/${getJob(m.id)||'?'}/HP${getHP(m.id).cur}`;}).join(',')+'；橘子HP'+getHP('orange').cur+'/好感'+getFavor('orange');
+  const partySnap=_p.filter(m=>m.id!=='orange').map(m=>{const u=G.upgrade[m.id];const lv=u?u.lv||1:1;const fm=(G.formation||{})[m.id]==='back'?'後排':'前排';return`${m.name}/Lv${lv}/${getJob(m.id)||'?'}/HP${getHP(m.id).cur}/${fm}`;}).join(',')+'；橘子HP'+getHP('orange').cur+'/好感'+getFavor('orange')+'/'+((G.formation||{}).orange==='back'?'後排':'前排');
   const goldStr=`金${G.gold.gold}銀${G.gold.silver}銅${G.gold.copper}`;
   const goldSnap=goldStr!==_lastSentGold?goldStr:'';
   _lastSentGold=goldStr;
@@ -2441,6 +2441,16 @@ function addErrRetry(msg,retryAction,isCors){
 
 function renderChoices(arr,doSave=true){
   if(doSave)G.currentChoices=arr;
+  // Occasional ambient flavor text
+  if(Math.random()<0.15&&G.time){
+    const hour=G.time.hour||12;
+    const ambients=hour>=6&&hour<12?['晨光透過雲層灑落。','遠處傳來鳥鳴。','空氣中帶著露水的氣息。']:
+      hour>=12&&hour<18?['陽光正烈。','街道上行人漸多。','微風吹過，帶起塵土。']:
+      hour>=18&&hour<22?['暮色漸深。','街燈一盞盞亮起。','酒館裡傳出歡笑聲。']:
+      ['夜深了。','星辰在天空閃爍。','橘子的眼睛在黑暗中微微發光。'];
+    const amb=ambients[Math.floor(Math.random()*ambients.length)];
+    appendEntryToDOM({type:'narr',v:amb},false);
+  }
   const g=document.getElementById('ch-grid');g.innerHTML='';
   arr.forEach((c,i)=>{
     const b=mk('button','ch-btn');
@@ -4148,6 +4158,51 @@ function chatOrange(ev){
      {type:'sys',v:'〔系統翻譯：他的氣息⋯⋯我記得。〕'},
      {type:'dial',sp:'艾爾法😒',ln:'⋯⋯所以你也不是普通的貓。'},
     ],
+    // 關於天氣
+    [{type:'dial',sp:'艾爾法😒',ln:'今天天氣還行。'},
+     {type:'dial',sp:'橘子🐈😒',ln:'喵。'},
+     {type:'sys',v:'〔系統翻譯：我是貓。我不在乎天氣。我在乎的是魚。〕'},
+    ],
+    // 關於旅途
+    [{type:'dial',sp:'艾爾法😒',ln:'我們接下來去哪？'},
+     {type:'dial',sp:'橘子🐈😒',ln:'喵——'},
+     {type:'sys',v:'〔系統翻譯：哪裡有魚就去哪裡。這個問題很難嗎。〕'},
+     {type:'dial',sp:'艾爾法😒',ln:'⋯⋯不是所有決策都能用魚來判斷的。'},
+     {type:'dial',sp:'橘子🐈😒',ln:'喵。'},
+     {type:'sys',v:'〔系統翻譯：（用看白痴的眼神）〕'},
+    ],
+    // 關於戰鬥
+    [{type:'dial',sp:'艾爾法😒',ln:'剛才的戰鬥⋯⋯'},
+     {type:'dial',sp:'橘子🐈😒',ln:'喵——'},
+     {type:'sys',v:'〔系統翻譯：你的劍法有退步。左側防禦太慢了0.3秒。〕'},
+     {type:'dial',sp:'艾爾法😒',ln:'⋯⋯你一隻貓是怎麼看出來的。'},
+     {type:'dial',sp:'橘子🐈😒',ln:'喵。'},
+     {type:'sys',v:'〔系統翻譯：因為我是一隻知力99的貓。〕'},
+    ],
+    // 關於紋章
+    [{type:'dial',sp:'艾爾法😒',ln:'你對紋章有什麼感覺嗎？'},
+     {type:'dial',sp:'橘子🐈😒',ln:'⋯⋯喵。'},
+     {type:'sys',v:'〔系統翻譯：（長時間沉默）它們在呼吸。每一枚都像是活著的東西。〕'},
+     {type:'dial',sp:'艾爾法😒',ln:'⋯⋯'},
+     {type:'dial',sp:'橘子🐈😒',ln:'喵。'},
+     {type:'sys',v:'〔系統翻譯：別碰不該碰的。記住了。〕'},
+    ],
+    // 橘子吐槽
+    [{type:'dial',sp:'艾爾法😒',ln:'橘子，你覺得我最近表現怎麼樣？'},
+     {type:'dial',sp:'橘子🐈😒',ln:'喵——'},
+     {type:'sys',v:'〔系統翻譯：以一個沒有工作、沒有背景、帶著一隻貓到處流浪的人來說⋯⋯還行吧。〕'},
+     {type:'dial',sp:'艾爾法😒',ln:'⋯⋯謝謝妳的肯定。'},
+     {type:'dial',sp:'橘子🐈😒',ln:'喵。'},
+     {type:'sys',v:'〔系統翻譯：不客氣。現在去找魚乾。〕'},
+    ],
+    // 深夜
+    [{type:'dial',sp:'艾爾法😒',ln:'還沒睡？'},
+     {type:'dial',sp:'橘子🐈😒',ln:'喵⋯⋯'},
+     {type:'sys',v:'〔系統翻譯：（凝視窗外）⋯⋯今晚的星星很吵。〕'},
+     {type:'dial',sp:'艾爾法😒',ln:'星星會吵嗎？'},
+     {type:'dial',sp:'橘子🐈😒',ln:'喵。'},
+     {type:'sys',v:'〔系統翻譯：對你來說是沉默的。對我來說⋯⋯每顆都在說話。〕'},
+    ],
   ];
   const fav=getFavor('orange')||50;
   // 好感高時解鎖北斗星話題
@@ -4191,6 +4246,23 @@ function askOrangeSuggest(ev){
        {type:'sys',v:'〔橘子補充：但你已經走到這裡了。〕'},
       ],
     ]:[]),
+    // 更多建議
+    [{type:'dial',sp:'艾爾法😒',ln:'有什麼該注意的嗎？'},
+     {type:'dial',sp:'橘子🐈😒',ln:'喵——喵。'},
+     {type:'sys',v:'〔橘子建議：你的錢快不夠了。在花錢之前先想想怎麼賺。〕'},
+    ],
+    [{type:'dial',sp:'艾爾法😒',ln:'該去哪探索？'},
+     {type:'dial',sp:'橘子🐈😒',ln:'喵。'},
+     {type:'sys',v:'〔橘子建議：北方有什麼在召喚。不是敵意，是⋯⋯類似邀請。〕'},
+    ],
+    [{type:'dial',sp:'艾爾法😒',ln:'我的裝備夠用嗎？'},
+     {type:'dial',sp:'橘子🐈😒',ln:'喵——'},
+     {type:'sys',v:'〔橘子建議：你的劍快撐不住了。找個鐵匠看看，或者⋯⋯自己鍛造。活動頁面有鍛造選項。〕'},
+    ],
+    [{type:'dial',sp:'艾爾法😒',ln:'最近有什麼不對勁的地方？'},
+     {type:'dial',sp:'橘子🐈😒',ln:'⋯⋯喵。'},
+     {type:'sys',v:'〔橘子建議：空氣中有紋章的氣息。很微弱，但確實存在。小心。〕'},
+    ],
   ];
   const r=suggests[Math.floor(Math.random()*suggests.length)];
   r.forEach(e=>appendEntryToDOM(e));
