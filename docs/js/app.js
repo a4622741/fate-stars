@@ -1,5 +1,5 @@
-// ═══ 命運之星 v2.0 ═══
-const VERSION='4.0';
+// ═══ 命運之星 v5.0 ═══
+const VERSION='5.0';
 // ═══ CONFIG ═══
 const CFG={
   get key(){return localStorage.getItem('fate_key')||'';},
