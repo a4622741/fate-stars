@@ -26,6 +26,7 @@ const G={
   favor:{},
   specialOv:{},
   bellyFlipCount:0,
+  formation:{}, // {charId:'front'|'back'} 前排/後排
   // ── 新系統 ──
   hp:{},           // {id:{cur,max}} 角色血量
   quests:[],       // 任務列表
@@ -65,7 +66,7 @@ function _doSave(){
       storyData:G.storyData,currentChoices:G.currentChoices,
       sceneTitle:G.sceneTitle,sceneLoc:G.sceneLoc,
       extraParty:G.extraParty,extraPcfg:G.extraPcfg,
-      partyIds:G.partyIds,upgrade:G.upgrade,inv:getInv(),favor:G.favor,bellyFlipCount:G.bellyFlipCount||0,specialOv:G.specialOv||{},
+      partyIds:G.partyIds,upgrade:G.upgrade,inv:getInv(),favor:G.favor,bellyFlipCount:G.bellyFlipCount||0,formation:G.formation||{},specialOv:G.specialOv||{},
       hp:G.hp,quests:G.quests,time:G.time,rep:G.rep,relics:G.relics,presetRelicOv:Object.fromEntries(Object.entries(PRESET_RELICS).map(([k,v])=>[k,{status:v.status,effect:v.effect,bonus:v.bonus,equippedTo:v.equippedTo}])),founderClues:G.founderClues,orangeStage:G.orangeStage||0,intel:G.intel||[],lastShop:G.lastShop||null,inShop:G.inShop||false,shopCatalogs:G.shopCatalogs||{},
       guilds:G.guilds||{},baseWorkers:G.baseWorkers||{},_lastCollect:G._lastCollect||null,_cookBuff:G._cookBuff||null,crests:G.crests||null,starOv,saveVersion:G._saveVersion||3,_achievements:G._achievements||[],_battleCount:G._battleCount||0,_bossKills:G._bossKills||0,_craftCount:G._craftCount||0,_defeatCount:G._defeatCount||0,_visitedCities:G._visitedCities||[],savedAt:Date.now(),
     };
@@ -95,6 +96,7 @@ function loadGame(){
     G.inv=data.inv||getInv();
     G.favor=data.favor||{};
     G.bellyFlipCount=data.bellyFlipCount||0;
+    G.formation=data.formation||{};
     G.specialOv=data.specialOv||{};
     G.hp=data.hp||{};
     G.quests=data.quests||[];
@@ -5673,6 +5675,12 @@ function switchTab(el,pf,name){
 }
 
 // ═══ DETAIL MODALS ═══
+function setFormation(id,pos){
+  G.formation[id]=pos;
+  saveGame();
+  showToast(`${getCharData(id)?.name||id} → ${pos==='front'?'前排':'後排'}`,'ok');
+  closeD();setTimeout(()=>openChar(id),100);
+}
 function openChar(id){
   const c=allParty().find(x=>x.id===id)||getCharData(id);if(!c)return;
   const src=getPortraitSrc(id);
@@ -5683,7 +5691,7 @@ function openChar(id){
       <button onclick="openPortraitSettings('${id}')" style="font-size:.58rem;padding:.18rem .45rem;background:rgba(0,0,0,.5);border:1px solid rgba(201,168,76,.3);border-radius:2px;color:rgba(201,168,76,.7);cursor:pointer;">🖼 頭像設定</button>
     </div>
   </div>`;
-  document.getElementById('modal-inner').innerHTML=pHtml+`<div class="mtop"><div class="mscol"><div class="mtp">${escHtml(c.type)}</div><div class="mnm">第${c.num}星</div><div class="mst">${escHtml(c.star)}</div></div><div class="micol"><div class="mname">${escHtml(c.name)} <span style="font-size:.8rem">${c.emoji}</span></div><div class="msub2">Lv.${getUpgrade(id).lv||1} ・ ${escHtml(c.title)}</div><div class="mstat r">✦ 已加入</div></div></div><div class="mbody"><div class="msec"><div class="msect">人物說明</div><div class="mdesc">${escHtml(c.desc)}</div></div><div class="msec"><div class="msect">素質數值</div><div style="padding-top:.18rem">${smini(c.stats,c.sn,c.id)}</div></div><div class="msec"><div class="msect">天賦技能</div>${c.tl.map(t=>`<div class="tarow"><span class="ta2 ${t.s?'sl':''}">${t.s?'【封印】':''}${escHtml(t.n)}</span><div class="tadesc">${escHtml(t.d)}</div></div>`).join('')}</div><div class="msec"><div class="msect">裝備</div>${Object.entries(c.eq).map(([k,v])=>`<div class="tr2"><span class="ts">${k}</span><span class="ti">${escHtml(v)}</span></div>`).join('')}</div>${id==='orange'?`<div class="msec"><div class="msect" style="color:rgba(180,140,220,.8);">⚓ 秘密・命運之錨</div>${getOrangeSecretHtml()}</div>`:''}</div>`;
+  document.getElementById('modal-inner').innerHTML=pHtml+`<div class="mtop"><div class="mscol"><div class="mtp">${escHtml(c.type)}</div><div class="mnm">第${c.num}星</div><div class="mst">${escHtml(c.star)}</div></div><div class="micol"><div class="mname">${escHtml(c.name)} <span style="font-size:.8rem">${c.emoji}</span></div><div class="msub2">Lv.${getUpgrade(id).lv||1} ・ ${escHtml(c.title)}</div><div class="mstat r">✦ 已加入</div></div></div><div class="mbody"><div class="msec"><div class="msect">人物說明</div><div class="mdesc">${escHtml(c.desc)}</div></div><div class="msec"><div class="msect">素質數值</div><div style="padding-top:.18rem">${smini(c.stats,c.sn,c.id)}</div></div><div class="msec"><div class="msect">天賦技能</div>${c.tl.map(t=>`<div class="tarow"><span class="ta2 ${t.s?'sl':''}">${t.s?'【封印】':''}${escHtml(t.n)}</span><div class="tadesc">${escHtml(t.d)}</div></div>`).join('')}</div><div class="msec"><div class="msect">戰鬥陣型</div><div style="display:flex;gap:.4rem;padding:.2rem 0;">${id!=='orange'?`<button onclick="setFormation('${id}','front')" style="flex:1;padding:.3rem;font-size:.6rem;background:${(G.formation[id]||'front')==='front'?'rgba(204,68,68,.15)':'transparent'};border:1px solid ${(G.formation[id]||'front')==='front'?'rgba(204,68,68,.5)':'var(--brd)'};border-radius:3px;color:${(G.formation[id]||'front')==='front'?'#cc6666':'var(--sild)'};cursor:pointer;font-family:'Noto Serif TC',serif;">⚔ 前排（攻擊+・受傷+）</button><button onclick="setFormation('${id}','back')" style="flex:1;padding:.3rem;font-size:.6rem;background:${G.formation[id]==='back'?'rgba(100,130,200,.15)':'transparent'};border:1px solid ${G.formation[id]==='back'?'rgba(100,130,200,.5)':'var(--brd)'};border-radius:3px;color:${G.formation[id]==='back'?'#88aacc':'var(--sild)'};cursor:pointer;font-family:'Noto Serif TC',serif;">🛡 後排（傷害-・受傷-）</button>`:`<span style="font-size:.6rem;color:var(--sild);">橘子不參與戰鬥陣型</span>`}</div></div><div class="msec"><div class="msect">裝備</div>${Object.entries(c.eq).map(([k,v])=>`<div class="tr2"><span class="ts">${k}</span><span class="ti">${escHtml(v)}</span></div>`).join('')}</div>${id==='orange'?`<div class="msec"><div class="msect" style="color:rgba(180,140,220,.8);">⚓ 秘密・命運之錨</div>${getOrangeSecretHtml()}</div>`:''}</div>`;
   document.getElementById('detail-modal').classList.add('open');
 }
 function openStar(type,num){
@@ -7024,7 +7032,7 @@ function startCombat(enemyIds,isBoss){
   if(!enemies.length)return;
   const party=allParty().filter(m=>m.id!=='orange').map(m=>{
     const es=getEffectiveStats(m.id);const hp=getHP(m.id);
-    return{id:m.id,name:m.name,emoji:m.emoji||'😒',hp:hp.cur,maxHp:hp.max,stats:es,buffs:[],defended:false,isPlayer:true};
+    return{id:m.id,name:m.name,emoji:m.emoji||'😒',hp:hp.cur,maxHp:hp.max,formation:G.formation[m.id]||'front',stats:es,buffs:[],defended:false,isPlayer:true};
   });
   if(!party.length)return;
   _combat={enemies,party,round:1,turnIdx:0,turnOrder:[],phase:'start',log:[],totalExp:enemies.reduce((a,e)=>a+e.exp,0),totalGold:enemies.reduce((a,e)=>({g:(a.g||0)+(e.gold.g||0),s:(a.s||0)+(e.gold.s||0),c:(a.c||0)+(e.gold.c||0)}),{g:0,s:0,c:0}),allDrops:enemies.flatMap(e=>e.drops),isBoss:enemies.some(e=>e.boss)};
@@ -7070,6 +7078,8 @@ function combatAttack(targetId){
   if(fumble){addCombatLog(`${attacker.name} 🎲${roll} 大失敗！攻擊落空！`);}
   else if(hitTotal<8+Math.floor(target.lv||1)){addCombatLog(`${attacker.name} 🎲${roll}+${hitMod}=${hitTotal} 未命中 ${target.name}！`);}
   else{let dmg=Math.max(1,Math.floor(atkStat/3)+Math.floor(Math.random()*6)+1+atkBonus-defStat);
+    if(attacker.formation==='front')dmg=Math.floor(dmg*1.2); // Front row +20% damage
+    if(attacker.formation==='back')dmg=Math.floor(dmg*0.8); // Back row -20% damage
     if(target.defended)dmg=Math.floor(dmg*0.5);const defBonus=target.buffs.reduce((a,b)=>a+(STATUS_EFFECTS[b.id]?.defBonus||0),0);dmg=Math.max(1,dmg-defBonus);if(crit)dmg=dmg*2;
     target.hp=Math.max(0,target.hp-dmg);addCombatLog(`${attacker.name} 🎲${roll}${crit?' 暴擊！':''} → ${target.name} 受到 ${dmg} 傷害${target.hp<=0?' 💀 擊敗！':` (HP:${target.hp}/${target.maxHp})`}`);}
   endPlayerTurn();
@@ -7128,10 +7138,13 @@ function executeEnemyTurn(){
   processTurnStart(enemy);
   if(enemy.hp<=0){addCombatLog(`${enemy.name} 被狀態效果擊敗！💀`);if(_combat.enemies.every(e=>e.hp<=0)){endCombat('victory');return;}_combat.turnIdx++;advanceTurn();renderCombat();return;}
   const alive=_combat.party.filter(p=>p.hp>0);if(!alive.length){endCombat('defeat');return;}
-  const target=alive.reduce((a,b)=>a.hp<b.hp?a:b);
+  const frontRow=alive.filter(p=>p.formation!=='back');
+  const target=frontRow.length?frontRow.reduce((a,b)=>a.hp<b.hp?a:b):alive.reduce((a,b)=>a.hp<b.hp?a:b);
   const atkStat=enemy.stats.武力||10;const defStat=Math.floor((target.stats.統率||10)/3);const roll=Math.floor(Math.random()*20)+1;const crit=roll===20;
   if(roll===1){addCombatLog(`${enemy.icon} ${enemy.name} 🎲1 攻擊落空！`);}
-  else{let dmg=Math.max(1,Math.floor(atkStat/3)+Math.floor(Math.random()*4)+1-defStat);if(target.defended)dmg=Math.floor(dmg*0.5);const defBonus=target.buffs.reduce((a,b)=>a+(STATUS_EFFECTS[b.id]?.defBonus||0),0);dmg=Math.max(1,dmg-defBonus);if(crit)dmg=dmg*2;target.hp=Math.max(0,target.hp-dmg);addCombatLog(`${enemy.icon} ${enemy.name} → ${target.name} ${crit?'暴擊！':''}${dmg} 傷害${target.hp<=0?' 💀':` (HP:${target.hp}/${target.maxHp})`}`);
+  else{let dmg=Math.max(1,Math.floor(atkStat/3)+Math.floor(Math.random()*4)+1-defStat);if(target.defended)dmg=Math.floor(dmg*0.5);
+    if(target.formation==='back')dmg=Math.floor(dmg*0.7); // Back row takes 30% less
+    const defBonus=target.buffs.reduce((a,b)=>a+(STATUS_EFFECTS[b.id]?.defBonus||0),0);dmg=Math.max(1,dmg-defBonus);if(crit)dmg=dmg*2;target.hp=Math.max(0,target.hp-dmg);addCombatLog(`${enemy.icon} ${enemy.name} → ${target.name} ${crit?'暴擊！':''}${dmg} 傷害${target.hp<=0?' 💀':` (HP:${target.hp}/${target.maxHp})`}`);
     // Status effect chance based on enemy type
     const tmpl=ENEMY_DB[enemy.templateId];
     if(tmpl&&target.hp>0){
