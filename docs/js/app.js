@@ -1,5 +1,5 @@
-// ═══ 命運之星 v5.0 ═══
-const VERSION='5.0';
+// ═══ 命運之星 v6.0 ═══
+const VERSION='6.0';
 // ═══ CONFIG ═══
 const CFG={
   get key(){return localStorage.getItem('fate_key')||'';},
@@ -1912,6 +1912,9 @@ function openShop(shop){
   _shopTab='buy';
   switchShopTab('buy');
   document.getElementById('shop-modal').classList.add('open');
+  const _greetings={'雜貨':'歡迎光臨！','武器':'好武器配好手。','鐵匠':'鍛造是藝術。','藥':'藥到病除。','旅店':'歡迎投宿。','漁':'今日鮮魚！','市集':'貨通天下。','商街':'月橋商街歡迎您。','補給':'荒野必備，應有盡有。','冰窖':'北方特產。'};
+  const _gk=Object.entries(_greetings).find(([k])=>(shop.name||'').includes(k));
+  if(_gk)showToast(_gk[1],'ok');
 }
 
 function renderShopBuy(){
@@ -6651,7 +6654,7 @@ function buildAchievements(){
 // ═══ INIT ═══
 function initLog(){
   return[
-    {sec:'序章・Day1',loc:'鐵霧城・城門前',lines:[{t:'txt',v:'旅人艾爾法與橘子抵達鐵霧城。終年不散的濃霧，空氣中帶著鐵鏽味。'},{t:'sys',v:'持有：銀幣8枚、銅幣135枚'}]},
+    {sec:'序章・Day1',loc:'鐵霧城・城門',lines:[{t:'txt',v:'失去記憶的旅人艾爾法與橘子抵達鐵霧城。付了五銅入城費。'},{t:'sys',v:'帝國曆1080年・深秋'}]},
   ];
 }
 
@@ -6701,6 +6704,8 @@ function initStory(){
     {t:'找個便宜的角落先休息',h:'安全但無聊'}
   ];
   renderChoices(initChoices);
+  // Auto-trigger starting quest
+  setTimeout(()=>checkQuestTriggers(),1000);
   saveGame();
 }
 
@@ -7481,6 +7486,11 @@ const EVENT_DB=[
   // ── 特殊探索 ──
   {id:'old_ruins',type:'explore',trigger:'explore',chance:0.06,desc:'偏離主道後，發現了一處被藤蔓覆蓋的古老廢墟。',area:['rust_city','dragon_valley','elder_grove']},
   {id:'hidden_spring',type:'explore',trigger:'explore',chance:0.07,desc:'在山間發現了一處隱藏的溫泉。泉水散發著微微的魔力光芒。',effect:{hp:30},area:['jade_forest','frost_keep','crown_peak']},
+  {id:'wandering_knight',type:'encounter',trigger:'travel',chance:0.06,desc:'一名身穿殘破鎧甲的騎士攔住去路：「旅人，與我切磋一劍如何？勝者可得此護符。」',choices:['接受挑戰','婉拒','詢問他的來歷'],area:['silver_moon','crown_peak','frost_keep']},
+  {id:'merchant_caravan',type:'encounter',trigger:'travel',chance:0.07,desc:'一支商隊在路邊休息。領隊向你招手：「朋友，要搭個便車嗎？順路的話不收錢。」',choices:['加入商隊','婉拒','打聽消息'],area:'all'},
+  {id:'ancient_tablet',type:'explore',trigger:'explore',chance:0.04,desc:'在廢墟的牆壁上發現了一塊刻有古老文字的石板。文字散發著微弱的光芒。',effect:{clue_hint:true},area:['rust_city','dragon_valley','elder_grove','frost_keep']},
+  {id:'cat_gathering',type:'story',trigger:'rest',chance:0.03,desc:'半夜醒來，發現橘子不在身邊。走出門一看——她正坐在屋頂上，和五六隻野貓圍成一圈。像是在開會。',area:'all'},
+  {id:'shooting_star',type:'story',trigger:'rest',chance:0.04,desc:'深夜，一顆流星劃過天際——不，不是流星。它停在了半空中，閃爍了三下，然後消失了。橘子的瞳孔驟然收縮。',effect:{clue_hint:true},area:'all'},
 ];
 
 // 城市資料（16座城市）
