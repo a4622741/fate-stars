@@ -67,7 +67,7 @@ function _doSave(){
       extraParty:G.extraParty,extraPcfg:G.extraPcfg,
       partyIds:G.partyIds,upgrade:G.upgrade,inv:getInv(),favor:G.favor,bellyFlipCount:G.bellyFlipCount||0,specialOv:G.specialOv||{},
       hp:G.hp,quests:G.quests,time:G.time,rep:G.rep,relics:G.relics,presetRelicOv:Object.fromEntries(Object.entries(PRESET_RELICS).map(([k,v])=>[k,{status:v.status,effect:v.effect,bonus:v.bonus,equippedTo:v.equippedTo}])),founderClues:G.founderClues,orangeStage:G.orangeStage||0,intel:G.intel||[],lastShop:G.lastShop||null,inShop:G.inShop||false,shopCatalogs:G.shopCatalogs||{},
-      guilds:G.guilds||{},baseWorkers:G.baseWorkers||{},_lastCollect:G._lastCollect||null,_cookBuff:G._cookBuff||null,crests:G.crests||null,starOv,saveVersion:G._saveVersion||3,savedAt:Date.now(),
+      guilds:G.guilds||{},baseWorkers:G.baseWorkers||{},_lastCollect:G._lastCollect||null,_cookBuff:G._cookBuff||null,crests:G.crests||null,starOv,saveVersion:G._saveVersion||3,_achievements:G._achievements||[],_battleCount:G._battleCount||0,_bossKills:G._bossKills||0,_craftCount:G._craftCount||0,_defeatCount:G._defeatCount||0,_visitedCities:G._visitedCities||[],savedAt:Date.now(),
     };
     localStorage.setItem(SAVE_KEY,JSON.stringify(data));
     showSaveIndicator();
@@ -116,6 +116,7 @@ function loadGame(){
     G.baseWorkers=data.baseWorkers||{};
     G._lastCollect=data._lastCollect||null;
     G._cookBuff=data._cookBuff||null;
+    G._achievements=data._achievements||[];G._battleCount=data._battleCount||0;G._bossKills=data._bossKills||0;G._craftCount=data._craftCount||0;G._defeatCount=data._defeatCount||0;G._visitedCities=data._visitedCities||[];
     G.crests=data.crests||null;
     // 恢復星辰狀態
     if(data.starOv){
@@ -1234,6 +1235,10 @@ const SYS=`你是文字RPG引擎。只輸出純JSON，從{開始到}結束，不
 cb：戰鬥判定。簡單戰鬥→{"stat":"武力","difficulty":12,"enemy":"敵人名","desc":"描述"}。遭遇戰鬥→{"enemies":["goblin","wolf"],"boss":false,"desc":"描述"}（使用ENEMY_DB的id：goblin/wolf/bandit/mist_thug/snake/spider/bat/skeleton/pirate/forest_sprite/ice_wolf/sand_worm/marsh_golem/dark_knight/dragon_spawn/mist_leader/imperial_shade/sea_serpent/ancient_dragon）。填cb時ch設[]。iv：道具變動add/remove/equip/purchase。info：情報[{id,title,content,src,rel,cat}]。job：職業變更[{id,job}]。
 cr：紋章事件。真紋章發現→{"id":"紋章id","found":true,"holder":"持有者名","src":"來源"}。一般紋章獲得→{"id":"紋章id","qty":數量}。真紋章id：genesis/blade/bulwark/hellfire/abyssal/tempest/thunder/terra/solar/lunar/stellar/eclipse/vitality/souleater/samsara/nihil/sovereign/chaos/order/judgment/illusion/chronos/gateway/sage/revolution/polaris/dawn。
 【UI互動】標記為【UI互動】的訊息僅為背景資訊，不要推進劇情。
+【戰鬥觸發】遭遇戰鬥時務必使用cb欄位。簡單遭遇用enemies陣列格式觸發回合制戰鬥：cb:{"enemies":["enemy_id","enemy_id"],"boss":false,"desc":"描述"}。可用敵人ID：goblin/wolf/bandit/mist_thug/snake/spider/bat/skeleton/pirate/forest_sprite/ice_wolf/sand_worm/marsh_golem/dark_knight/dragon_spawn。BOSS戰：mist_leader/imperial_shade/sea_serpent/ancient_dragon。
+【經驗與升級】戰鬥勝利後系統自動發放經驗值。不需在敘述中提及經驗數字。
+【紋章事件】發現真紋章時使用cr欄位。真紋章是重大劇情事件，不可隨意出現。
+【道具獲得】任何道具獲得、購買、拾取都必須填iv欄位，否則不會加入玩家道具欄。
 `;
 
 
@@ -2064,6 +2069,9 @@ function renderResp(d){
   autoPortraitFromDialogue(d);
   // 每次 AI 回應後強制同步所有面板
   checkQuestTriggers();
+  checkAchievements();
+  // Track visited cities
+  const _vc=detectCity();if(_vc&&!G._visitedCities)G._visitedCities=[];if(_vc&&!G._visitedCities.includes(_vc))G._visitedCities.push(_vc);
   renderAll();
   updateShopBtn();
   if(d.cb){
@@ -2092,6 +2100,66 @@ function checkQuestTriggers(){
       renderChanged('quest');saveGame();
     }
   });
+}
+function checkRandomEncounter(trigger){
+  const area=detectCity();
+  const applicable=EVENT_DB.filter(ev=>{
+    if(ev.trigger!==trigger)return false;
+    if(ev.area!=='all'&&!ev.area.includes(area))return false;
+    return Math.random()<ev.chance;
+  });
+  if(!applicable.length)return;
+  const ev=applicable[Math.floor(Math.random()*applicable.length)];
+
+  if(ev.type==='combat'&&ev.enemies){
+    appendEntryToDOM({type:'narr',v:ev.desc});
+    setTimeout(()=>startCombat(ev.enemies,false),800);
+  }else if(ev.type==='loot'){
+    appendEntryToDOM({type:'narr',v:ev.desc});
+    // Random loot from area-appropriate items
+    const lootPool=Object.entries(ITEM_DB).filter(([,d])=>d.cat==='消耗'&&d.price&&d.price.s<5);
+    if(lootPool.length){
+      const pick=lootPool[Math.floor(Math.random()*lootPool.length)];
+      const inv=getInv();
+      const exist=inv.items.find(i=>i.n===pick[0]);
+      if(exist){const m=exist.q.match(/(\d+)/);exist.q='×'+((m?parseInt(m[1]):1)+1);}
+      else inv.items.push({n:pick[0],t:pick[1].t||'',q:'×1'});
+      appendEntryToDOM({type:'sys',v:`📦 發現：${pick[1].icon||''} ${pick[0]}`});
+      showToast(`發現 ${pick[0]}！`,'ok');
+      renderChanged('inv');saveGame();
+    }
+  }else if(ev.type==='encounter'){
+    appendEntryToDOM({type:'narr',v:ev.desc});
+    if(ev.choices){
+      const arr=ev.choices.map(c=>({t:c,h:''}));
+      renderChoices(arr);
+    }
+  }else if(ev.type==='shop'){
+    appendEntryToDOM({type:'narr',v:ev.desc});
+    // Open mysterious merchant with random rare items
+    const rareItems=Object.entries(ITEM_DB).filter(([,d])=>d.price&&d.price.s>=10).slice(0,8).map(([n,d])=>({n,t:d.t,price:d.price,slot:d.slot,bonus:d.bonus}));
+    if(rareItems.length){
+      const shop={items:rareItems,name:'神秘商人',newItems:rareItems.map(i=>i.n)};
+      handleShop(shop);
+    }
+  }else if(ev.type==='weather'){
+    appendEntryToDOM({type:'narr',v:ev.desc});
+    if(ev.effect?.time)advanceTime(ev.effect.time);
+    if(ev.effect?.hp)applyHPChange([{id:'alfar',delta:ev.effect.hp,reason:ev.desc}]);
+  }else if(ev.type==='story'){
+    appendEntryToDOM({type:'narr',v:ev.desc});
+    if(ev.effect?.clue_hint){
+      appendEntryToDOM({type:'dial',sp:'橘子🐈😒',ln:'喵⋯⋯'});
+      appendEntryToDOM({type:'sys',v:'〔橘子感知：某種微弱的星辰氣息⋯⋯方向不明。〕'});
+    }
+  }else if(ev.type==='explore'){
+    appendEntryToDOM({type:'narr',v:ev.desc});
+    if(ev.effect?.hp){
+      applyHPChange(allParty().map(c=>({id:c.id,delta:ev.effect.hp,reason:'探索發現'})));
+      appendEntryToDOM({type:'sys',v:`✦ 全隊 HP +${ev.effect.hp}`});
+    }
+  }
+  scrollD();saveGame();
 }
 function renderAll(){
   updateGold();
@@ -2633,6 +2701,7 @@ function cookRecipe(recipeId){
   }
   if(!r.result)appendEntryToDOM({type:'sys',v:`${r.icon} 料理完成：${r.name} — ${r.desc}`});
   showToast(`${r.name} 完成！`,'ok');
+  G._craftCount=(G._craftCount||0)+1;
   renderChanged('party','inv');saveGame();
 }
 let _craftTab='cook';
@@ -2876,7 +2945,7 @@ function buildActivities(){
       <div style="font-size:.48rem;color:var(--sild);">${workers} 名工人運作中</div></div>
       <button onclick="collectProduction()" style="width:calc(100% - 1rem);margin:0 .5rem .5rem;padding:.45rem;background:var(--bg3);border:1px solid var(--brd);border-radius:3px;color:var(--goldl);font-size:.62rem;cursor:pointer;font-family:'Noto Serif TC',serif;">收穫生產物資</button>`;
   }
-  return h;
+  return h+buildAchievements();
 }
 
 // ═══ JOB / CLASS SYSTEM（職業系統）═══
@@ -3292,6 +3361,8 @@ function restAllHP(){
   advanceTime(8);
   renderChanged('party');
   scrollD();
+  // Random event during rest
+  setTimeout(()=>checkRandomEncounter('rest'),500);
 }
 
 // ═══ TIME & WEATHER SYSTEM ═══
@@ -6093,6 +6164,57 @@ function showToast(msg,type='ok'){const t=document.getElementById('toast');t.tex
   if(ss&&btn)ss.addEventListener('scroll',()=>btn.classList.toggle('visible',ss.scrollTop>300));
 })();
 
+// ═══ ACHIEVEMENT SYSTEM ═══
+const ACHIEVEMENTS=[
+  {id:'first_battle',title:'初戰',desc:'完成第一場戰鬥',icon:'⚔️',check:()=>G._battleCount>=1},
+  {id:'first_quest',title:'冒險的起點',desc:'完成第一個任務',icon:'📋',check:()=>G.quests.some(q=>q.status==='完成')},
+  {id:'first_star',title:'星辰初會',desc:'招募第一位108星辰',icon:'✦',check:()=>[...TIANGANG,...DISHAT].filter(s=>s.status==='recruited').length>=2},
+  {id:'five_stars',title:'聚星之路',desc:'招募5位星辰之人',icon:'🌟',check:()=>[...TIANGANG,...DISHAT].filter(s=>s.status==='recruited').length>=6},
+  {id:'ten_stars',title:'北斗之下',desc:'招募10位星辰之人・解鎖據點',icon:'🏛️',check:()=>[...TIANGANG,...DISHAT].filter(s=>s.status==='recruited').length>=11},
+  {id:'level_5',title:'初露鋒芒',desc:'任一角色達到 Lv.5',icon:'📈',check:()=>Object.values(G.upgrade).some(u=>u.lv>=5)},
+  {id:'level_10',title:'身經百戰',desc:'任一角色達到 Lv.10',icon:'📈',check:()=>Object.values(G.upgrade).some(u=>u.lv>=10)},
+  {id:'rich',title:'初見金幣',desc:'擁有1金幣以上',icon:'🪙',check:()=>G.gold.gold>=1},
+  {id:'mega_rich',title:'富甲一方',desc:'擁有10金幣以上',icon:'💰',check:()=>G.gold.gold>=10},
+  {id:'first_craft',title:'初次鍛造',desc:'成功製作第一件物品',icon:'⚒️',check:()=>G._craftCount>=1},
+  {id:'boss_slayer',title:'BOSS獵人',desc:'擊敗第一個BOSS',icon:'💀',check:()=>G._bossKills>=1},
+  {id:'explorer',title:'探索者',desc:'造訪3個不同城市',icon:'🗺️',check:()=>(G._visitedCities||[]).length>=3},
+  {id:'crest_found',title:'紋章發現者',desc:'發現第一枚真紋章',icon:'🔮',check:()=>G.crests&&Object.keys(G.crests.trueCrestStatus||{}).some(k=>G.crests.trueCrestStatus[k].found)},
+  {id:'orange_love',title:'貓奴',desc:'橘子好感度達到90',icon:'🐈',check:()=>(getFavor('orange')||50)>=90},
+  {id:'survivor',title:'死裡逃生',desc:'戰鬥敗北後存活',icon:'💪',check:()=>G._defeatCount>=1},
+  {id:'all_city',title:'大陸旅人',desc:'造訪全部16座城市',icon:'🌍',check:()=>(G._visitedCities||[]).length>=16},
+];
+
+function checkAchievements(){
+  if(!G._achievements)G._achievements=[];
+  let newCount=0;
+  ACHIEVEMENTS.forEach(a=>{
+    if(G._achievements.includes(a.id))return;
+    try{if(a.check()){
+      G._achievements.push(a.id);
+      appendEntryToDOM({type:'sys',v:`🏆 成就解鎖：【${a.icon} ${a.title}】${a.desc}`});
+      showToast(`🏆 ${a.title}`,'ok');
+      newCount++;
+    }}catch(_){}
+  });
+  if(newCount)saveGame();
+}
+
+function buildAchievements(){
+  if(!G._achievements)G._achievements=[];
+  const unlocked=G._achievements.length;
+  return`<div style="font-size:.62rem;color:var(--goldd);margin-bottom:.4rem;">🏆 成就（${unlocked}/${ACHIEVEMENTS.length}）</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:.3rem;">
+    ${ACHIEVEMENTS.map(a=>{
+      const done=G._achievements.includes(a.id);
+      return`<div style="padding:.35rem;background:${done?'rgba(201,168,76,.08)':'var(--bg3)'};border:1px solid ${done?'rgba(201,168,76,.3)':'var(--brd)'};border-radius:3px;opacity:${done?1:.5};">
+        <div style="font-size:.8rem;text-align:center;">${a.icon}</div>
+        <div style="font-size:.56rem;color:${done?'var(--gold)':'var(--sild)'};text-align:center;font-weight:${done?600:400};">${a.title}</div>
+        <div style="font-size:.48rem;color:var(--sild);text-align:center;">${done?a.desc:'???'}</div>
+      </div>`;
+    }).join('')}
+    </div>`;
+}
+
 // ═══ INIT ═══
 function initLog(){
   return[
@@ -6688,7 +6810,10 @@ function executeEnemyTurn(){
 function endCombat(result){
   if(!_combat)return;_combat.phase=result;
   if(result==='victory'){
-    addCombatLog('═══ 戰鬥勝利！ ═══');const gold=_combat.totalGold;
+    addCombatLog('═══ 戰鬥勝利！ ═══');
+    G._battleCount=(G._battleCount||0)+1;
+    if(_combat.isBoss)G._bossKills=(G._bossKills||0)+1;
+    const gold=_combat.totalGold;
     if(gold.g||gold.s||gold.c){applyGold(gold);addCombatLog(`💰 獲得 ${priceStr(gold)}`);}
     const exp=_combat.totalExp;if(exp){addCombatLog(`✦ 經驗值 +${exp}`);if(typeof grantExp==='function')grantExp(G.partyIds.filter(id=>id!=='orange'),exp);}
     const drops=[];_combat.allDrops.forEach(dropName=>{if(Math.random()<0.5){const inv=getInv();const exist=inv.items.find(i=>i.n===dropName);if(exist){const m=exist.q.match(/(\d+)/);exist.q='×'+((m?parseInt(m[1]):1)+1);}else{const db=ITEM_DB[dropName];inv.items.push({n:dropName,t:db?.t||'',q:'×1'});}drops.push(dropName);}});
@@ -6697,7 +6822,9 @@ function endCombat(result){
     renderCombat();saveGame();renderChanged('inv','party');
     setTimeout(()=>{closeCombatModal();const enemies=_combat?_combat.enemies.map(e=>e.name).join('、'):'';const summary=`【戰鬥結束・勝利】擊敗：${enemies}。獲得${priceStr(gold)}${exp?' 經驗+'+exp:''}${drops.length?' 掉落：'+drops.join('、'):''}。請繼續劇情。`;_combat=null;BGM.setMood('explore');sendChoice(summary);},2500);
   }else if(result==='defeat'){
-    addCombatLog('═══ 戰鬥失敗⋯⋯ ═══');_combat.party.forEach(p=>{if(G.hp[p.id])G.hp[p.id].cur=1;else G.hp[p.id]={cur:1,max:p.maxHp};});renderCombat();saveGame();
+    addCombatLog('═══ 戰鬥失敗⋯⋯ ═══');
+    G._defeatCount=(G._defeatCount||0)+1;
+    _combat.party.forEach(p=>{if(G.hp[p.id])G.hp[p.id].cur=1;else G.hp[p.id]={cur:1,max:p.maxHp};});renderCombat();saveGame();
     setTimeout(()=>{closeCombatModal();_combat=null;BGM.setMood('explore');sendChoice('【戰鬥結束・敗北】艾爾法倒下了，但被橘子拖回了安全的地方。HP殘存1。請描述失敗後的場景並繼續劇情。');},2500);
   }else if(result==='flee'){
     renderCombat();setTimeout(()=>{closeCombatModal();_combat=null;BGM.setMood('explore');sendChoice('【戰鬥結束・逃跑】艾爾法成功逃離了戰鬥。請繼續劇情。');},1500);
@@ -6725,14 +6852,42 @@ function closeCombatModal(){document.getElementById('combat-modal').classList.re
 
 // ═══ 隨機事件資料庫 ═══
 const EVENT_DB=[
-  {id:'merchant_ambush',type:'combat',trigger:'travel',chance:0.15,desc:'商隊遭遇山賊襲擊！',enemy:'bandit',area:['iron_fog','grey_haven']},
-  {id:'lost_traveler',type:'encounter',trigger:'travel',chance:0.1,desc:'路邊有一個迷路的旅人。',choices:['幫助他','無視','搶劫'],area:'all'},
-  {id:'hidden_chest',type:'loot',trigger:'explore',chance:0.08,desc:'在角落發現了一個被遺忘的寶箱。',area:'all'},
-  {id:'orange_sense',type:'story',trigger:'rest',chance:0.12,desc:'橘子忽然耳朵轉動，凝視某個方向。',effect:{clue_hint:true},area:'all'},
-  {id:'storm',type:'weather',trigger:'travel',chance:0.1,desc:'突如其來的暴風雨迫使你停下腳步。',effect:{time:3},area:['east_port','coral_bay']},
+  // ── 戰鬥遭遇 ──
+  {id:'goblin_ambush',type:'combat',trigger:'travel',chance:0.12,enemies:['goblin','goblin'],desc:'路邊的灌木叢中突然竄出哥布林！',area:['iron_fog','grey_haven','iron_crown']},
+  {id:'wolf_pack',type:'combat',trigger:'travel',chance:0.10,enemies:['wolf','wolf','wolf'],desc:'一群灰狼擋住了去路，牠們的眼中閃著飢餓的光。',area:['iron_fog','iron_crown','frost_keep']},
+  {id:'bandit_raid',type:'combat',trigger:'travel',chance:0.08,enemies:['bandit','bandit'],desc:'山賊從岩石後方跳出：「留下錢財，饒你一命！」',area:['iron_fog','grey_haven','sand_gate']},
+  {id:'skeleton_patrol',type:'combat',trigger:'travel',chance:0.07,enemies:['skeleton','skeleton'],desc:'一隊骸骨兵在廢墟中巡邏。它們轉向了你。',area:['rust_city']},
+  {id:'pirate_attack',type:'combat',trigger:'travel',chance:0.08,enemies:['pirate','pirate'],desc:'海盜從暗處衝出，彎刀上還帶著鏽跡。',area:['east_port','coral_bay','fog_sea_pass']},
+  {id:'spider_nest',type:'combat',trigger:'explore',chance:0.10,enemies:['spider','spider','spider'],desc:'你不小心踩破了巨蛛的巢穴！',area:['shadow_marsh','elder_grove']},
+  {id:'ice_wolves',type:'combat',trigger:'travel',chance:0.09,enemies:['ice_wolf','ice_wolf'],desc:'霜狼的嚎叫在冰原上迴盪。',area:['frost_keep']},
+  {id:'sand_worm_attack',type:'combat',trigger:'travel',chance:0.06,enemies:['sand_worm'],desc:'腳下的沙地突然震動——沙蟲！',area:['dragon_valley','sand_gate']},
+
+  // ── 寶箱/掉落 ──
+  {id:'hidden_chest',type:'loot',trigger:'explore',chance:0.10,desc:'在角落發現了一個被遺忘的寶箱。',area:'all'},
+  {id:'old_camp',type:'loot',trigger:'travel',chance:0.08,desc:'路邊有一個廢棄的營地，似乎還有些留下的物資。',area:'all'},
+  {id:'fallen_merchant',type:'loot',trigger:'travel',chance:0.06,desc:'路邊倒著一輛翻覆的商車，貨物散落一地。',area:['iron_fog','silver_moon','golden_bridge']},
+
+  // ── NPC遭遇 ──
+  {id:'lost_traveler',type:'encounter',trigger:'travel',chance:0.08,desc:'路邊有一個迷路的旅人，看起來精疲力竭。',choices:['幫助指路','分享食物','無視走過'],area:'all'},
+  {id:'mysterious_merchant',type:'shop',trigger:'travel',chance:0.05,desc:'一個蒙面商人擋住去路：「想看看我的貨物嗎？保證你沒見過。」',area:'all'},
+  {id:'fortune_teller',type:'encounter',trigger:'rest',chance:0.07,desc:'一位老占卜師在路邊擺攤：「讓我看看你的命運吧。」',area:['silver_moon','east_port','sand_gate']},
+  {id:'wounded_soldier',type:'encounter',trigger:'travel',chance:0.06,desc:'一名受傷的士兵靠在路邊的大石上，傷口還在流血。',choices:['治療他','詢問發生什麼事','離開'],area:['rust_city','frost_keep','iron_crown']},
+  {id:'stray_cat',type:'encounter',trigger:'explore',chance:0.08,desc:'一隻流浪貓從暗巷中走出。橘子的耳朵動了動。',area:'all'},
+
+  // ── 橘子/星辰感知 ──
+  {id:'orange_sense',type:'story',trigger:'rest',chance:0.10,desc:'橘子忽然耳朵轉動，凝視某個方向。她感知到了什麼。',effect:{clue_hint:true},area:'all'},
   {id:'star_vision',type:'story',trigger:'rest',chance:0.05,desc:'夜空中，某顆星辰閃爍得格外明亮。橘子望著天空，久久不語。',effect:{clue_hint:true},area:'all'},
-  {id:'mysterious_merchant',type:'shop',trigger:'travel',chance:0.06,desc:'路邊出現了一個神秘的蒙面商人。他的貨物⋯⋯不太尋常。',area:'all'},
-  {id:'old_ruins',type:'explore',trigger:'travel',chance:0.08,desc:'偏離主道後，發現了一處被藤蔓覆蓋的古老廢墟。',area:['rust_city','dragon_valley','elder_grove']},
+  {id:'dream_fragment',type:'story',trigger:'rest',chance:0.04,desc:'艾爾法做了一個奇怪的夢。夢中有一個聲音在呼喚——但醒來後什麼都記不清了。',effect:{clue_hint:true},area:'all'},
+
+  // ── 天氣/環境 ──
+  {id:'storm',type:'weather',trigger:'travel',chance:0.08,desc:'突如其來的暴風雨迫使你停下腳步。',effect:{time:2},area:['east_port','coral_bay','fog_sea_pass']},
+  {id:'thick_fog',type:'weather',trigger:'travel',chance:0.10,desc:'濃霧突然降下，幾乎看不見前方的路。',effect:{time:1},area:['iron_fog','grey_haven','shadow_marsh']},
+  {id:'blizzard',type:'weather',trigger:'travel',chance:0.08,desc:'暴風雪席捲而來，必須找地方躲避。',effect:{time:3,hp:-10},area:['frost_keep']},
+  {id:'earthquake',type:'weather',trigger:'explore',chance:0.03,desc:'腳下突然劇烈搖晃——地震！',effect:{time:1},area:['dragon_valley','rust_city']},
+
+  // ── 特殊探索 ──
+  {id:'old_ruins',type:'explore',trigger:'explore',chance:0.06,desc:'偏離主道後，發現了一處被藤蔓覆蓋的古老廢墟。',area:['rust_city','dragon_valley','elder_grove']},
+  {id:'hidden_spring',type:'explore',trigger:'explore',chance:0.07,desc:'在山間發現了一處隱藏的溫泉。泉水散發著微微的魔力光芒。',effect:{hp:30},area:['jade_forest','frost_keep','crown_peak']},
 ];
 
 // 城市資料（16座城市）
