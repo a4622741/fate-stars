@@ -880,8 +880,9 @@ async function sendChoice(txt){
   }
   G.thinking=true;setDis(true);
   const prevChoices=G.currentChoices?.slice()||[];
-  const actionEl=addAction(txt);
-  makeActionEditable(actionEl,txt);
+  let actionEl=null;
+  if(G._skipActionDisplay){G._skipActionDisplay=false;}
+  else{actionEl=addAction(txt);makeActionEditable(actionEl,txt);}
   const th=addThink();
   try{
     const d=await callAPI(txt);
@@ -1701,7 +1702,44 @@ function sendFree(){
     if(db)db.style.display='';
     openDiceModal();return;
   }
-  sendChoice('【玩家自由行動】'+v);
+  // 解析對話格式：「角色名：內容」或「角色名：內容」
+  const lines=v.split(/\n/).filter(l=>l.trim());
+  const parsed=[];
+  let hasDialogue=false;
+  lines.forEach(line=>{
+    const m=line.match(/^(.{1,10})[：:](.+)/);
+    if(m){
+      parsed.push({speaker:m[1].trim(),content:m[2].trim()});
+      hasDialogue=true;
+    }else{
+      parsed.push({speaker:null,content:line.trim()});
+    }
+  });
+  // 顯示在故事區
+  parsed.forEach(p=>{
+    if(p.speaker){
+      appendEntryToDOM({type:'dial',sp:p.speaker+(p.speaker==='橘子'?'🐈😒':p.speaker==='艾爾法'?'😒':''),ln:p.content});
+    }else{
+      // 沒有冒號 = 艾爾法的對話或行動
+      if(/^[「『（]/.test(p.content)||/^「/.test(p.content)){
+        appendEntryToDOM({type:'dial',sp:'艾爾法😒',ln:p.content.replace(/^[「『]|[」』]$/g,'')});
+      }else{
+        appendEntryToDOM({type:'action',v:p.content});
+      }
+    }
+  });
+  scrollD();
+  // 組成送給 AI 的指令
+  let prompt;
+  if(hasDialogue){
+    prompt=parsed.map(p=>p.speaker?`${p.speaker}說：「${p.content}」`:p.content).join('\n');
+  }else if(/^[「『（]/.test(v)||/[」』）]$/.test(v)){
+    prompt=`艾爾法說：「${v.replace(/^[「『]|[」』]$/g,'')}」`;
+  }else{
+    prompt=`艾爾法的行動：${v}`;
+  }
+  G._skipActionDisplay=true;
+  sendChoice(prompt);
 }
 function setDis(b){document.querySelectorAll('.ch-btn').forEach(btn=>btn.disabled=b);}
 
