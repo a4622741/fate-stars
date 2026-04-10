@@ -90,6 +90,8 @@ function loadGame(){
     G.extraPcfg=data.extraPcfg||{};
     G.partyIds=data.partyIds||['alfar','orange'];_partyCache=null;_invalidateCharCache();
     G.upgrade=data.upgrade||{};
+    // Migrate: ensure exp fields exist
+    Object.keys(G.upgrade).forEach(id=>{const u=G.upgrade[id];if(!u.exp)u.exp=0;if(!u.expNext)u.expNext=(u.lv||1)*50+50;});
     G.inv=data.inv||getInv();
     G.favor=data.favor||{};
     G.bellyFlipCount=data.bellyFlipCount||0;
@@ -1229,7 +1231,7 @@ const SYS=`你是文字RPG引擎。只輸出純JSON，從{開始到}結束，不
 純文字描述不會改變遊戲數值！只有JSON欄位才能。
 
 【其他欄位】
-cb：戰鬥骰子判定（填cb時ch設[]）。iv：道具變動add/remove/equip/purchase。info：情報[{id,title,content,src,rel,cat}]。job：職業變更[{id,job}]。
+cb：戰鬥判定。簡單戰鬥→{"stat":"武力","difficulty":12,"enemy":"敵人名","desc":"描述"}。遭遇戰鬥→{"enemies":["goblin","wolf"],"boss":false,"desc":"描述"}（使用ENEMY_DB的id：goblin/wolf/bandit/mist_thug/snake/spider/bat/skeleton/pirate/forest_sprite/ice_wolf/sand_worm/marsh_golem/dark_knight/dragon_spawn/mist_leader/imperial_shade/sea_serpent/ancient_dragon）。填cb時ch設[]。iv：道具變動add/remove/equip/purchase。info：情報[{id,title,content,src,rel,cat}]。job：職業變更[{id,job}]。
 cr：紋章事件。真紋章發現→{"id":"紋章id","found":true,"holder":"持有者名","src":"來源"}。一般紋章獲得→{"id":"紋章id","qty":數量}。真紋章id：genesis/blade/bulwark/hellfire/abyssal/tempest/thunder/terra/solar/lunar/stellar/eclipse/vitality/souleater/samsara/nihil/sovereign/chaos/order/judgment/illusion/chronos/gateway/sage/revolution/polaris/dawn。
 【UI互動】標記為【UI互動】的訊息僅為背景資訊，不要推進劇情。
 `;
@@ -2061,6 +2063,7 @@ function renderResp(d){
   // 掃描對話中的新角色，自動生成頭像
   autoPortraitFromDialogue(d);
   // 每次 AI 回應後強制同步所有面板
+  checkQuestTriggers();
   renderAll();
   updateShopBtn();
   if(d.cb){
@@ -2070,6 +2073,25 @@ function renderResp(d){
     if(d.ch?.length)renderChoices(d.ch);
     saveGame();
   }
+}
+// Check and auto-trigger quests based on location
+function checkQuestTriggers(){
+  const area=detectCity();
+  Object.entries(QUEST_DB).forEach(([qid,q])=>{
+    // Skip if already in quest list
+    if(G.quests.find(gq=>gq.id===qid))return;
+    // Check area match
+    if(q.triggerArea!=='all'&&q.triggerArea!==area)return;
+    // Check prerequisite
+    if(q.prereq&&!G.quests.find(gq=>gq.id===q.prereq&&gq.status==='完成'))return;
+    // Auto-trigger
+    if(q.autoTrigger||q.type==='主線'){
+      G.quests.push({id:qid,title:q.title,desc:q.desc,type:q.type,status:'進行中',objectives:q.objectives.map(o=>({text:o,done:false}))});
+      appendEntryToDOM({type:'sys',v:`📋 新任務：【${q.title}】${q.type}`});
+      showToast(`新任務：${q.title}`,'ok');
+      renderChanged('quest');saveGame();
+    }
+  });
 }
 function renderAll(){
   updateGold();
@@ -2495,51 +2517,143 @@ function trainChar(id,ev){
   renderChanged('party');saveGame();
   showToast(`${c.name} 獲得 3 點提升（消耗5銀）`,'ok');
 }
+// ═══ EXPERIENCE / LEVEL SYSTEM ═══
+function grantExp(partyIds,amount){
+  if(!amount||amount<=0)return;
+  partyIds.forEach(id=>{
+    if(id==='orange')return; // 橘子不升級
+    const ug=getUpgrade(id);
+    if(!ug.exp)ug.exp=0;
+    if(!ug.expNext)ug.expNext=(ug.lv||1)*50+50;
+    ug.exp+=amount;
+    // Level up loop
+    let leveled=false;
+    while(ug.exp>=ug.expNext){
+      ug.exp-=ug.expNext;
+      ug.lv=(ug.lv||1)+1;
+      ug.pts=(ug.pts||0)+3;
+      ug.expNext=ug.lv*50+50;
+      leveled=true;
+      // HP increase on level up
+      const hp=getHP(id);
+      hp.max+=5;hp.cur=hp.max;
+      G.hp[id]=hp;
+      appendEntryToDOM({type:'sys',v:`✦ ${getCharData(id)?.name||id} レベルアップ！Lv.${ug.lv}（素質點數+3・HP上限+5）`});
+      showToast(`${getCharData(id)?.name||id} Lv.${ug.lv}！`,'ok');
+    }
+    G.upgrade[id]=ug;
+  });
+  if(amount)renderChanged('party');
+  saveGame();
+}
 // ═══ COOKING SYSTEM（料理系統）═══ 本地化，不呼叫AI
 const RECIPES=[
-  {id:'bread_soup',name:'麵包湯',icon:'🍞',ingredients:['乾糧','乾糧'],effect:{hp:15},desc:'簡單但暖胃。全隊HP+15。',diff:1},
-  {id:'grilled_fish',name:'烤魚定食',icon:'🐟',ingredients:['鮮魚','火種'],effect:{hp:25,favor:3},desc:'橘子的最愛。全隊HP+25，橘子好感+3。',diff:1},
-  {id:'herb_tea',name:'草藥茶',icon:'🍵',ingredients:['草藥','火種'],effect:{hp:10,cure:true},desc:'清除異常狀態。',diff:1},
-  {id:'meat_stew',name:'獵人燉肉',icon:'🍖',ingredients:['獸肉','草藥','火種'],effect:{hp:40,atk:3},desc:'全隊HP+40，下次戰鬥武力+3。',diff:2},
-  {id:'star_cake',name:'星辰糕',icon:'✦',ingredients:['星辰花','蜂蜜','乾糧'],effect:{hp:30,favor:8},desc:'傳說中的點心。全隊HP+30，全員好感+8。',diff:3},
-  {id:'iron_ration',name:'鐵壁口糧',icon:'🛡️',ingredients:['乾糧','獸肉','鹽'],effect:{hp:20,def:5},desc:'全隊HP+20，下次戰鬥防禦+5。',diff:2},
-  {id:'poison_cure',name:'解毒劑',icon:'💊',ingredients:['草藥','草藥'],effect:{cure:true,hp:5},desc:'解除毒素。HP+5。',diff:1},
-  {id:'feast',name:'滿漢全席',icon:'🎉',ingredients:['鮮魚','獸肉','草藥','蜂蜜'],effect:{hp:60,favor:5,atk:2,def:2},desc:'奢華大餐！全面提升。',diff:3},
+  // ── 料理 ──
+  {id:'bread_soup',cat:'cook',name:'麵包湯',icon:'🍲',ingredients:[{n:'乾糧',q:1},{n:'草藥包',q:1}],effect:{hp:30},desc:'簡單但溫暖的料理・全隊HP+30',diff:1},
+  {id:'grilled_fish',cat:'cook',name:'烤魚定食',icon:'🐟',ingredients:[{n:'魚乾',q:2},{n:'火種',q:1}],effect:{hp:25,favor:{orange:5}},desc:'橘子最愛・HP+25・橘子好感+5',diff:1},
+  {id:'herb_tea',cat:'cook',name:'草藥茶',icon:'🍵',ingredients:[{n:'草藥包',q:2}],effect:{cure:'poison'},desc:'解毒效果',diff:1},
+  {id:'hunter_stew',cat:'cook',name:'獵人燉肉',icon:'🥘',ingredients:[{n:'獸肉',q:2},{n:'草藥包',q:1}],effect:{hp:50,buff:'rage'},desc:'全隊HP+50・暫時攻擊提升',diff:2},
+  {id:'star_cake',cat:'cook',name:'星辰糕',icon:'🌟',ingredients:[{n:'精靈果實',q:1},{n:'月光蘑菇',q:1}],effect:{hp:80,allStats:3},desc:'全隊HP+80・全素質暫時+3',diff:3},
+  {id:'iron_ration',cat:'cook',name:'鐵壁口糧',icon:'🫓',ingredients:[{n:'乾糧',q:2},{n:'獸肉',q:1}],effect:{hp:20,buff:'shield'},desc:'HP+20・暫時防禦提升',diff:1},
+  {id:'feast',cat:'cook',name:'滿漢全席',icon:'🎉',ingredients:[{n:'獸肉',q:3},{n:'東方香料',q:1},{n:'精靈果實',q:1}],effect:{hp:100,allStats:5},desc:'極致料理・全隊HP+100・全素質+5',diff:4},
+  {id:'fog_steak',cat:'cook',name:'鐵霧烤肉',icon:'🥩',ingredients:[{n:'獸肉',q:1},{n:'火種',q:1},{n:'海鹽',q:1}],effect:{hp:35},desc:'鐵霧城風味・HP+35',diff:1},
+  {id:'moon_dessert',cat:'cook',name:'銀月甜點',icon:'🍮',ingredients:[{n:'精靈果實',q:1},{n:'乾糧',q:1}],effect:{hp:40,favor:{orange:3}},desc:'銀月城名物・HP+40',diff:2},
+  {id:'sea_soup',cat:'cook',name:'東港海鮮湯',icon:'🦐',ingredients:[{n:'魚乾',q:2},{n:'海鹽',q:1},{n:'東方香料',q:1}],effect:{hp:45},desc:'東海風味・HP+45',diff:2},
+  {id:'dragon_jerky',cat:'cook',name:'龍肉乾',icon:'🍖',ingredients:[{n:'獸肉',q:3},{n:'防熱藥',q:1}],effect:{hp:60,buff:'rage'},desc:'南荒特產・HP+60・攻擊提升',diff:3},
+  {id:'frost_soup',cat:'cook',name:'霜嶺熱湯',icon:'🍜',ingredients:[{n:'獸肉',q:1},{n:'草藥包',q:1},{n:'暖爐石',q:1}],effect:{hp:40,cure:'freeze'},desc:'禦寒・HP+40・解除冰凍',diff:2},
+
+  // ── 鍛造 ──
+  {id:'iron_sword',cat:'smith',name:'鐵劍',icon:'⚔️',ingredients:[{n:'鐵錠',q:3},{n:'木材',q:1}],result:'長劍',desc:'鍛造標準鐵劍',diff:2},
+  {id:'steel_sword',cat:'smith',name:'精鋼劍',icon:'⚔️',ingredients:[{n:'鋼錠',q:3},{n:'精靈木',q:1}],result:'精鋼劍',desc:'高品質劍刃',diff:3},
+  {id:'dragon_blade',cat:'smith',name:'龍牙劍',icon:'⚔️',ingredients:[{n:'龍牙',q:2},{n:'鋼錠',q:2},{n:'龍血草',q:1}],result:'龍牙劍',desc:'以龍牙鍛造的魔劍',diff:4},
+  {id:'iron_armor',cat:'smith',name:'鐵甲',icon:'🛡️',ingredients:[{n:'鐵錠',q:5},{n:'皮革',q:2}],result:'鐵胸甲',desc:'標準鐵製護甲',diff:2},
+  {id:'dragon_armor',cat:'smith',name:'龍鱗甲',icon:'🛡️',ingredients:[{n:'龍鱗',q:3},{n:'鋼錠',q:3},{n:'精靈絲',q:1}],result:'龍鱗甲',desc:'傳說級防具',diff:5},
+  {id:'ring_silver',cat:'smith',name:'銀指環',icon:'💍',ingredients:[{n:'銀礦',q:2}],result:'銀指環',desc:'簡單的銀飾',diff:1},
+  {id:'star_ring',cat:'smith',name:'星辰戒',icon:'💍',ingredients:[{n:'星辰石',q:1},{n:'秘銀錠',q:1},{n:'星辰碎片',q:1}],result:'星辰戒',desc:'蘊含星辰之力的戒指',diff:5},
+  {id:'enhance_stone',cat:'smith',name:'強化石',icon:'🪨',ingredients:[{n:'鐵礦',q:2},{n:'琥珀',q:1}],result:'強化石',desc:'裝備強化用素材',diff:1},
+
+  // ── 煉金 ──
+  {id:'antidote',cat:'alchemy',name:'解毒劑',icon:'💊',ingredients:[{n:'草藥包',q:2},{n:'蛇毒囊',q:1}],result:'解毒劑',desc:'萃取毒素製成的解藥',diff:1},
+  {id:'heal_pot',cat:'alchemy',name:'恢復藥劑',icon:'🧪',ingredients:[{n:'草藥包',q:3}],result:'恢復藥劑',desc:'煉金術基礎藥劑',diff:2},
+  {id:'moon_elixir',cat:'alchemy',name:'月光精華',icon:'🌙',ingredients:[{n:'月光蘑菇',q:2},{n:'精靈花',q:1}],result:'月光精華',desc:'銀月城秘方',diff:3},
+  {id:'world_tree',cat:'alchemy',name:'世界樹樹液',icon:'🌳',ingredients:[{n:'世界樹果實',q:1},{n:'精靈花',q:2},{n:'月光蘑菇',q:1}],result:'世界樹樹液',desc:'萬能解藥',diff:4},
+  {id:'poison_blade',cat:'alchemy',name:'毒刃藥劑',icon:'☠️',ingredients:[{n:'蛇毒囊',q:2},{n:'蜘蛛絲',q:1}],result:'劇毒萃取',desc:'武器塗毒用',diff:2},
+  {id:'elixir_str',cat:'alchemy',name:'力量藥劑',icon:'💪',ingredients:[{n:'獸肉',q:2},{n:'草藥包',q:1},{n:'鐵礦',q:1}],result:'力量藥劑',desc:'暫時武力提升',diff:2},
+  {id:'elixir_int',cat:'alchemy',name:'知力藥劑',icon:'🧠',ingredients:[{n:'月光蘑菇',q:2},{n:'草藥包',q:1}],result:'知力藥劑',desc:'暫時知力提升',diff:2},
+  {id:'phoenix_tear',cat:'alchemy',name:'鳳凰之淚',icon:'🔥',ingredients:[{n:'龍血草',q:2},{n:'世界樹果實',q:1},{n:'鳳凰羽',q:1}],result:'鳳凰之淚',desc:'復活藥劑',diff:5},
 ];
-function getCookable(){
+function getCookable(cat){
   const inv=getInv();const items=inv.items;
   return RECIPES.filter(r=>{
-    const need={};r.ingredients.forEach(i=>{need[i]=(need[i]||0)+1;});
-    return Object.entries(need).every(([n,q])=>{const it=items.find(x=>x.n===n);const m=it?.q.match(/(\d+)/);return m&&parseInt(m[1])>=q;});
+    if(cat&&(r.cat||'cook')!==cat)return false;
+    return r.ingredients.every(ing=>{const it=items.find(x=>x.n===ing.n);const m=it?.q.match(/(\d+)/);return m&&parseInt(m[1])>=ing.q;});
   });
 }
 function cookRecipe(recipeId){
   const r=RECIPES.find(x=>x.id===recipeId);if(!r)return;
   const inv=getInv();
   // 消耗食材
-  const need={};r.ingredients.forEach(i=>{need[i]=(need[i]||0)+1;});
-  Object.entries(need).forEach(([n,q])=>{
-    const it=inv.items.find(x=>x.n===n);if(!it)return;
+  r.ingredients.forEach(ing=>{
+    const it=inv.items.find(x=>x.n===ing.n);if(!it)return;
     const m=it.q.match(/(\d+)/);const cur=m?parseInt(m[1]):1;
-    if(cur<=q)inv.items=inv.items.filter(x=>x!==it);
-    else it.q='×'+(cur-q);
+    if(cur<=ing.q)inv.items=inv.items.filter(x=>x!==it);
+    else it.q='×'+(cur-ing.q);
   });
   // 應用效果
-  if(r.effect.hp){const members=allParty();members.forEach(m=>{const hp=getHP(m.id);hp.cur=Math.min(hp.max,hp.cur+r.effect.hp);});}
-  if(r.effect.favor)allParty().forEach(m=>{if(getFavor(m.id)!==null)setFavor(m.id,r.effect.favor);});
-  if(r.effect.atk)G._cookBuff={atk:r.effect.atk,def:r.effect.def||0,turns:1};
-  if(r.effect.def&&!r.effect.atk)G._cookBuff={atk:0,def:r.effect.def,turns:1};
-  appendEntryToDOM({type:'sys',v:`${r.icon} 料理完成：${r.name} — ${r.desc}`});
+  if(r.effect){
+    if(r.effect.hp){const members=allParty();members.forEach(m=>{const hp=getHP(m.id);hp.cur=Math.min(hp.max,hp.cur+r.effect.hp);});}
+    if(r.effect.favor){
+      if(typeof r.effect.favor==='object'){
+        Object.entries(r.effect.favor).forEach(([id,val])=>{if(getFavor(id)!==null)setFavor(id,val);});
+      }else{
+        allParty().forEach(m=>{if(getFavor(m.id)!==null)setFavor(m.id,r.effect.favor);});
+      }
+    }
+    if(r.effect.buff==='rage')G._cookBuff={atk:3,def:0,turns:1};
+    if(r.effect.buff==='shield')G._cookBuff={atk:0,def:5,turns:1};
+    if(r.effect.atk)G._cookBuff={atk:r.effect.atk,def:r.effect.def||0,turns:1};
+    if(r.effect.def&&!r.effect.atk)G._cookBuff={atk:0,def:r.effect.def,turns:1};
+  }
+  // If recipe has a result item (smithing/alchemy), add to inventory
+  if(r.result){
+    const db=ITEM_DB[r.result];
+    if(db&&db.slot){
+      // Equipment result
+      const eq={n:r.result,t:db.t||'',w:null,status:'持有',slot:db.slot,bonus:db.bonus||null};
+      if(!eq.bonus&&db.bonus)eq.bonus=db.bonus;
+      inv.equip.push(eq);
+      appendEntryToDOM({type:'sys',v:`⚒️ 鍛造成功：${r.result}（已加入持有欄）`});
+    }else{
+      // Consumable/material result
+      const exist=inv.items.find(i=>i.n===r.result);
+      if(exist){const m=exist.q.match(/(\d+)/);exist.q='×'+((m?parseInt(m[1]):1)+1);}
+      else inv.items.push({n:r.result,t:db?.t||'',q:'×1'});
+      appendEntryToDOM({type:'sys',v:`⚗️ 煉成：${r.result}`});
+    }
+  }
+  if(!r.result)appendEntryToDOM({type:'sys',v:`${r.icon} 料理完成：${r.name} — ${r.desc}`});
   showToast(`${r.name} 完成！`,'ok');
   renderChanged('party','inv');saveGame();
 }
+let _craftTab='cook';
+function setCraftTab(t){_craftTab=t;renderBoth('activities');}
 function buildCookUI(){
-  const cookable=getCookable();
+  const filtered=RECIPES.filter(r=>(r.cat||'cook')===_craftTab);
+  const cookable=getCookable(_craftTab);
+  const tabLabels=[['cook','🍳 料理'],['smith','⚒️ 鍛造'],['alchemy','⚗️ 煉金']];
+  const tabRow=`<div style="display:flex;gap:2px;margin-bottom:.4rem;background:rgba(201,168,76,.12);border-radius:3px;overflow:hidden;">
+  ${tabLabels.map(([k,l])=>
+    `<button onclick="setCraftTab('${k}')" style="flex:1;padding:.25rem;font-size:.55rem;background:${_craftTab===k?'rgba(201,168,76,.18)':'transparent'};border:none;color:${_craftTab===k?'var(--goldl)':'var(--sild)'};cursor:pointer;font-family:'Noto Serif TC',serif;">${l}</button>`
+  ).join('')}
+</div>`;
+  const catNames={cook:'料理',smith:'鍛造',alchemy:'煉金'};
+  const catDescs={cook:'消耗食材製作料理，效果立即生效。',smith:'以素材鍛造裝備與道具。',alchemy:'煉金合成藥劑與特殊物品。'};
   let h=`<div style="padding:.4rem .5rem .2rem;border-bottom:1px solid var(--brd);margin-bottom:.4rem;">
-    <div style="font-size:.62rem;color:var(--goldd);letter-spacing:.1em;font-weight:600;">🍳 料理</div>
-    <div style="font-size:.48rem;color:var(--sild);margin-top:.1rem;">消耗食材製作料理，效果立即生效。</div></div>`;
-  if(!cookable.length)h+='<div style="color:var(--sild);font-size:.55rem;text-align:center;padding:1.5rem;">目前沒有足夠食材的料理配方。</div>';
+    ${tabRow}
+    <div style="font-size:.48rem;color:var(--sild);margin-top:.1rem;">${catDescs[_craftTab]}</div></div>`;
+  if(!cookable.length)h+=`<div style="color:var(--sild);font-size:.55rem;text-align:center;padding:1.5rem;">目前沒有足夠素材的${catNames[_craftTab]}配方。</div>`;
   cookable.forEach(r=>{
+    const ingStr=r.ingredients.map(i=>`${i.n}×${i.q}`).join('＋');
     h+=`<div style="background:var(--bg3);border:1px solid var(--brd);border-radius:3px;margin-bottom:.35rem;padding:.4rem .55rem;cursor:pointer;" onclick="cookRecipe('${r.id}')">
       <div style="display:flex;align-items:center;gap:.4rem;">
         <span style="font-size:1rem;">${r.icon}</span>
@@ -2547,13 +2661,14 @@ function buildCookUI(){
         <div style="font-size:.48rem;color:var(--sild);">${r.desc}</div></div>
         <span style="font-size:.48rem;color:var(--sild);">${'★'.repeat(r.diff)}</span>
       </div>
-      <div style="font-size:.45rem;color:var(--sild);margin-top:.2rem;">食材：${r.ingredients.join('＋')}</div>
+      <div style="font-size:.45rem;color:var(--sild);margin-top:.2rem;">素材：${ingStr}</div>
     </div>`;
   });
   // 全部配方一覽
   h+=`<div style="font-size:.48rem;color:var(--sild);padding:.3rem 0 .15rem;border-top:1px solid var(--brd);margin-top:.3rem;">全部配方：</div>`;
-  RECIPES.forEach(r=>{const can=cookable.includes(r);
-    h+=`<div style="font-size:.48rem;color:${can?'var(--sil)':'rgba(255,255,255,.25)'};padding:.08rem 0;">${r.icon} ${r.name}（${r.ingredients.join('+')}）${can?'✓':''}</div>`;
+  filtered.forEach(r=>{const can=cookable.includes(r);
+    const ingStr=r.ingredients.map(i=>`${i.n}×${i.q}`).join('+');
+    h+=`<div style="font-size:.48rem;color:${can?'var(--sil)':'rgba(255,255,255,.25)'};padding:.08rem 0;">${r.icon} ${r.name}（${ingStr}）${can?'✓':''}</div>`;
   });
   return h;
 }
@@ -3484,6 +3599,13 @@ function _buildPartyRoster(members,hasAlfar){
             <div class="jrpg-bar-track"><div class="jrpg-bar-fill" style="width:${hpPct}%;background:${inj.color};"></div></div>
             <span class="jrpg-bar-val" style="color:${inj.color};">${hp.cur}/${hp.max}</span>
           </div>
+          ${(()=>{const _ug=getUpgrade(c.id);const _expPct=_ug.expNext?Math.round((_ug.exp||0)/_ug.expNext*100):0;return c.id!=='orange'?`<div style="display:flex;align-items:center;gap:.3rem;margin-top:.15rem;">
+            <span style="font-size:.46rem;color:var(--goldd);min-width:28px;">Lv.${_ug.lv||1}</span>
+            <div style="flex:1;height:3px;background:rgba(255,255,255,.08);border-radius:2px;overflow:hidden;">
+              <div style="width:${_expPct}%;height:100%;background:var(--goldd);border-radius:2px;transition:width .3s;"></div>
+            </div>
+            <span style="font-size:.42rem;color:var(--sild);">${_ug.exp||0}/${_ug.expNext||100}</span>
+          </div>`:'';})()}
           ${fv!==null?`<div class="jrpg-bar-row">
             <span class="jrpg-bar-lbl" style="color:${fvCol};">好感</span>
             <div class="jrpg-bar-track"><div class="jrpg-bar-fill" style="width:${fv}%;background:${fvCol};"></div></div>
@@ -5321,7 +5443,7 @@ function openChar(id){
       <button onclick="openPortraitSettings('${id}')" style="font-size:.58rem;padding:.18rem .45rem;background:rgba(0,0,0,.5);border:1px solid rgba(201,168,76,.3);border-radius:2px;color:rgba(201,168,76,.7);cursor:pointer;">🖼 頭像設定</button>
     </div>
   </div>`;
-  document.getElementById('modal-inner').innerHTML=pHtml+`<div class="mtop"><div class="mscol"><div class="mtp">${escHtml(c.type)}</div><div class="mnm">第${c.num}星</div><div class="mst">${escHtml(c.star)}</div></div><div class="micol"><div class="mname">${escHtml(c.name)} <span style="font-size:.8rem">${c.emoji}</span></div><div class="msub2">${escHtml(c.title)}</div><div class="mstat r">✦ 已加入</div></div></div><div class="mbody"><div class="msec"><div class="msect">人物說明</div><div class="mdesc">${escHtml(c.desc)}</div></div><div class="msec"><div class="msect">素質數值</div><div style="padding-top:.18rem">${smini(c.stats,c.sn,c.id)}</div></div><div class="msec"><div class="msect">天賦技能</div>${c.tl.map(t=>`<div class="tarow"><span class="ta2 ${t.s?'sl':''}">${t.s?'【封印】':''}${escHtml(t.n)}</span><div class="tadesc">${escHtml(t.d)}</div></div>`).join('')}</div><div class="msec"><div class="msect">裝備</div>${Object.entries(c.eq).map(([k,v])=>`<div class="tr2"><span class="ts">${k}</span><span class="ti">${escHtml(v)}</span></div>`).join('')}</div>${id==='orange'?`<div class="msec"><div class="msect" style="color:rgba(180,140,220,.8);">⚓ 秘密・命運之錨</div>${getOrangeSecretHtml()}</div>`:''}</div>`;
+  document.getElementById('modal-inner').innerHTML=pHtml+`<div class="mtop"><div class="mscol"><div class="mtp">${escHtml(c.type)}</div><div class="mnm">第${c.num}星</div><div class="mst">${escHtml(c.star)}</div></div><div class="micol"><div class="mname">${escHtml(c.name)} <span style="font-size:.8rem">${c.emoji}</span></div><div class="msub2">Lv.${getUpgrade(id).lv||1} ・ ${escHtml(c.title)}</div><div class="mstat r">✦ 已加入</div></div></div><div class="mbody"><div class="msec"><div class="msect">人物說明</div><div class="mdesc">${escHtml(c.desc)}</div></div><div class="msec"><div class="msect">素質數值</div><div style="padding-top:.18rem">${smini(c.stats,c.sn,c.id)}</div></div><div class="msec"><div class="msect">天賦技能</div>${c.tl.map(t=>`<div class="tarow"><span class="ta2 ${t.s?'sl':''}">${t.s?'【封印】':''}${escHtml(t.n)}</span><div class="tadesc">${escHtml(t.d)}</div></div>`).join('')}</div><div class="msec"><div class="msect">裝備</div>${Object.entries(c.eq).map(([k,v])=>`<div class="tr2"><span class="ts">${k}</span><span class="ti">${escHtml(v)}</span></div>`).join('')}</div>${id==='orange'?`<div class="msec"><div class="msect" style="color:rgba(180,140,220,.8);">⚓ 秘密・命運之錨</div>${getOrangeSecretHtml()}</div>`:''}</div>`;
   document.getElementById('detail-modal').classList.add('open');
 }
 function openStar(type,num){
@@ -6027,6 +6149,11 @@ function initStory(){
 // 自動戰鬥判定（由 AI cb 欄位觸發）
 function autoCombat(cb){
   if(!cb)return;
+  // Use new combat system if enemy IDs provided
+  if(cb.enemies&&Array.isArray(cb.enemies)){
+    startCombat(cb.enemies,cb.boss||false);
+    return;
+  }
   BGM.setMood('battle');if(BGM.playing){BGM.stop();BGM.start();}
   // 顯示骰子按鈕
   const db=document.getElementById('dice-btn');
@@ -6348,6 +6475,254 @@ const ENEMY_DB={
   'ancient_dragon':{name:'遠古巨龍',lv:15,hp:500,stats:{武力:70,知力:50},drops:['古龍之鱗','龍骨劍','創世碎片'],exp:300,gold:{g:5,s:0,c:0},area:['dragon_valley'],boss:true,icon:'🐲'},
 };
 
+// ═══ QUEST DATABASE ═══
+const QUEST_DB={
+  // ── 主線任務 ──
+  main_001:{title:'鐵霧城的第一夜',type:'主線',chapter:1,
+    desc:'你剛抵達鐵霧城，需要找到食物和住處。探索這座被濃霧籠罩的工業城市。',
+    objectives:['在鐵霧城找到住處','探索城市收集情報'],
+    rewards:{gd:{g:0,s:5,c:0},exp:20},
+    triggerArea:'iron_fog',autoTrigger:true},
+  main_002:{title:'霧刃幫的陰影',type:'主線',chapter:1,
+    desc:'霧刃幫在山口地帶橫行，劫掠商隊。城裡到處是懸賞令。也許這是賺錢的機會——或者是麻煩的開始。',
+    objectives:['調查霧刃幫的活動','找到霧刃幫據點的線索','決定是否介入'],
+    rewards:{gd:{g:0,s:20,c:0},exp:50,items:['霧刃幫徽章']},
+    triggerArea:'iron_fog',prereq:'main_001'},
+  main_003:{title:'碼頭的秘密',type:'主線',chapter:1,
+    desc:'碼頭區似乎不只是卸貨的地方。夜晚有可疑的活動，倉庫老闆葛林知道些什麼。',
+    objectives:['調查碼頭區的可疑活動','與倉庫老闆葛林交談'],
+    rewards:{gd:{g:0,s:15,c:0},exp:40},
+    triggerArea:'iron_fog',prereq:'main_002'},
+  main_004:{title:'通往銀月的路',type:'主線',chapter:2,
+    desc:'鐵霧城的謎團暫告一段落。前方有更大的世界等待探索——銀月城，大陸最大的商業都市。',
+    objectives:['前往霧山驛站','購買前往銀月城的通行手段','抵達銀月城'],
+    rewards:{gd:{g:0,s:30,c:0},exp:60},
+    triggerArea:'iron_fog',prereq:'main_003'},
+  main_005:{title:'銀月城的英雄公會',type:'主線',chapter:2,
+    desc:'銀月城是各路英雄匯聚之地。英雄公會也許能提供更多關於108星辰的線索。',
+    objectives:['前往英雄公會','與公會長馬庫斯交談','接受公會任務證明實力'],
+    rewards:{gd:{g:0,s:50,c:0},exp:80,items:['英雄公會徽章']},
+    triggerArea:'silver_moon',prereq:'main_004'},
+  main_006:{title:'星辰的迴響',type:'主線',chapter:2,
+    desc:'橘子越來越頻繁地感知到星辰氣息。銀月城的星象館也許能解答一些疑問。',
+    objectives:['前往銀月城星象館','調查108星的降世記錄','尋找北斗星先行者的線索'],
+    rewards:{gd:{g:0,s:40,c:0},exp:100,items:['北斗星碎片・壹']},
+    triggerArea:'silver_moon',prereq:'main_005'},
+  main_007:{title:'東海的呼喚',type:'主線',chapter:3,
+    desc:'線索指向東港城。商人公會掌握著大量情報，但獲取情報需要代價。',
+    objectives:['前往東港城','接觸商人公會','找到情報屋「烏鴉」'],
+    rewards:{gd:{g:1,s:0,c:0},exp:120},
+    triggerArea:'east_port',prereq:'main_006'},
+  main_008:{title:'翠林的守護者',type:'主線',chapter:3,
+    desc:'精靈長老艾蕾恩或許知道108星辰與真紋章的關係。但要進入翠林域需要通行證。',
+    objectives:['取得翠林通行證','前往翠林城','拜訪精靈長老'],
+    rewards:{gd:{g:0,s:80,c:0},exp:150,items:['精靈長老的祝福']},
+    triggerArea:'jade_forest',prereq:'main_007'},
+  main_009:{title:'帝國的殘影',type:'主線',chapter:4,
+    desc:'鏽城——曾經的帝都，如今的廢墟。帝國殘軍盤據於此，時間裂縫也在此出現。',
+    objectives:['前往鏽城','調查帝國遺跡','面對帝國亡靈'],
+    rewards:{gd:{g:2,s:0,c:0},exp:200,items:['時間裂縫結晶']},
+    triggerArea:'rust_city',prereq:'main_008'},
+  main_010:{title:'龍牙砦的試煉',type:'主線',chapter:4,
+    desc:'南荒的龍牙砦深處，傳說藏有遠古巨龍的寶庫——以及炎獄真紋章。',
+    objectives:['前往龍牙砦','探索古龍遺跡','面對遠古巨龍'],
+    rewards:{gd:{g:5,s:0,c:0},exp:300,items:['古龍之鱗']},
+    triggerArea:'dragon_valley',prereq:'main_009'},
+
+  // ── 支線任務 ──
+  side_fog_01:{title:'礦工的苦衷',type:'支線',
+    desc:'鐵冠城的礦工們在苛刻的條件下工作。有人想逃離，但逃離意味著成為通緝犯。',
+    objectives:['與礦工聚落交談','決定是否幫助礦工逃離'],
+    rewards:{gd:{g:0,s:15,c:0},exp:30},
+    triggerArea:'iron_crown'},
+  side_fog_02:{title:'走私者的請求',type:'支線',
+    desc:'灰港鎮有人想僱你運送一批「貨物」。報酬豐厚，但合法性可疑。',
+    objectives:['前往灰港走私碼頭','檢查貨物內容','決定是否接受委託'],
+    rewards:{gd:{g:0,s:30,c:0},exp:35},
+    triggerArea:'grey_haven'},
+  side_moon_01:{title:'失蹤的學徒',type:'支線',
+    desc:'銀月城一名術士學徒失蹤了。他的師父懸賞尋人——但似乎隱瞞了什麼。',
+    objectives:['接受尋人委託','調查學徒的去向','找到學徒或他的遺物'],
+    rewards:{gd:{g:0,s:25,c:0},exp:45,items:['符文短杖']},
+    triggerArea:'silver_moon'},
+  side_port_01:{title:'海盜的寶藏',type:'支線',
+    desc:'珊瑚灣附近沉了一艘海盜船。據說船上有一批珍貴的貨物——但海域危險。',
+    objectives:['在東港打聽沉船位置','前往珊瑚灣','潛入沉船取回寶藏'],
+    rewards:{gd:{g:1,s:0,c:0},exp:60,items:['珊瑚弓']},
+    triggerArea:'east_port'},
+  side_forest_01:{title:'禁忌的知識',type:'支線',
+    desc:'古樹隱村的禁忌書庫裡有關於真紋章的記載。但精靈長老禁止外人閱覽。',
+    objectives:['取得精靈長老的許可','進入禁忌書庫','閱讀紋章相關記載'],
+    rewards:{gd:{g:0,s:50,c:0},exp:80,items:['帝國占星師手記']},
+    triggerArea:'elder_grove'},
+  side_frost_01:{title:'騎士的誓言',type:'支線',
+    desc:'霜守堡的騎士團長尋求幫助。北方有不尋常的怪物出沒，與真紋章有關。',
+    objectives:['與騎士團長交談','調查北方異常','擊敗霜域怪物'],
+    rewards:{gd:{g:0,s:40,c:0},exp:70,items:['霜守堡騎士徽章']},
+    triggerArea:'frost_keep'},
+  side_marsh_01:{title:'毒蛛的交易',type:'支線',
+    desc:'影沼鎮的藥師梅拉有一筆特殊的交易。她需要稀有的素材，作為回報她會提供珍貴的藥物。',
+    objectives:['與藥師梅拉交談','收集沼澤深處的稀有素材','交付素材獲得報酬'],
+    rewards:{gd:{g:0,s:20,c:0},exp:40,items:['世界樹樹液']},
+    triggerArea:'shadow_marsh'},
+  side_sand_01:{title:'沙獵的考驗',type:'支線',
+    desc:'南荒獵人莉拉願意成為你的嚮導，但首先你必須通過她的考驗。',
+    objectives:['接受莉拉的考驗','在南荒生存三天','擊敗沙蟲'],
+    rewards:{gd:{g:0,s:35,c:0},exp:55,items:['影沼地圖']},
+    triggerArea:'sand_gate'},
+
+  // ── 重複任務 ──
+  rep_bounty:{title:'懸賞任務',type:'重複',
+    desc:'各地懸賞令上的任務。可重複接受。',
+    objectives:['完成一次懸賞'],
+    rewards:{gd:{g:0,s:5,c:0},exp:15},
+    repeatable:true,triggerArea:'all'},
+  rep_gather:{title:'素材收集',type:'重複',
+    desc:'商人公會需要各種素材。帶回素材可獲得報酬。',
+    objectives:['收集指定素材3個'],
+    rewards:{gd:{g:0,s:8,c:0},exp:10},
+    repeatable:true,triggerArea:'all'},
+};
+
+// ═══ COMBAT SYSTEM ═══
+const STATUS_EFFECTS={
+  poison:{name:'中毒',icon:'☠️',dot:5,dur:3,desc:'每回合損失HP'},
+  burn:{name:'灼燒',icon:'🔥',dot:8,dur:2,desc:'每回合損失HP'},
+  freeze:{name:'冰凍',icon:'❄️',dur:1,skipTurn:true,desc:'無法行動'},
+  blind:{name:'致盲',icon:'🌑',dur:2,hitPenalty:5,desc:'命中率降低'},
+  stun:{name:'暈眩',icon:'💫',dur:1,skipTurn:true,desc:'無法行動'},
+  regen:{name:'再生',icon:'💚',dot:-10,dur:3,desc:'每回合回復HP'},
+  shield:{name:'護盾',icon:'🛡️',dur:2,defBonus:10,desc:'防禦力提升'},
+  rage:{name:'狂暴',icon:'💢',dur:3,atkBonus:8,defPenalty:5,desc:'攻擊力提升但防禦降低'},
+};
+let _combat=null;
+function startCombat(enemyIds,isBoss){
+  if(_combat)return;
+  BGM.setMood('battle');if(BGM.playing){BGM.stop();BGM.start();}
+  const enemies=enemyIds.map((eid,i)=>{
+    const tmpl=ENEMY_DB[eid];if(!tmpl)return null;
+    return{id:eid+'_'+i,templateId:eid,name:tmpl.name,icon:tmpl.icon||'👹',hp:tmpl.hp,maxHp:tmpl.hp,stats:{...tmpl.stats},drops:[...(tmpl.drops||[])],exp:tmpl.exp||0,gold:{...(tmpl.gold||{s:0,c:0})},lv:tmpl.lv||1,boss:tmpl.boss||isBoss||false,buffs:[]};
+  }).filter(Boolean);
+  if(!enemies.length)return;
+  const party=allParty().filter(m=>m.id!=='orange').map(m=>{
+    const es=getEffectiveStats(m.id);const hp=getHP(m.id);
+    return{id:m.id,name:m.name,emoji:m.emoji||'😒',hp:hp.cur,maxHp:hp.max,stats:es,buffs:[],defended:false,isPlayer:true};
+  });
+  if(!party.length)return;
+  _combat={enemies,party,round:1,turnIdx:0,turnOrder:[],phase:'start',log:[],totalExp:enemies.reduce((a,e)=>a+e.exp,0),totalGold:enemies.reduce((a,e)=>({g:(a.g||0)+(e.gold.g||0),s:(a.s||0)+(e.gold.s||0),c:(a.c||0)+(e.gold.c||0)}),{g:0,s:0,c:0}),allDrops:enemies.flatMap(e=>e.drops),isBoss:enemies.some(e=>e.boss)};
+  const all=[...party.map(p=>({...p,_init:Math.floor((p.stats.幸運||0)/5)+Math.floor(Math.random()*6)+1})),...enemies.map(e=>({...e,_init:Math.floor((e.stats.知力||5)/5)+Math.floor(Math.random()*6)+1}))];
+  all.sort((a,b)=>b._init-a._init);
+  _combat.turnOrder=all.map(a=>a.id);_combat.phase='player_turn';_combat.turnIdx=0;
+  advanceTurn();openCombatModal();renderCombat();
+}
+function advanceTurn(){
+  if(!_combat)return;
+  for(let i=0;i<_combat.turnOrder.length*2;i++){
+    const id=_combat.turnOrder[_combat.turnIdx%_combat.turnOrder.length];const unit=getCombatUnit(id);
+    if(unit&&unit.hp>0){const skip=unit.buffs.find(b=>STATUS_EFFECTS[b.id]?.skipTurn);
+      if(skip){addCombatLog(`${unit.name} ${STATUS_EFFECTS[skip.id].icon} ${STATUS_EFFECTS[skip.id].name}中，無法行動！`);_combat.turnIdx++;continue;}
+      _combat.phase=unit.isPlayer?'player_turn':'enemy_turn';return;}
+    _combat.turnIdx++;
+  }
+}
+function getCombatUnit(id){if(!_combat)return null;return _combat.party.find(p=>p.id===id)||_combat.enemies.find(e=>e.id===id);}
+function getCurrentTurnUnit(){if(!_combat)return null;const id=_combat.turnOrder[_combat.turnIdx%_combat.turnOrder.length];return getCombatUnit(id);}
+function addCombatLog(text){if(!_combat)return;_combat.log.push(text);if(_combat.log.length>50)_combat.log.shift();}
+function processTurnStart(unit){
+  if(!unit)return;const expiredBuffs=[];
+  unit.buffs.forEach(b=>{const eff=STATUS_EFFECTS[b.id];if(!eff)return;
+    if(eff.dot){unit.hp=Math.max(0,Math.min(unit.maxHp,unit.hp-eff.dot));
+      if(eff.dot>0)addCombatLog(`${unit.name} 受到 ${eff.icon}${eff.name} 傷害 -${eff.dot} HP`);
+      else addCombatLog(`${unit.name} ${eff.icon}${eff.name} 回復 +${-eff.dot} HP`);}
+    b.dur--;if(b.dur<=0)expiredBuffs.push(b.id);});
+  unit.buffs=unit.buffs.filter(b=>!expiredBuffs.includes(b.id));
+  if(expiredBuffs.length){expiredBuffs.forEach(id=>{const eff=STATUS_EFFECTS[id];if(eff)addCombatLog(`${unit.name} 的 ${eff.name} 效果消失了`);});}
+  unit.defended=false;
+}
+function combatAttack(targetId){
+  if(!_combat||_combat.phase!=='player_turn')return;
+  const attacker=getCurrentTurnUnit();const target=getCombatUnit(targetId);
+  if(!attacker||!target||target.hp<=0)return;
+  const atkStat=attacker.stats.武力||10;const defStat=Math.floor((target.stats.統率||target.stats.武力||10)/3);
+  const atkBonus=attacker.buffs.reduce((a,b)=>a+(STATUS_EFFECTS[b.id]?.atkBonus||0),0);
+  const hitPenalty=attacker.buffs.reduce((a,b)=>a+(STATUS_EFFECTS[b.id]?.hitPenalty||0),0);
+  const roll=Math.floor(Math.random()*20)+1;const hitMod=Math.floor(atkStat/10)-hitPenalty;const hitTotal=roll+hitMod;const crit=roll===20;const fumble=roll===1;
+  if(fumble){addCombatLog(`${attacker.name} 🎲${roll} 大失敗！攻擊落空！`);}
+  else if(hitTotal<8+Math.floor(target.lv||1)){addCombatLog(`${attacker.name} 🎲${roll}+${hitMod}=${hitTotal} 未命中 ${target.name}！`);}
+  else{let dmg=Math.max(1,Math.floor(atkStat/3)+Math.floor(Math.random()*6)+1+atkBonus-defStat);
+    if(target.defended)dmg=Math.floor(dmg*0.5);const defBonus=target.buffs.reduce((a,b)=>a+(STATUS_EFFECTS[b.id]?.defBonus||0),0);dmg=Math.max(1,dmg-defBonus);if(crit)dmg=dmg*2;
+    target.hp=Math.max(0,target.hp-dmg);addCombatLog(`${attacker.name} 🎲${roll}${crit?' 暴擊！':''} → ${target.name} 受到 ${dmg} 傷害${target.hp<=0?' 💀 擊敗！':` (HP:${target.hp}/${target.maxHp})`}`);}
+  endPlayerTurn();
+}
+function combatDefend(){if(!_combat||_combat.phase!=='player_turn')return;const unit=getCurrentTurnUnit();if(!unit)return;unit.defended=true;addCombatLog(`${unit.name} 進入防禦姿態（傷害減半）`);endPlayerTurn();}
+function combatUseItem(itemName){
+  if(!_combat||_combat.phase!=='player_turn')return;const unit=getCurrentTurnUnit();if(!unit)return;const data=ITEM_DB[itemName];if(!data)return;
+  if(data.effect?.hp){unit.hp=Math.min(unit.maxHp,unit.hp+data.effect.hp);addCombatLog(`${unit.name} 使用 ${itemName}：HP +${data.effect.hp} (HP:${unit.hp}/${unit.maxHp})`);}
+  else if(data.effect?.buff){const buffId=data.effect.buff;if(STATUS_EFFECTS[buffId]){unit.buffs.push({id:buffId,dur:STATUS_EFFECTS[buffId].dur});addCombatLog(`${unit.name} 使用 ${itemName}：獲得 ${STATUS_EFFECTS[buffId].icon}${STATUS_EFFECTS[buffId].name}`);}}
+  else{addCombatLog(`${unit.name} 使用了 ${itemName}`);}
+  const inv=getInv();const idx=inv.items.findIndex(i=>i.n===itemName);
+  if(idx>=0){const item=inv.items[idx];const qm=item.q.match(/(\d+)/);const qty=qm?parseInt(qm[1]):1;if(qty<=1)inv.items.splice(idx,1);else item.q='×'+(qty-1);}
+  endPlayerTurn();
+}
+function combatFlee(){
+  if(!_combat||_combat.phase!=='player_turn')return;const unit=getCurrentTurnUnit();if(!unit)return;
+  if(_combat.isBoss){addCombatLog('⚠ BOSS戰無法逃跑！');renderCombat();return;}
+  const roll=Math.floor(Math.random()*20)+1;const mod=Math.floor((unit.stats.幸運||10)/10);const maxEnemyLv=Math.max(..._combat.enemies.map(e=>e.lv||1));
+  if(roll+mod>=8+maxEnemyLv){addCombatLog(`${unit.name} 成功逃脫！`);endCombat('flee');return;}
+  addCombatLog(`${unit.name} 🎲${roll}+${mod}=${roll+mod} 逃跑失敗！`);endPlayerTurn();
+}
+function endPlayerTurn(){if(!_combat)return;if(_combat.enemies.every(e=>e.hp<=0)){endCombat('victory');return;}_combat.turnIdx++;advanceTurn();renderCombat();if(_combat&&_combat.phase==='enemy_turn'){setTimeout(executeEnemyTurn,800);}}
+function executeEnemyTurn(){
+  if(!_combat||_combat.phase!=='enemy_turn')return;const enemy=getCurrentTurnUnit();
+  if(!enemy||enemy.hp<=0){_combat.turnIdx++;advanceTurn();renderCombat();return;}
+  processTurnStart(enemy);
+  if(enemy.hp<=0){addCombatLog(`${enemy.name} 被狀態效果擊敗！💀`);if(_combat.enemies.every(e=>e.hp<=0)){endCombat('victory');return;}_combat.turnIdx++;advanceTurn();renderCombat();return;}
+  const alive=_combat.party.filter(p=>p.hp>0);if(!alive.length){endCombat('defeat');return;}
+  const target=alive.reduce((a,b)=>a.hp<b.hp?a:b);
+  const atkStat=enemy.stats.武力||10;const defStat=Math.floor((target.stats.統率||10)/3);const roll=Math.floor(Math.random()*20)+1;const crit=roll===20;
+  if(roll===1){addCombatLog(`${enemy.icon} ${enemy.name} 🎲1 攻擊落空！`);}
+  else{let dmg=Math.max(1,Math.floor(atkStat/3)+Math.floor(Math.random()*4)+1-defStat);if(target.defended)dmg=Math.floor(dmg*0.5);const defBonus=target.buffs.reduce((a,b)=>a+(STATUS_EFFECTS[b.id]?.defBonus||0),0);dmg=Math.max(1,dmg-defBonus);if(crit)dmg=dmg*2;target.hp=Math.max(0,target.hp-dmg);addCombatLog(`${enemy.icon} ${enemy.name} → ${target.name} ${crit?'暴擊！':''}${dmg} 傷害${target.hp<=0?' 💀':` (HP:${target.hp}/${target.maxHp})`}`);}
+  if(_combat.party.every(p=>p.hp<=0)){endCombat('defeat');return;}
+  _combat.turnIdx++;advanceTurn();renderCombat();if(_combat&&_combat.phase==='enemy_turn'){setTimeout(executeEnemyTurn,800);}
+}
+function endCombat(result){
+  if(!_combat)return;_combat.phase=result;
+  if(result==='victory'){
+    addCombatLog('═══ 戰鬥勝利！ ═══');const gold=_combat.totalGold;
+    if(gold.g||gold.s||gold.c){applyGold(gold);addCombatLog(`💰 獲得 ${priceStr(gold)}`);}
+    const exp=_combat.totalExp;if(exp){addCombatLog(`✦ 經驗值 +${exp}`);if(typeof grantExp==='function')grantExp(G.partyIds.filter(id=>id!=='orange'),exp);}
+    const drops=[];_combat.allDrops.forEach(dropName=>{if(Math.random()<0.5){const inv=getInv();const exist=inv.items.find(i=>i.n===dropName);if(exist){const m=exist.q.match(/(\d+)/);exist.q='×'+((m?parseInt(m[1]):1)+1);}else{const db=ITEM_DB[dropName];inv.items.push({n:dropName,t:db?.t||'',q:'×1'});}drops.push(dropName);}});
+    if(drops.length)addCombatLog(`📦 掉落：${drops.join('、')}`);
+    _combat.party.forEach(p=>{if(G.hp[p.id])G.hp[p.id].cur=p.hp;else G.hp[p.id]={cur:p.hp,max:p.maxHp};});
+    renderCombat();saveGame();renderChanged('inv','party');
+    setTimeout(()=>{closeCombatModal();const enemies=_combat?_combat.enemies.map(e=>e.name).join('、'):'';const summary=`【戰鬥結束・勝利】擊敗：${enemies}。獲得${priceStr(gold)}${exp?' 經驗+'+exp:''}${drops.length?' 掉落：'+drops.join('、'):''}。請繼續劇情。`;_combat=null;BGM.setMood('explore');sendChoice(summary);},2500);
+  }else if(result==='defeat'){
+    addCombatLog('═══ 戰鬥失敗⋯⋯ ═══');_combat.party.forEach(p=>{if(G.hp[p.id])G.hp[p.id].cur=1;else G.hp[p.id]={cur:1,max:p.maxHp};});renderCombat();saveGame();
+    setTimeout(()=>{closeCombatModal();_combat=null;BGM.setMood('explore');sendChoice('【戰鬥結束・敗北】艾爾法倒下了，但被橘子拖回了安全的地方。HP殘存1。請描述失敗後的場景並繼續劇情。');},2500);
+  }else if(result==='flee'){
+    renderCombat();setTimeout(()=>{closeCombatModal();_combat=null;BGM.setMood('explore');sendChoice('【戰鬥結束・逃跑】艾爾法成功逃離了戰鬥。請繼續劇情。');},1500);
+  }
+}
+function renderCombat(){
+  const modal=document.getElementById('combat-modal');if(!modal||!_combat)return;const c=_combat;const currentUnit=getCurrentTurnUnit();const isPlayerTurn=c.phase==='player_turn'&&currentUnit?.isPlayer;
+  const enemyHtml=c.enemies.map(e=>{const hpPct=Math.round(e.hp/e.maxHp*100);const dead=e.hp<=0;const buffs=e.buffs.map(b=>STATUS_EFFECTS[b.id]?.icon||'').join('');
+    return'<div style="text-align:center;opacity:'+(dead?.3:1)+';flex:1;min-width:60px;"><div style="font-size:1.4rem;">'+e.icon+'</div><div style="font-size:.58rem;color:'+(e.boss?'#ff6060':'var(--sil)')+';font-weight:'+(e.boss?700:400)+'">'+e.name+(e.boss?' ★':'')+'</div><div style="height:4px;background:rgba(255,255,255,.1);border-radius:2px;margin:.15rem 0;overflow:hidden;"><div style="width:'+hpPct+'%;height:100%;background:'+(hpPct>50?'#4caf7a':hpPct>25?'#e08c35':'#cc4444')+';border-radius:2px;transition:width .3s;"></div></div><div style="font-size:.48rem;color:var(--sild);">'+(dead?'💀 擊敗':e.hp+'/'+e.maxHp)+' '+buffs+'</div>'+(isPlayerTurn&&!dead?'<button onclick="combatAttack(\''+e.id+'\')" style="margin-top:.2rem;font-size:.52rem;padding:.15rem .35rem;background:rgba(204,68,68,.15);border:1px solid rgba(204,68,68,.4);border-radius:2px;color:#cc6666;cursor:pointer;">⚔ 攻擊</button>':'')+'</div>';}).join('');
+  const partyHtml=c.party.map(p=>{const hpPct=Math.round(p.hp/p.maxHp*100);const dead=p.hp<=0;const isCurrent=currentUnit?.id===p.id;const buffs=p.buffs.map(b=>STATUS_EFFECTS[b.id]?.icon||'').join('');
+    return'<div style="text-align:center;flex:1;min-width:60px;opacity:'+(dead?.3:1)+';'+(isCurrent?'border:1px solid var(--goldd);border-radius:4px;padding:.2rem;background:rgba(201,168,76,.08);':'padding:.2rem;')+'"><div style="font-size:.9rem;">'+p.emoji+'</div><div style="font-size:.56rem;color:var(--sil);">'+p.name+(p.defended?' 🛡️':'')+'</div><div style="height:4px;background:rgba(255,255,255,.1);border-radius:2px;margin:.15rem 0;overflow:hidden;"><div style="width:'+hpPct+'%;height:100%;background:'+(hpPct>50?'#4caf7a':hpPct>25?'#e08c35':'#cc4444')+';border-radius:2px;transition:width .3s;"></div></div><div style="font-size:.48rem;color:var(--sild);">'+(dead?'💀':p.hp+'/'+p.maxHp)+' '+buffs+'</div></div>';}).join('');
+  let actHtml='';
+  if(isPlayerTurn){const inv=getInv();const usable=inv.items.filter(i=>{const db=ITEM_DB[i.n];return db&&(db.effect?.hp||db.effect?.buff||db.effect?.cure);}).slice(0,6);
+    const itemBtns=usable.map(i=>'<button onclick="combatUseItem(\''+i.n.replace(/'/g,"\\'")+'\') " style="font-size:.5rem;padding:.12rem .25rem;background:rgba(100,180,100,.1);border:1px solid rgba(100,180,100,.3);border-radius:2px;color:#6ab46a;cursor:pointer;">'+(ITEM_DB[i.n]?.icon||'')+' '+i.n+'</button>').join('');
+    actHtml='<div style="display:flex;flex-wrap:wrap;gap:.3rem;justify-content:center;padding:.3rem 0;"><button onclick="combatDefend()" style="font-size:.55rem;padding:.2rem .5rem;background:rgba(100,130,200,.12);border:1px solid rgba(100,130,200,.4);border-radius:3px;color:#88aacc;cursor:pointer;">🛡️ 防禦</button><button onclick="combatFlee()" style="font-size:.55rem;padding:.2rem .5rem;background:rgba(180,160,80,.1);border:1px solid rgba(180,160,80,.4);border-radius:3px;color:var(--goldd);cursor:pointer;">🏃 逃跑</button></div>'+(usable.length?'<div style="display:flex;flex-wrap:wrap;gap:.2rem;justify-content:center;padding:.15rem 0;">'+itemBtns+'</div>':'');}
+  const logHtml=c.log.slice(-8).map(l=>'<div style="font-size:.52rem;color:var(--sild);line-height:1.4;padding:.06rem 0;">'+l+'</div>').join('');
+  let resultHtml='';
+  if(c.phase==='victory')resultHtml='<div style="text-align:center;padding:.5rem;color:#6ab46a;font-size:.8rem;font-weight:700;letter-spacing:.1em;">✦ 勝利 ✦</div>';
+  else if(c.phase==='defeat')resultHtml='<div style="text-align:center;padding:.5rem;color:#cc4444;font-size:.8rem;font-weight:700;letter-spacing:.1em;">✦ 敗北 ✦</div>';
+  else if(c.phase==='flee')resultHtml='<div style="text-align:center;padding:.5rem;color:var(--goldd);font-size:.8rem;">逃跑成功</div>';
+  document.getElementById('combat-inner').innerHTML='<div style="text-align:center;font-size:.56rem;color:var(--goldd);letter-spacing:.1em;padding:.2rem 0;">⚔ ROUND '+c.round+' ⚔</div><div style="display:flex;gap:.4rem;justify-content:center;padding:.4rem .2rem;border-bottom:1px solid var(--brd);">'+enemyHtml+'</div><div style="display:flex;gap:.4rem;justify-content:center;padding:.4rem .2rem;">'+partyHtml+'</div>'+(isPlayerTurn?'<div style="text-align:center;font-size:.54rem;color:var(--goldl);padding:.15rem 0;">▶ '+currentUnit.name+' 的回合 — 選擇攻擊目標或行動</div>':'')+actHtml+'<div style="max-height:80px;overflow-y:auto;border-top:1px solid var(--brd);padding:.3rem;margin-top:.2rem;">'+logHtml+'</div>'+resultHtml;
+}
+function openCombatModal(){document.getElementById('combat-modal').classList.add('open');}
+function closeCombatModal(){document.getElementById('combat-modal').classList.remove('open');}
+
 // ═══ 隨機事件資料庫 ═══
 const EVENT_DB=[
   {id:'merchant_ambush',type:'combat',trigger:'travel',chance:0.15,desc:'商隊遭遇山賊襲擊！',enemy:'bandit',area:['iron_fog','grey_haven']},
@@ -6458,6 +6833,18 @@ function doTravel(cityId){
   document.getElementById('scene-title').textContent=G.sceneTitle;
   document.getElementById('scene-loc').textContent=G.sceneLoc;
   advanceTime(3); // 移動消耗時間
+  // Random encounter during travel
+  const areaEnemies=Object.entries(ENEMY_DB).filter(([,e])=>e.area&&e.area.includes(cityId)&&!e.boss);
+  if(areaEnemies.length&&Math.random()<0.25){
+    const pick=areaEnemies[Math.floor(Math.random()*areaEnemies.length)];
+    const count=1+Math.floor(Math.random()*2);
+    const ids=Array(count).fill(pick[0]);
+    setTimeout(()=>{
+      appendEntryToDOM({type:'narr',v:`途中遭遇了${pick[1].name}！`});
+      startCombat(ids,false);
+    },1500);
+    return;
+  }
   appendEntryToDOM({type:'narr',v:`艾爾法踏上前往${city.name}的路途，${G.time?HOUR_LABEL[G.time.hour]+'時分，':''}橘子蜷縮在背包頂端，不發一語。`});
   appendEntryToDOM({type:'sys',v:`📍 已抵達 ${city.name}`});
   // 提供抵達後的即時選項（不需要等 AI 回應）

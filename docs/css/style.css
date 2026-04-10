@@ -469,3 +469,6 @@ body::after{content:'';position:fixed;inset:0;background-image:
 html{-webkit-text-size-adjust:100%;text-size-adjust:100%;}
 body{touch-action:manipulation;}
 
+/* ── COMBAT MODAL ── */
+#combat-modal .mbox{background:linear-gradient(135deg,rgba(30,15,15,.97),rgba(15,10,20,.97));border:1px solid rgba(204,68,68,.3);}
+
