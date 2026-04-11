@@ -1311,23 +1311,30 @@ const BGM={
     this._timers.push(tid);
   },
   _silence(){
-    // 停止循環 + 斷開音訊節點（已排程的振盪器會播完但聽不到）
+    // 停止循環 + 完全重建音訊管線（避免舊振盪器殘留重疊）
     this._lid++;
     this._timers.forEach(t=>clearTimeout(t));this._timers=[];
     if(this.master){try{this.master.disconnect();}catch(_){}}
-  },
-  _reconnect(){
-    // 重新連接 master 到 destination
-    if(this.master&&this.ctx){try{this.master.connect(this.ctx.destination);}catch(_){}}
+    if(this._bus){try{this._bus.disconnect();}catch(_){}}
+    // 重建完整管線（bus → reverb → master）
+    if(this.ctx){
+      this._bus=this.ctx.createGain();this._bus.gain.value=1;
+      this.master=this.ctx.createGain();this.master.gain.value=this.vol;
+      // 重建混響
+      const rate=this.ctx.sampleRate,len=rate*2,buf=this.ctx.createBuffer(2,len,rate);
+      for(let ch=0;ch<2;ch++){const d=buf.getChannelData(ch);for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/len,2.2)*0.4;}
+      const conv=this.ctx.createConvolver();conv.buffer=buf;
+      const wet=this.ctx.createGain();wet.gain.value=0.3;
+      this._bus.connect(this.master);this._bus.connect(conv);conv.connect(wet);wet.connect(this.master);
+    }
   },
   start(){
     this.init();
     if(!this.ctx)return;
     if(this.ctx.state==='suspended')this.ctx.resume();
-    this._silence(); // 停掉舊的
-    this._reconnect(); // 重新接上
+    this._silence(); // 停掉舊的（重建管線）
+    this.master.connect(this.ctx.destination); // 新管線接上
     this.playing=true;
-    if(this.master)this.master.gain.setValueAtTime(this.vol,this.ctx.currentTime);
     this._play();
     this._updateUI(true);
     localStorage.setItem('fate_bgm','1');
@@ -1344,7 +1351,7 @@ const BGM={
     this.mood=mood;
     localStorage.setItem('fate_bgm_mood',mood);
     const sel=document.getElementById('bgm-mood');if(sel)sel.value=mood;
-    if(this.playing){this._silence();this._reconnect();if(this.master)this.master.gain.setValueAtTime(this.vol,this.ctx.currentTime);this._play();}
+    if(this.playing){this._silence();this.master.connect(this.ctx.destination);this._play();}
   },
   setVolume(v){
     this.vol=Math.max(0,Math.min(1,v));
@@ -1657,14 +1664,22 @@ function avgSetSprites(speakers){
   unique.forEach((spName,i)=>{
     const src=avgGetSpriteSrc(spName);
     if(!src)return;
-    const img=document.createElement('img');
-    img.className=`avg-sprite ${unique.length===1?'center':i===0?'left':'right'}`;
-    img.src=src;
-    img.dataset.speaker=spName;
-    img.onerror=()=>img.remove();
-    container.appendChild(img);
-    requestAnimationFrame(()=>requestAnimationFrame(()=>img.classList.add('show')));
+    _avgAddSprite(container,spName,src,unique.length===1?'center':i===0?'left':'right');
   });
+}
+function _avgAddSprite(container,spName,src,pos){
+  const img=document.createElement('img');
+  img.className=`avg-sprite ${pos}`;
+  img.dataset.speaker=spName;
+  // 載入失敗時保留佔位（不移除），3秒後重試一次
+  let retried=false;
+  img.onerror=()=>{
+    if(!retried){retried=true;setTimeout(()=>{img.src=src;},3000);}
+    else{img.style.opacity='0';}// 重試也失敗就隱藏但不移除
+  };
+  img.src=src;
+  container.appendChild(img);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>img.classList.add('show')));
 }
 
 function avgHighlightSpeaker(spName){
@@ -1712,20 +1727,14 @@ function avgShowFrame(frame){
     else avEl.style.display='none';
     txtEl.className='';
     // 如果這個說話者還沒有立繪，動態加入
-    const existing=document.querySelector(`.avg-sprite[data-speaker="${frame.sp}"]`);
+    const existing=document.querySelector(`.avg-sprite[data-speaker="${CSS.escape(frame.sp)}"]`);
     if(!existing&&!/(系統|翻譯)/.test(frame.sp)){
       const container=document.getElementById('avg-sprites');
       const sprites=container.querySelectorAll('.avg-sprite');
       const src=avgGetSpriteSrc(frame.sp);
       if(src){
-        // 超過2人時移除最早的
         if(sprites.length>=2)sprites[0].remove();
-        const img=document.createElement('img');
-        img.className='avg-sprite '+(sprites.length===0||sprites.length>=2?'right':'right');
-        img.src=src;img.dataset.speaker=frame.sp;
-        img.onerror=()=>img.remove();
-        container.appendChild(img);
-        requestAnimationFrame(()=>requestAnimationFrame(()=>img.classList.add('show')));
+        _avgAddSprite(container,frame.sp,src,sprites.length<=1?'right':'right');
       }
     }
     avgHighlightSpeaker(frame.sp);
