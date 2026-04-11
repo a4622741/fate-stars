@@ -996,349 +996,53 @@ function useItem(itemName){
   showToast(`使用了 ${itemName}`,'ok');
 }
 
-// ═══ BGM ENGINE — 東野美紀風格・FM合成 ═══
-// 音符頻率（C2-C6）
-const _N=(()=>{const n={};const names=['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];for(let o=2;o<=6;o++)names.forEach((nm,i)=>{n[nm+o]=440*Math.pow(2,(o-4)+(i-9)/12);});return n;})();
+// ═══ BGM ENGINE — 音訊檔案播放 ═══
+// 在設定中為每個場景類型設定音樂URL（YouTube/MP3連結等）
+const _BGM_MOODS=['explore','town','battle','tension','night','sad'];
+const _BGM_MOOD_NAMES={explore:'探索',town:'城鎮',battle:'戰鬥',tension:'緊張',night:'夜晚',sad:'悲傷'};
+const _BGM_FALLBACK={}; // 不使用合成音樂
 const BGM={
-  ctx:null,master:null,playing:false,mood:'explore',vol:0.3,_timers:[],_lid:0,
-  // ── FM合成樂器 ──
-  _fm(freq,t,dur,opts){
-    // opts: {type,mod,idx,atk,dec,sus,rel,vol,pan,vibRate,vibDepth}
-    const c=this.ctx,o=opts||{};
-    const car=c.createOscillator(),cg=c.createGain();
-    car.type=o.type||'sine';car.frequency.value=freq;
-    // FM 調變器
-    if(o.mod){const m=c.createOscillator(),mg=c.createGain();m.frequency.value=freq*o.mod;mg.gain.value=freq*(o.idx||1);m.connect(mg);mg.connect(car.frequency);m.start(t);m.stop(t+dur+0.1);}
-    // 顫音
-    if(o.vibRate){const v=c.createOscillator(),vg=c.createGain();v.frequency.value=o.vibRate;vg.gain.value=o.vibDepth||3;v.connect(vg);vg.connect(car.frequency);v.start(t);v.stop(t+dur+0.1);}
-    // ADSR 包絡
-    const a=o.atk||0.05,d=o.dec||0.1,s=o.sus||0.7,r=o.rel||0.3,v=o.vol||0.1;
-    cg.gain.setValueAtTime(0,t);
-    cg.gain.linearRampToValueAtTime(v,t+a);
-    cg.gain.linearRampToValueAtTime(v*s,t+a+d);
-    cg.gain.setValueAtTime(v*s,t+dur-r);
-    cg.gain.linearRampToValueAtTime(0,t+dur);
-    // 聲像
-    let dest=this._bus;
-    if(o.pan&&c.createStereoPanner){const p=c.createStereoPanner();p.pan.value=o.pan;car.connect(cg);cg.connect(p);p.connect(dest);}
-    else{car.connect(cg);cg.connect(dest);}
-    car.start(t);car.stop(t+dur+0.05);
-  },
-  // 預設樂器
-  _flute(f,t,d,v){this._fm(f,t,d,{type:'sine',mod:2,idx:0.5,atk:0.12,dec:0.1,sus:0.8,rel:0.25,vol:v||0.09,vibRate:5,vibDepth:3});},
-  _strings(f,t,d,v){// 3層疊加模擬弦樂
-    const vol=(v||0.04);
-    this._fm(f,t,d,{type:'sine',atk:0.3,dec:0.2,sus:0.85,rel:0.5,vol:vol,vibRate:4.5,vibDepth:2,pan:-0.2});
-    this._fm(f*1.002,t,d,{type:'sine',atk:0.35,dec:0.2,sus:0.85,rel:0.5,vol:vol*0.7,pan:0.2});
-    this._fm(f*0.998,t,d,{type:'sine',atk:0.32,dec:0.2,sus:0.85,rel:0.5,vol:vol*0.5});
-  },
-  _harp(f,t,d,v){this._fm(f,t,d,{type:'sine',mod:3,idx:0.3,atk:0.01,dec:0.15,sus:0.3,rel:0.4,vol:v||0.07});},
-  _bass(f,t,d,v){this._fm(f,t,d,{type:'sine',mod:1,idx:0.2,atk:0.05,dec:0.15,sus:0.9,rel:0.3,vol:v||0.08});},
-  _bell(f,t,d,v){this._fm(f,t,d,{type:'sine',mod:5.01,idx:1.5,atk:0.01,dec:0.5,sus:0.1,rel:0.8,vol:v||0.04});},
-  // ── 作曲資料 ──
-  // 格式：[音名, 拍數] 如 ['E4',1] = E4音1拍。0=休止。
-  // 每首80-120拍 @ 各自BPM → 約 1.5-3分鐘一循環
-  // 曲目使用音名字串，播放時查 _N 表轉頻率
-  songs:{
-    // ───「星辰之路」探索主題 ~2.5min @ 84bpm ─ 東野美紀風：溫柔五聲旋律＋弦樂和聲───
-    explore:{bpm:84,inst:'flute',
-      melody:[ // Intro(4小節) → A(8) → B(8) → A'(8) → Outro(4) = 32小節 × 4拍 = 128拍
-        // Intro：豎琴琶音引入
-        ['E4',2],['G4',1],['A4',1],['C5',2],[0,2],['D5',1],['C5',1],['A4',1],['G4',1],[0,4],
-        ['E4',1],['G4',1],['A4',2],[0,2],['G4',1],['E4',1],['D4',2],[0,4],
-        // A段：問句——溫柔的五聲上行
-        ['E4',1],['G4',1],['A4',1.5],['G4',0.5],['E4',1],['D4',1],['C4',2],[0,1],['D4',0.5],['E4',0.5],
-        ['G4',1],['A4',1],['C5',1.5],['A4',0.5],['G4',2],[0,2],
-        ['A4',1],['C5',1],['D5',1.5],['C5',0.5],['A4',1],['G4',1],['E4',1.5],['D4',0.5],
-        ['E4',2],['G4',1],['A4',1],['G4',2],[0,2],
-        // A段答句——稍高
-        ['C5',1],['D5',1],['E5',1.5],['D5',0.5],['C5',1],['A4',1],['G4',2],[0,1],['A4',0.5],['C5',0.5],
-        ['D5',1],['C5',1],['A4',1.5],['G4',0.5],['E4',2],[0,2],
-        ['G4',1],['A4',1],['C5',1],['D5',1],['E5',2],['D5',1],['C5',1],
-        ['A4',1.5],['G4',0.5],['E4',1],['D4',1],['C4',3],[0,1],
-        // B段：情感展開——更高的音域
-        ['E5',2],['D5',1],['C5',1],['A4',1],['C5',1],['D5',2],[0,1],['E5',0.5],['D5',0.5],
-        ['C5',1.5],['A4',0.5],['G4',1],['A4',1],['C5',2],['D5',1],[0,1],
-        ['E5',1.5],['D5',0.5],['C5',1],['D5',1],['E5',1],['G5',1],['E5',2],
-        ['D5',1],['C5',1],['A4',1.5],['G4',0.5],['A4',2],[0,2],
-        // B'段回落
-        ['C5',1],['A4',1],['G4',1.5],['E4',0.5],['D4',1],['E4',1],['G4',2],[0,1],['A4',0.5],['G4',0.5],
-        ['E4',1.5],['D4',0.5],['C4',1],['D4',1],['E4',2],[0,2],
-        ['G4',1],['A4',1],['C5',1.5],['A4',0.5],['G4',2],['E4',1],[0,1],
-        ['D4',1],['E4',1],['G4',1.5],['E4',0.5],['D4',1],['C4',2],[0,1],
-        // Outro：漸弱回歸
-        ['E4',2],['G4',2],['A4',3],[0,1],['G4',1],['E4',1],['D4',2],['C4',4],[0,4],
-      ],
-      chords:[ // [根,三,五,拍] — I vi IV V 進行為基底
-        ['C3','E3','G3',4],['A2','C3','E3',4],['F2','A2','C3',4],['G2','B2','D3',4], // Intro
-        ['C3','E3','G3',4],['A2','C3','E3',4],['D3','F3','A3',4],['G2','B2','D3',4],
-        ['C3','E3','G3',4],['A2','C3','E3',4],['F2','A2','C3',4],['G2','B2','D3',4], // A
-        ['C3','E3','G3',4],['F2','A2','C3',4],['D3','F3','A3',4],['G2','B2','D3',4],
-        ['C3','E3','G3',4],['A2','C3','E3',4],['F2','A2','C3',4],['G2','B2','D3',4], // A'
-        ['C3','E3','G3',4],['F2','A2','C3',4],['A2','C3','E3',4],['G2','B2','D3',4],
-        ['F2','A2','C3',4],['G2','B2','D3',4],['A2','C3','E3',4],['G2','B2','D3',4], // B
-        ['F2','A2','C3',4],['E2','G2','B2',4],['F2','A2','C3',4],['G2','B2','D3',4],
-        ['C3','E3','G3',4],['A2','C3','E3',4],['F2','A2','C3',4],['G2','B2','D3',4], // B'
-        ['C3','E3','G3',4],['D3','F3','A3',4],['A2','C3','E3',4],['G2','B2','D3',4],
-        ['C3','E3','G3',8],['F2','A2','C3',4],['G2','B2','D3',4], // Outro
-      ],
-      bass:[
-        ['C2',4],['A2',4],['F2',4],['G2',4],['C2',4],['A2',4],['D2',4],['G2',4],
-        ['C2',2],['G2',2],['A2',2],['E2',2],['F2',2],['C2',2],['G2',2],['D2',2],
-        ['C2',2],['G2',2],['F2',2],['C2',2],['D2',2],['A2',2],['G2',2],['D2',2],
-        ['C2',2],['G2',2],['A2',2],['E2',2],['F2',2],['C2',2],['A2',2],['G2',2],
-        ['C2',2],['G2',2],['F2',2],['C2',2],['D2',2],['A2',2],['G2',4],
-        ['F2',2],['C2',2],['G2',2],['D2',2],['A2',2],['E2',2],['F2',2],['G2',2],
-        ['C2',2],['G2',2],['A2',2],['E2',2],['F2',2],['C2',2],['G2',2],['D2',2],
-        ['C2',2],['G2',2],['F2',2],['D2',2],['A2',2],['E2',2],['G2',4],
-        ['C2',4],['A2',4],['F2',4],['G2',4],['C2',8],
-      ],
-    },
-    // ───「霧鎮黃昏」城鎮曲 ~2min @ 100bpm ─ 幻水Gregminster風───
-    town:{bpm:100,inst:'harp',
-      melody:[
-        ['G4',0.5],['A4',0.5],['C5',1],['D5',1],['C5',0.5],['A4',0.5],['G4',2],[0,1],['E4',0.5],['G4',0.5],
-        ['A4',1],['G4',0.5],['E4',0.5],['D4',1],['E4',1],['G4',2],[0,2],
-        ['C5',1],['D5',0.5],['E5',0.5],['D5',1],['C5',1],['A4',1],['G4',0.5],['A4',0.5],['C5',2],
-        ['A4',0.5],['G4',0.5],['E4',1],['D4',1],['C4',2],[0,2],
-        ['E5',0.5],['D5',0.5],['C5',0.5],['A4',0.5],['G4',1],['A4',1],['C5',1],['D5',1],['E5',1],[0,1],
-        ['D5',1],['C5',0.5],['A4',0.5],['G4',1],['E4',1],['G4',2],[0,2],
-        ['C5',1.5],['D5',0.5],['E5',1],['D5',1],['C5',0.5],['A4',0.5],['G4',1],['A4',1],['G4',2],
-        ['E4',1],['G4',0.5],['A4',0.5],['G4',1],['E4',0.5],['D4',0.5],['C4',3],[0,1],
-        // 重複A段（微變）
-        ['G4',0.5],['A4',0.5],['C5',1.5],['D5',0.5],['E5',1],['D5',0.5],['C5',0.5],['A4',2],[0,1],['G4',0.5],['A4',0.5],
-        ['C5',1],['A4',0.5],['G4',0.5],['E4',1],['G4',1],['A4',2],[0,2],
-        ['D5',1],['C5',1],['A4',0.5],['G4',0.5],['A4',1],['C5',1],['D5',1.5],['C5',0.5],['A4',2],
-        ['G4',1],['E4',0.5],['D4',0.5],['E4',1],['G4',1],['C4',3],[0,1],
-      ],
-      chords:[
-        ['C3','E3','G3',4],['F3','A3','C4',4],['G3','B3','D4',4],['C3','E3','G3',4],
-        ['A2','C3','E3',4],['F3','A3','C4',4],['G3','B3','D4',4],['C3','E3','G3',4],
-        ['F3','A3','C4',4],['G3','B3','D4',4],['A2','C3','E3',4],['E3','G3','B3',4],
-        ['F3','A3','C4',4],['G3','B3','D4',4],['C3','E3','G3',8],
-        ['C3','E3','G3',4],['F3','A3','C4',4],['G3','B3','D4',4],['A2','C3','E3',4],
-        ['D3','F3','A3',4],['G3','B3','D4',4],['A2','C3','E3',4],['G3','B3','D4',4],
-        ['C3','E3','G3',8],
-      ],
-      bass:[
-        ['C2',2],['G2',2],['F2',2],['C2',2],['G2',2],['D2',2],['C2',2],['G2',2],
-        ['A2',2],['E2',2],['F2',2],['C2',2],['G2',2],['D2',2],['C2',4],
-        ['F2',2],['C2',2],['G2',2],['D2',2],['A2',2],['E2',2],['E2',2],['B2',2],
-        ['F2',2],['C2',2],['G2',2],['D2',2],['C2',4],
-        ['C2',2],['G2',2],['F2',2],['C2',2],['G2',2],['D2',2],['A2',2],['E2',2],
-        ['D2',2],['A2',2],['G2',2],['D2',2],['A2',2],['E2',2],['G2',2],['D2',2],
-        ['C2',4],
-      ],
-    },
-    // ───「月下獨行」夜晚曲 ~3min @ 58bpm───
-    night:{bpm:58,inst:'bell',
-      melody:[
-        ['E4',3],['G4',2],['A4',4],[0,1],['G4',2],['E4',1],['D4',3],['C4',3],[0,2],
-        ['A4',3],['G4',1.5],['E4',1.5],['G4',4],['E4',1],['D4',5],[0,4],
-        ['C5',3],['A4',2],['G4',3],['E4',2],['D4',2],['E4',2],['G4',5],[0,2],
-        ['A4',3],['G4',1.5],['E4',1.5],['D4',3],['C4',5],[0,6],
-        // B段
-        ['E4',2],['G4',3],['A4',2],['C5',3],['A4',2],['G4',2],[0,2],
-        ['D5',3],['C5',2],['A4',3],['G4',2],['E4',5],[0,4],
-        ['A4',2],['C5',2],['D5',3],['C5',2],['A4',2],['G4',3],['E4',2],[0,2],
-        ['D4',2],['E4',3],['G4',2],['E4',2],['D4',2],['C4',6],[0,6],
-      ],
-      chords:[
-        ['C3','E3','G3',10],['A2','C3','E3',10],['F2','A2','C3',8],['G2','B2','D3',8],
-        ['A2','C3','E3',10],['D3','F3','A3',10],['G2','B2','D3',8],[0,0,0,6],
-        ['F2','A2','C3',8],['G2','B2','D3',8],['C3','E3','G3',10],['A2','C3','E3',10],
-        ['D3','F3','A3',8],['G2','B2','D3',8],['C3','E3','G3',12],
-      ],
-      bass:[
-        ['C2',5],['G2',5],['A2',5],['E2',5],['F2',4],['D2',4],['G2',8],
-        ['A2',5],['D2',5],['G2',8],[0,6],
-        ['F2',4],['C2',4],['G2',4],['D2',4],['C2',5],['A2',5],
-        ['D2',4],['A2',4],['G2',4],['D2',4],['C2',12],
-      ],
-    },
-    // ───「星辰的眼淚」哀愁曲 ~2min @ 68bpm ─ Cm───
-    sad:{bpm:68,inst:'flute',
-      melody:[
-        ['Eb4',2],['G4',1.5],['Ab4',0.5],['G4',2],['Eb4',2],['D4',2],['C4',3],[0,1],
-        ['Ab4',2],['G4',1],['Eb4',1],['G4',3],['Eb4',1],['D4',4],[0,4],
-        ['C5',2],['Bb4',1],['Ab4',1],['G4',2],['Eb4',2],['G4',2],['Ab4',2],['G4',4],
-        ['Eb4',2],['D4',2],['C4',4],[0,4],
-        // B段
-        ['Eb5',2],['D5',1],['C5',1],['Bb4',2],['Ab4',2],['G4',2],['Ab4',2],['Bb4',4],
-        ['Ab4',2],['G4',1],['Eb4',1],['D4',2],['C4',2],['Eb4',3],[0,1],
-        ['G4',2],['Ab4',2],['Bb4',2],['Ab4',1],['G4',1],['Eb4',2],['D4',2],['C4',4],
-        ['Eb4',2],['D4',1],['C4',1],['D4',2],['Eb4',2],['C4',5],[0,3],
-      ],
-      chords:[
-        ['C3','Eb3','G3',8],['Ab2','C3','Eb3',8],['G2','B2','D3',8],['C3','Eb3','G3',4],[0,0,0,4],
-        ['F3','Ab3','C4',8],['Eb3','G3','Bb3',8],['Ab2','C3','Eb3',4],['G2','B2','D3',4],['C3','Eb3','G3',8],
-        ['Ab2','C3','Eb3',8],['Bb2','D3','F3',8],['Eb3','G3','Bb3',8],['Ab2','C3','Eb3',4],['G2','B2','D3',4],
-        ['C3','Eb3','G3',4],['Ab2','C3','Eb3',4],['G2','B2','D3',4],['C3','Eb3','G3',4],[0,0,0,4],
-      ],
-      bass:[
-        ['C2',4],['G2',4],['Ab2',4],['Eb2',4],['G2',4],['D2',4],['C2',8],
-        ['F2',4],['C2',4],['Eb2',4],['Bb2',4],['Ab2',4],['Eb2',4],['G2',4],['D2',4],['C2',8],
-        ['Ab2',4],['Eb2',4],['Bb2',4],['F2',4],['Eb2',4],['Bb2',4],['Ab2',4],['G2',4],
-        ['C2',4],['Ab2',4],['G2',4],['C2',8],
-      ],
-    },
-    // ───「暗雲」緊張曲 ~1.5min @ 92bpm ─ Am───
-    tension:{bpm:92,inst:'strings',
-      melody:[
-        ['E4',0.5],['E4',0.5],['E4',0.5],[0,0.5],['E4',0.5],['G4',0.5],['A4',1],['E4',1],[0,1],['D4',0.5],['E4',0.5],
-        ['A4',1],['G4',0.5],['E4',0.5],['D4',1],['E4',2],[0,1],['E4',0.5],['G4',0.5],
-        ['A4',1],['C5',1],['B4',0.5],['A4',0.5],['G4',1],['A4',1],['C5',2],['A4',1],['G4',1],
-        ['E4',1],['D4',0.5],['E4',0.5],['D4',1],['C4',2],[0,3],
-        // B段
-        ['C5',1],['B4',0.5],['A4',0.5],['G4',1],['A4',1],['B4',1],['C5',1],['E5',2],[0,2],
-        ['D5',1],['C5',0.5],['B4',0.5],['A4',1],['G4',1],['E4',2],[0,2],
-        ['A4',1],['C5',1],['B4',0.5],['A4',0.5],['G4',1],['A4',1],['B4',2],['A4',2],
-        ['G4',1],['E4',0.5],['D4',0.5],['E4',2],['A3',2],[0,4],
-      ],
-      chords:[
-        ['A2','C3','E3',4],['A2','C3','E3',4],['D3','F3','A3',4],['E3','G3','B3',4],
-        ['A2','C3','E3',4],['F3','A3','C4',4],['D3','F3','A3',4],['E3','G3','B3',4],
-        ['A2','C3','E3',4],['G2','B2','D3',4],['F2','A2','C3',4],['E2','G2','B2',4],
-        ['A2','C3','E3',4],['D3','F3','A3',4],['E3','G3','B3',4],['A2','C3','E3',8],
-      ],
-      bass:[
-        ['A2',1],['A2',1],['A2',1],['A2',1],['A2',1],['A2',1],['D2',1],['D2',1],
-        ['E2',1],['E2',1],['E2',1],['E2',1],
-        ['A2',1],['A2',1],['F2',1],['F2',1],['D2',1],['D2',1],['E2',2],
-        ['A2',1],['A2',1],['G2',1],['G2',1],['F2',1],['F2',1],['E2',1],['E2',1],
-        ['A2',1],['A2',1],['D2',1],['D2',1],['E2',2],['A2',4],
-      ],
-    },
-    // ───「命運之刃」戰鬥曲 ~1.5min @ 140bpm ─ Am───
-    battle:{bpm:140,inst:'strings',
-      melody:[
-        ['E5',0.5],['D5',0.5],['C5',0.5],['D5',0.5],['E5',1],['G5',1],['E5',1],[0,0.5],['D5',0.5],
-        ['C5',0.5],['D5',0.5],['E5',1],['D5',0.5],['C5',0.5],['A4',1],['G4',1],[0,1],
-        ['A4',0.5],['C5',0.5],['D5',1],['E5',1],['G5',0.5],['E5',0.5],['D5',1],['C5',1],['D5',1],['E5',1],
-        ['A4',0.5],['C5',0.5],['D5',1],['C5',0.5],['A4',0.5],['G4',1],['E4',1],[0,2],
-        ['G5',1],['E5',0.5],['D5',0.5],['E5',1],['C5',1],['D5',1],['E5',1],['G5',1],[0,1],
-        ['A5',1],['G5',0.5],['E5',0.5],['D5',1],['C5',1],['A4',2],[0,2],
-        ['E5',1],['D5',0.5],['C5',0.5],['D5',1],['E5',1],['G5',1.5],['E5',0.5],['D5',1],['C5',1],
-        ['A4',0.5],['C5',0.5],['E5',1],['D5',0.5],['C5',0.5],['A4',2],[0,2],
-      ],
-      chords:[
-        ['A2','C3','E3',2],['A2','C3','E3',2],['G2','B2','D3',2],['G2','B2','D3',2],
-        ['F2','A2','C3',2],['F2','A2','C3',2],['E2','G2','B2',2],['E2','G2','B2',2],
-        ['A2','C3','E3',2],['D3','F3','A3',2],['G2','B2','D3',2],['E2','G2','B2',2],
-        ['A2','C3','E3',2],['D3','F3','A3',2],['E2','G2','B2',4],
-        ['A2','C3','E3',2],['G2','B2','D3',2],['F2','A2','C3',2],['E2','G2','B2',2],
-        ['F2','A2','C3',2],['G2','B2','D3',2],['A2','C3','E3',4],
-        ['A2','C3','E3',2],['G2','B2','D3',2],['F2','A2','C3',2],['E2','G2','B2',2],
-        ['D3','F3','A3',2],['E2','G2','B2',2],['A2','C3','E3',4],
-      ],
-      bass:[
-        ['A2',0.5],[0,0.5],['A2',0.5],[0,0.5],['G2',0.5],[0,0.5],['G2',0.5],[0,0.5],
-        ['F2',0.5],[0,0.5],['F2',0.5],[0,0.5],['E2',0.5],[0,0.5],['E2',0.5],[0,0.5],
-        ['A2',0.5],[0,0.5],['D2',0.5],[0,0.5],['G2',0.5],[0,0.5],['E2',0.5],[0,0.5],
-        ['A2',0.5],[0,0.5],['D2',0.5],[0,0.5],['E2',1],['E2',1],
-        ['A2',0.5],[0,0.5],['G2',0.5],[0,0.5],['F2',0.5],[0,0.5],['E2',0.5],[0,0.5],
-        ['F2',0.5],[0,0.5],['G2',0.5],[0,0.5],['A2',1],['A2',1],
-        ['A2',0.5],[0,0.5],['G2',0.5],[0,0.5],['F2',0.5],[0,0.5],['E2',0.5],[0,0.5],
-        ['D2',0.5],[0,0.5],['E2',0.5],[0,0.5],['A2',1],['A2',1],
-      ],
-    },
-  },
-  init(){
-    if(this.ctx)return;
-    try{this.ctx=new(window.AudioContext||window.webkitAudioContext)();}catch(e){console.warn('AudioContext unavailable');return;}
-    this.master=this.ctx.createGain();this.master.gain.value=this.vol;
-    // 混響
-    const rate=this.ctx.sampleRate,len=rate*2,buf=this.ctx.createBuffer(2,len,rate);
-    for(let ch=0;ch<2;ch++){const d=buf.getChannelData(ch);for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/len,2.2)*0.4;}
-    const conv=this.ctx.createConvolver();conv.buffer=buf;
-    const wet=this.ctx.createGain();wet.gain.value=0.3;
-    this._bus=this.ctx.createGain();this._bus.gain.value=1;
-    this._bus.connect(this.master);this._bus.connect(conv);conv.connect(wet);wet.connect(this.master);
-    this.master.connect(this.ctx.destination);
-  },
-  _play(){
-    if(!this.playing||!this.ctx)return;
-    const id=++this._lid;
-    const song=this.songs[this.mood]||this.songs.explore;
-    const beat=60/song.bpm;
-    const now=this.ctx.currentTime+0.2;
-    const N=n=>typeof n==='string'?_N[n]:n;
-    let t=0;
-    // 主旋律
-    const instFn=this['_'+(song.inst||'flute')].bind(this);
-    song.melody.forEach(([n,b])=>{const f=N(n);if(f>0)instFn(f,now+t*beat,b*beat*0.88,0.10);t+=b;});
-    const totalBeats=t;
-    // 弦樂和聲 + 豎琴琶音
-    let ct=0;
-    (song.chords||[]).forEach(([r,th,fi,b])=>{
-      const fr=N(r),ft=N(th),ff=N(fi);
-      if(fr>0){
-        const d=b*beat;
-        this._strings(fr,now+ct*beat,d*0.95,0.035);
-        if(ft>0)this._strings(ft,now+ct*beat,d*0.95,0.025);
-        if(ff>0)this._strings(ff,now+ct*beat,d*0.95,0.025);
-        // 豎琴琶音（每拍一個音，輪流根三五）
-        const arpNotes=[fr,ft,ff].filter(x=>x>0);
-        for(let i=0;i<b&&arpNotes.length;i++){
-          this._harp(arpNotes[i%arpNotes.length]*2,now+(ct+i)*beat,beat*0.5,0.03);
-        }
-      }
-      ct+=b;
-    });
-    // 低音
-    let bt=0;
-    (song.bass||[]).forEach(([n,b])=>{const f=N(n);if(f>0)this._bass(f,now+bt*beat,b*beat*0.9,0.07);bt+=b;});
-    // 循環
-    const ms=totalBeats*beat*1000;
-    const tid=setTimeout(()=>{if(this._lid===id)this._play();},ms-300);
-    this._timers.push(tid);
-  },
-  _silence(){
-    // 停止循環 + 完全重建音訊管線（避免舊振盪器殘留重疊）
-    this._lid++;
-    this._timers.forEach(t=>clearTimeout(t));this._timers=[];
-    if(this.master){try{this.master.disconnect();}catch(_){}}
-    if(this._bus){try{this._bus.disconnect();}catch(_){}}
-    // 重建完整管線（bus → reverb → master）
-    if(this.ctx){
-      this._bus=this.ctx.createGain();this._bus.gain.value=1;
-      this.master=this.ctx.createGain();this.master.gain.value=this.vol;
-      // 重建混響
-      const rate=this.ctx.sampleRate,len=rate*2,buf=this.ctx.createBuffer(2,len,rate);
-      for(let ch=0;ch<2;ch++){const d=buf.getChannelData(ch);for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/len,2.2)*0.4;}
-      const conv=this.ctx.createConvolver();conv.buffer=buf;
-      const wet=this.ctx.createGain();wet.gain.value=0.3;
-      this._bus.connect(this.master);this._bus.connect(conv);conv.connect(wet);wet.connect(this.master);
-    }
+  _audio:null,playing:false,mood:'explore',vol:0.3,_customUrls:{},
+  _getUrl(mood){
+    // 優先：自訂URL > 本地檔案 > 線上備用
+    if(this._customUrls[mood])return this._customUrls[mood];
+    return _BGM_FALLBACK[mood]||_BGM_FALLBACK.explore;
   },
   start(){
-    this.init();
-    if(!this.ctx)return;
-    if(this.ctx.state==='suspended')this.ctx.resume();
-    this._silence(); // 停掉舊的（重建管線）
-    this.master.connect(this.ctx.destination); // 新管線接上
+    if(this.playing)this.stop();
+    const url=this._getUrl(this.mood);
+    if(!url)return;
+    this._audio=new Audio(url);
+    this._audio.loop=true;
+    this._audio.volume=this.vol;
+    this._audio.crossOrigin='anonymous';
+    this._audio.play().catch(()=>{});
     this.playing=true;
-    this._play();
     this._updateUI(true);
     localStorage.setItem('fate_bgm','1');
   },
   stop(){
     this.playing=false;
-    this._silence();
+    if(this._audio){
+      this._audio.pause();
+      this._audio.currentTime=0;
+      this._audio.src='';
+      this._audio=null;
+    }
     this._updateUI(false);
     localStorage.setItem('fate_bgm','0');
   },
   setMood(mood){
-    if(!this.songs[mood])return;
+    if(!_BGM_FALLBACK[mood]&&!this._customUrls[mood])return;
     if(mood===this.mood)return;
     this.mood=mood;
     localStorage.setItem('fate_bgm_mood',mood);
     const sel=document.getElementById('bgm-mood');if(sel)sel.value=mood;
-    if(this.playing){this._silence();this.master.connect(this.ctx.destination);this._play();}
+    if(this.playing){this.stop();this.start();}
   },
   setVolume(v){
     this.vol=Math.max(0,Math.min(1,v));
-    if(this.master)this.master.gain.value=this.vol;
+    if(this._audio)this._audio.volume=this.vol;
     localStorage.setItem('fate_bgm_vol',this.vol);
   },
   _updateUI(on){
@@ -1360,6 +1064,8 @@ const BGM={
   restore(){
     this.vol=parseFloat(localStorage.getItem('fate_bgm_vol'))||0.3;
     this.mood=localStorage.getItem('fate_bgm_mood')||'explore';
+    // 恢復自訂URL
+    try{const saved=localStorage.getItem('fate_bgm_custom');if(saved)this._customUrls=JSON.parse(saved);}catch(_){}
     const volEl=document.getElementById('bgm-vol');if(volEl)volEl.value=this.vol*100;
     const sel=document.getElementById('bgm-mood');if(sel)sel.value=this.mood;
     if(localStorage.getItem('fate_bgm')==='1'){
@@ -1368,6 +1074,11 @@ const BGM={
       document.addEventListener('touchstart',handler);
       this._updateUI(true);
     }
+  },
+  setCustomUrl(mood,url){
+    this._customUrls[mood]=url;
+    try{localStorage.setItem('fate_bgm_custom',JSON.stringify(this._customUrls));}catch(_){}
+    if(this.playing&&this.mood===mood){this.stop();this.start();}
   }
 };
 function toggleBGM(){if(BGM.playing)BGM.stop();else BGM.start();}

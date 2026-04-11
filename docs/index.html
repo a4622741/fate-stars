@@ -116,7 +116,7 @@
     <hr class="s-divider">
     <div class="s-row">
       <div class="s-lbl">背景音樂</div>
-      <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.3rem;">
+      <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.4rem;">
         <button class="sbn p" id="bgm-toggle" onclick="toggleBGM()" style="flex:1;">🎵 開啟音樂</button>
         <select class="s-sel" id="bgm-mood" onchange="changeBGMMood(this.value)" style="flex:1;">
           <option value="explore">探索（平靜）</option>
@@ -127,11 +127,36 @@
           <option value="sad">哀愁（悲傷）</option>
         </select>
       </div>
-      <div style="display:flex;align-items:center;gap:.4rem;">
+      <div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.5rem;">
         <span style="font-size:.55rem;color:var(--sild);">音量</span>
         <input type="range" id="bgm-vol" min="0" max="100" value="30" oninput="setBGMVolume(this.value/100)" style="flex:1;accent-color:var(--gold);"/>
       </div>
-      <div style="font-size:.55rem;color:var(--sild);margin-top:.2rem;">程式合成音樂，無需下載。音樂會隨場景自動切換。</div>
+      <div style="font-size:.58rem;color:var(--goldl);margin-bottom:.3rem;font-weight:600;">🎵 音樂設定（貼上MP3連結）</div>
+      <div style="font-size:.5rem;color:var(--sild);margin-bottom:.3rem;">為每種場景貼上音樂URL（MP3直鏈）。設定後按「開啟音樂」即可播放。推薦從YouTube轉MP3或使用免費音樂網站。</div>
+      <div id="bgm-url-inputs" style="display:flex;flex-direction:column;gap:.25rem;"></div>
+      <script>
+        document.addEventListener('DOMContentLoaded',()=>{
+          const box=document.getElementById('bgm-url-inputs');
+          if(!box)return;
+          const moods={explore:'🗺 探索',town:'🏘 城鎮',battle:'⚔ 戰鬥',tension:'⚡ 緊張',night:'🌙 夜晚',sad:'😢 悲傷'};
+          Object.entries(moods).forEach(([k,label])=>{
+            const row=document.createElement('div');
+            row.style.cssText='display:flex;align-items:center;gap:.3rem;';
+            row.innerHTML=`<span style="font-size:.52rem;color:var(--goldd);width:3.5rem;flex-shrink:0;">${label}</span>
+              <input type="url" id="bgm-url-${k}" placeholder="https://...mp3"
+                style="flex:1;background:var(--bg3);border:1px solid var(--brd);border-radius:2px;padding:.2rem .35rem;color:var(--sil);font-size:.55rem;font-family:'Noto Serif TC',serif;outline:none;"
+                onchange="BGM.setCustomUrl('${k}',this.value)"/>`;
+            box.appendChild(row);
+          });
+          // 恢復已存的URL
+          setTimeout(()=>{
+            Object.keys(moods).forEach(k=>{
+              const inp=document.getElementById('bgm-url-'+k);
+              if(inp&&BGM._customUrls[k])inp.value=BGM._customUrls[k];
+            });
+          },500);
+        });
+      </script>
     </div>
     <hr class="s-divider">
     <div class="s-row">
@@ -352,7 +377,7 @@
   <button onclick="document.getElementById('pwa-install').style.display='none'" style="font-size:.8rem;background:none;border:none;color:var(--sild);cursor:pointer;">✕</button>
 </div>
 
-<script src="js/app.js?v=9"></script>
+<script src="js/app.js?v=10"></script>
 <script>
 // PWA Service Worker Registration
 if('serviceWorker' in navigator){
