@@ -180,9 +180,30 @@ function renderStoryFromData(){
       if(lastEl)makeActionEditable(lastEl,e.v);
     }
   });
+  // AVG模式：顯示最後一段內容+場景背景
+  if(G._avgMode){
+    avgSetBg(G.sceneTitle,G.sceneLoc);
+    // 找最後的對話/敘述顯示在AVG文字框
+    const lastNarr=G.storyData.filter(e=>e.type==='narr').pop();
+    const lastDial=G.storyData.filter(e=>e.type==='dial').pop();
+    const last=lastDial||lastNarr;
+    if(last){
+      if(last.type==='dial'){
+        document.getElementById('avg-speaker').textContent=last.sp;
+        document.getElementById('avg-text').textContent='「'+last.ln+'」';
+        document.getElementById('avg-text').className='';
+        // 立繪
+        avgSetSprites([last.sp]);
+      }else{
+        document.getElementById('avg-speaker-row').style.display='none';
+        document.getElementById('avg-text').textContent=last.v;
+        document.getElementById('avg-text').className='narr';
+      }
+    }
+  }
   if(G.currentChoices.length)renderChoices(G.currentChoices,false);
   else renderFallback();
-  scrollD();
+  if(!G._avgMode)scrollD();
 }
 function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function appendEntryToDOM(e,save=true){
@@ -1559,7 +1580,196 @@ function tryParseJSON(raw){
 
 // ═══ STORY ENGINE ═══
 function mk(tag,cls){const e=document.createElement(tag);if(cls)e.className=cls;return e;}
-function scrollD(){const s=document.getElementById('story-scroll');setTimeout(()=>s.scrollTop=s.scrollHeight,60);}
+function scrollD(){if(G._avgMode)return;const s=document.getElementById('story-scroll');setTimeout(()=>s.scrollTop=s.scrollHeight,60);}
+
+// ═══ AVG 視覺小說引擎 ═══
+const _avgState={queue:[],idx:0,typing:false,typingResolve:null,bgUrl:null,bgCache:{},lastSpeakers:[],choicesData:null,combatData:null};
+const _AVG_LOC_KEYWORDS={
+  '城':'medieval city','鎮':'small town','村':'village','港':'harbor port','碼頭':'dock harbor','酒館':'tavern interior',
+  '旅店':'inn interior','旅館':'inn interior','客棧':'inn interior','商店':'shop interior','市集':'marketplace',
+  '公會':'guild hall interior','工會':'guild hall interior','廣場':'town square','城門':'city gate',
+  '森林':'forest','翠林':'enchanted forest','沼澤':'dark swamp','沙漠':'desert','雪':'snow ice',
+  '霜':'frost ice','山':'mountain','洞窟':'cave','遺跡':'ruins','廢墟':'ruins','地下':'underground dungeon',
+  '宮殿':'palace','要塞':'fortress','塔':'tower','書庫':'library','碼頭區':'harbor district',
+  '海':'ocean sea','河':'river','橋':'stone bridge','路':'road path','營地':'campsite',
+  '夜':'night dark','晚':'evening dusk','傍晚':'dusk sunset','早晨':'morning sunrise','白天':'daytime',
+  '霧':'foggy misty','雨':'rainy','雪':'snowy','暴風':'stormy','月':'moonlight',
+};
+
+function avgBuildSceneBg(title,loc){
+  const key=(title||'')+'|'+(loc||'');
+  if(_avgState.bgCache[key])return _avgState.bgCache[key];
+  const combined=(title||'')+' '+(loc||'');
+  const parts=[];
+  Object.entries(_AVG_LOC_KEYWORDS).forEach(([zh,en])=>{if(combined.includes(zh))parts.push(en);});
+  if(!parts.length)parts.push('dark fantasy medieval landscape');
+  const prompt=`${[...new Set(parts)].join(', ')}, dark fantasy, wide angle establishing shot, atmospheric, cinematic lighting, detailed environment, concept art, no characters, no text, no UI`;
+  let seed=0;for(let i=0;i<(loc||'').length;i++)seed=(seed*31+loc.charCodeAt(i))&0x7fffffff;
+  const url=`https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1280&height=720&seed=${seed}&nologo=true`;
+  _avgState.bgCache[key]=url;
+  return url;
+}
+
+function avgSetBg(title,loc){
+  const url=avgBuildSceneBg(title,loc);
+  if(url===_avgState.bgUrl)return;
+  _avgState.bgUrl=url;
+  const el=document.getElementById('avg-bg');
+  el.classList.remove('loaded');
+  const img=new Image();
+  img.onload=()=>{el.style.backgroundImage=`url('${url}')`;el.classList.add('loaded');};
+  img.onerror=()=>{el.style.backgroundImage='none';};
+  img.src=url;
+}
+
+function avgSetSprites(speakers){
+  const container=document.getElementById('avg-sprites');
+  // 找出最近的說話者（最多左右2人）
+  const unique=[...new Set(speakers)].slice(-2);
+  // 清除舊sprite
+  container.innerHTML='';
+  unique.forEach((spName,i)=>{
+    const cleanName=spName.replace(/[\u{1F000}-\u{1FFFF}]|[\u{2600}-\u{27BF}]|[\u{FE00}-\u{FEFF}]/gu,'').trim();
+    const charMatch=allParty().find(m=>spName.includes(m.name));
+    const npcId='npc_'+cleanName.replace(/\s/g,'_');
+    let src=charMatch?getPortraitSrc(charMatch.id):getCustomPortrait(npcId);
+    if(!src)return;
+    // 用更大的圖片版本
+    if(src.includes('pollinations.ai')&&src.includes('width=260')){
+      src=src.replace('width=260','width=400').replace('height=148','height=560');
+    }
+    const img=document.createElement('img');
+    img.className=`avg-sprite ${unique.length===1?'center':i===0?'left':'right'}`;
+    img.src=src;
+    img.onerror=()=>img.remove();
+    container.appendChild(img);
+    requestAnimationFrame(()=>requestAnimationFrame(()=>img.classList.add('show')));
+  });
+}
+
+function avgHighlightSpeaker(spName){
+  document.querySelectorAll('.avg-sprite').forEach(s=>s.classList.remove('active'));
+  if(!spName)return;
+  // 找到匹配的sprite
+  document.querySelectorAll('.avg-sprite').forEach(s=>{
+    const charMatch=allParty().find(m=>spName.includes(m.name));
+    if(charMatch&&s.src.includes(charMatch.id))s.classList.add('active');
+    else if(s.src.includes(spName.replace(/\s/g,'_')))s.classList.add('active');
+  });
+}
+
+function avgTypewriter(el,text,speed=28){
+  return new Promise(resolve=>{
+    _avgState.typing=true;
+    el.textContent='';
+    let i=0;
+    const skip=()=>{el.textContent=text;_avgState.typing=false;_avgState.typingResolve=null;resolve();};
+    _avgState.typingResolve=skip;
+    const tick=()=>{
+      if(!_avgState.typing){skip();return;}
+      if(i<text.length){
+        el.textContent+=text[i];i++;
+        // 標點稍慢
+        const ch=text[i-1];
+        const delay='，。！？、；：'.includes(ch)?speed*3:'…—'.includes(ch)?speed*2:speed;
+        setTimeout(tick,delay);
+      }else{_avgState.typing=false;_avgState.typingResolve=null;resolve();}
+    };
+    tick();
+  });
+}
+
+function avgShowFrame(frame){
+  const spRow=document.getElementById('avg-speaker-row');
+  const spEl=document.getElementById('avg-speaker');
+  const avEl=document.getElementById('avg-speaker-avatar');
+  const txtEl=document.getElementById('avg-text');
+  const indEl=document.getElementById('avg-indicator');
+  indEl.style.display='none';
+
+  if(frame.type==='dial'){
+    spRow.style.display='flex';
+    spEl.textContent=frame.sp;
+    // 頭像
+    const cleanName=frame.sp.replace(/[\u{1F000}-\u{1FFFF}]|[\u{2600}-\u{27BF}]|[\u{FE00}-\u{FEFF}]/gu,'').trim();
+    const charMatch=allParty().find(m=>frame.sp.includes(m.name));
+    const npcId='npc_'+cleanName.replace(/\s/g,'_');
+    const portrait=charMatch?getPortraitSrc(charMatch.id):getCustomPortrait(npcId);
+    if(portrait){avEl.src=portrait;avEl.style.display='';}
+    else avEl.style.display='none';
+    txtEl.className='';
+    avgHighlightSpeaker(frame.sp);
+    // 也寫入故事日誌
+    appendEntryToDOM({type:'dial',sp:frame.sp,ln:frame.ln});
+    avgTypewriter(txtEl,'「'+frame.ln+'」').then(()=>{indEl.style.display='';});
+  }else if(frame.type==='narr'){
+    spRow.style.display='none';
+    txtEl.className='narr';
+    appendEntryToDOM({type:'narr',v:frame.text});
+    avgTypewriter(txtEl,frame.text).then(()=>{indEl.style.display='';});
+  }else if(frame.type==='sys'){
+    spRow.style.display='none';
+    txtEl.className='sys';
+    appendEntryToDOM({type:'sys',v:frame.text});
+    avgTypewriter(txtEl,frame.text,15).then(()=>{indEl.style.display='';});
+  }
+}
+
+function avgAdvance(ev){
+  // 不攔截按鈕點擊
+  if(ev&&ev.target.closest('button,input,.ch-btn,.choices-wrap,.free-row'))return;
+  // 正在打字 → 跳到完整文字
+  if(_avgState.typing&&_avgState.typingResolve){_avgState.typingResolve();return;}
+  // 還有下一幀
+  _avgState.idx++;
+  if(_avgState.idx<_avgState.queue.length){
+    avgShowFrame(_avgState.queue[_avgState.idx]);
+  }else{
+    // 所有幀播完 → 顯示選項
+    document.querySelector('.choices-wrap').style.display='';
+    document.getElementById('avg-indicator').style.display='none';
+    if(_avgState.combatData){
+      const cb=_avgState.combatData;_avgState.combatData=null;
+      setTimeout(()=>autoCombat(cb),600);
+    }else if(_avgState.choicesData?.length){
+      renderChoices(_avgState.choicesData);
+      _avgState.choicesData=null;
+    }
+  }
+}
+
+function avgReset(){
+  _avgState.queue=[];_avgState.idx=0;_avgState.typing=false;_avgState.typingResolve=null;
+  _avgState.lastSpeakers=[];_avgState.choicesData=null;_avgState.combatData=null;
+  document.getElementById('avg-text').textContent='';
+  document.getElementById('avg-speaker').textContent='';
+  document.getElementById('avg-speaker-avatar').style.display='none';
+  document.getElementById('avg-indicator').style.display='none';
+}
+
+function toggleAvgLog(){
+  const ss=document.getElementById('story-scroll');
+  if(ss.classList.contains('avg-log')){
+    ss.classList.remove('avg-log');
+    ss.classList.add('avg-hidden');
+  }else{
+    ss.classList.remove('avg-hidden');
+    ss.classList.add('avg-log');
+    ss.scrollTop=ss.scrollHeight;
+  }
+}
+
+// 鍵盤支持
+document.addEventListener('keydown',e=>{
+  if(!G._avgMode)return;
+  if(e.key===' '||e.key==='Enter'){
+    if(document.activeElement?.tagName==='INPUT'||document.activeElement?.tagName==='TEXTAREA')return;
+    e.preventDefault();avgAdvance({target:document.getElementById('avg-viewport')});
+  }
+});
+
+// 初始化AVG模式（預設開啟）
+G._avgMode=true;
 
 // 本地事件推入 history 的輔助函式：合併連續同類事件，避免膨脹
 const _EMPTY_RESP='{"st":"—","sl":"—","nv":[],"dl":[],"sm":null,"gd":{"g":0,"s":0,"c":0},"ch":[],"nm":null,"cb":null,"iv":null,"sp":null,"shop":null,"fa":null,"hp":null,"qt":null,"tm":null,"rp":null,"info":null,"relic":null,"clue":null,"or":null,"job":null,"gu":null}';
@@ -2298,9 +2508,29 @@ function renderResp(d){
       G.inShop=false;
     }
   }
-  (Array.isArray(d.nv)?d.nv:d.nv?[d.nv]:[]).forEach(p=>{if(p)appendEntryToDOM({type:'narr',v:String(p)});});
-  (Array.isArray(d.dl)?d.dl:d.dl?[d.dl]:[]).forEach(dl=>{if(dl&&(dl.sp||dl.ln))appendEntryToDOM({type:'dial',sp:String(dl.sp||''),ln:String(dl.ln||'')});});
-  if(d.sm&&d.sm!=='null')appendEntryToDOM({type:'sys',v:String(d.sm)});
+  if(G._avgMode){
+    // ═══ AVG MODE：建立幀佇列，逐幀播放 ═══
+    avgReset();
+    const frames=[];
+    (Array.isArray(d.nv)?d.nv:d.nv?[d.nv]:[]).forEach(p=>{if(p)frames.push({type:'narr',text:String(p)});});
+    (Array.isArray(d.dl)?d.dl:d.dl?[d.dl]:[]).forEach(dl=>{if(dl&&(dl.sp||dl.ln))frames.push({type:'dial',sp:String(dl.sp||''),ln:String(dl.ln||'')});});
+    if(d.sm&&d.sm!=='null')frames.push({type:'sys',text:String(d.sm)});
+    _avgState.queue=frames;_avgState.idx=0;
+    // 更新場景背景
+    if(d.st||d.sl)avgSetBg(d.st||G.sceneTitle,d.sl||G.sceneLoc);
+    // 收集說話者以生成立繪
+    const speakers=frames.filter(f=>f.type==='dial').map(f=>f.sp);
+    if(speakers.length)avgSetSprites(speakers);
+    // 隱藏選項（等播完再顯示）
+    document.querySelector('.choices-wrap').style.display='none';
+    // 播放第一幀
+    if(frames.length)avgShowFrame(frames[0]);
+    else document.querySelector('.choices-wrap').style.display='';
+  }else{
+    (Array.isArray(d.nv)?d.nv:d.nv?[d.nv]:[]).forEach(p=>{if(p)appendEntryToDOM({type:'narr',v:String(p)});});
+    (Array.isArray(d.dl)?d.dl:d.dl?[d.dl]:[]).forEach(dl=>{if(dl&&(dl.sp||dl.ln))appendEntryToDOM({type:'dial',sp:String(dl.sp||''),ln:String(dl.ln||'')});});
+    if(d.sm&&d.sm!=='null')appendEntryToDOM({type:'sys',v:String(d.sm)});
+  }
   if(d.gd)applyGold(d.gd);
   // 安全網：偵測敘述/系統訊息中有金幣描述但 gd 未填的情況
   if((!d.gd||(d.gd.g===0&&d.gd.s===0&&d.gd.c===0))){
@@ -2377,12 +2607,26 @@ function renderResp(d){
   const _vc=detectCity();if(_vc&&!G._visitedCities)G._visitedCities=[];if(_vc&&!G._visitedCities.includes(_vc))G._visitedCities.push(_vc);
   renderAll();
   updateShopBtn();
-  if(d.cb){
-    saveGame();
-    setTimeout(()=>autoCombat(d.cb),800);
+  if(G._avgMode){
+    // AVG模式：延遲選項和戰鬥到幀播放結束
+    if(d.cb){_avgState.combatData=d.cb;saveGame();}
+    else{
+      if(d.ch?.length)_avgState.choicesData=d.ch;
+      saveGame();
+      // 如果沒有任何幀，直接顯示選項
+      if(!_avgState.queue.length){
+        document.querySelector('.choices-wrap').style.display='';
+        if(d.ch?.length)renderChoices(d.ch);
+      }
+    }
   }else{
-    if(d.ch?.length)renderChoices(d.ch);
-    saveGame();
+    if(d.cb){
+      saveGame();
+      setTimeout(()=>autoCombat(d.cb),800);
+    }else{
+      if(d.ch?.length)renderChoices(d.ch);
+      saveGame();
+    }
   }
 }
 // Check and auto-trigger quests based on location
@@ -2548,7 +2792,17 @@ function openEditAction(actionEl,originalTxt){
     inp.focus();inp.select();
   }
 }
-function addThink(){const w=mk('div','sentry');w.innerHTML='<div style="font-size:.62rem;color:var(--goldd);text-align:center;letter-spacing:.08em;margin-bottom:.3rem;">✦ AI 思考中…</div><div class="think-row"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>';document.getElementById('story-content').appendChild(w);scrollD();return w;}
+function addThink(){
+  if(G._avgMode){
+    const el=document.getElementById('avg-thinking');el.style.display='flex';
+    document.getElementById('avg-text').textContent='';
+    document.getElementById('avg-speaker').textContent='';
+    document.getElementById('avg-indicator').style.display='none';
+    document.querySelector('.choices-wrap').style.display='none';
+    return{remove:()=>{el.style.display='none';}};
+  }
+  const w=mk('div','sentry');w.innerHTML='<div style="font-size:.62rem;color:var(--goldd);text-align:center;letter-spacing:.08em;margin-bottom:.3rem;">✦ AI 思考中…</div><div class="think-row"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>';document.getElementById('story-content').appendChild(w);scrollD();return w;
+}
 function addErr(msg,isCors){
   const w=mk('div','sentry'),e=mk('div','s-err');
   e.textContent='⚠ '+msg+(isCors?' — 點此查看解決方法':'');
