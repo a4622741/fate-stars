@@ -1000,7 +1000,14 @@ function useItem(itemName){
 // 在設定中為每個場景類型設定音樂URL（YouTube/MP3連結等）
 const _BGM_MOODS=['explore','town','battle','tension','night','sad'];
 const _BGM_MOOD_NAMES={explore:'探索',town:'城鎮',battle:'戰鬥',tension:'緊張',night:'夜晚',sad:'悲傷'};
-const _BGM_FALLBACK={}; // 不使用合成音樂
+const _BGM_FALLBACK={
+  explore:'assets/bgm/explore.mp3',
+  town:'assets/bgm/town.mp3',
+  battle:'assets/bgm/battle.mp3',
+  tension:'assets/bgm/tension.mp3',
+  night:'assets/bgm/night.mp3',
+  sad:'assets/bgm/sad.mp3',
+};
 const BGM={
   _audio:null,playing:false,mood:'explore',vol:0.3,_customUrls:{},
   _getUrl(mood){
