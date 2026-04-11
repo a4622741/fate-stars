@@ -1622,25 +1622,45 @@ function avgSetBg(title,loc){
   img.src=url;
 }
 
+// AVG半身立繪快取
+const _avgSpriteCache={};
+function avgGetSpriteSrc(spName){
+  const cleanName=spName.replace(/[\u{1F000}-\u{1FFFF}]|[\u{2600}-\u{27BF}]|[\u{FE00}-\u{FEFF}]/gu,'').trim();
+  if(!cleanName)return null;
+  // 已有快取
+  if(_avgSpriteCache[cleanName])return _avgSpriteCache[cleanName];
+  // 查找角色配置取得prompt
+  const charMatch=allParty().find(m=>spName.includes(m.name));
+  const npcId='npc_'+cleanName.replace(/\s/g,'_');
+  const cfg=charMatch?(PCFG[charMatch.id]||(G.extraPcfg&&G.extraPcfg[charMatch.id])):G.extraPcfg?.[npcId];
+  let prompt;
+  let seed;
+  if(cfg?.prompt){
+    prompt=cfg.prompt.replace(/character portrait/,'half body portrait, upper body visible, standing pose');
+    seed=cfg.seed||4000;
+  }else{
+    // 沒有配置→用角色名字生成
+    prompt=`${cleanName}, fantasy character, half body portrait, upper body visible, standing pose, ${PORTRAIT_STYLE}`;
+    seed=0;for(let i=0;i<cleanName.length;i++)seed=(seed*31+cleanName.charCodeAt(i))&0x7fff;seed+=1000;
+  }
+  const url=`https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=400&height=600&seed=${seed}&nologo=true`;
+  _avgSpriteCache[cleanName]=url;
+  return url;
+}
+
 function avgSetSprites(speakers){
   const container=document.getElementById('avg-sprites');
-  // 找出最近的說話者（最多左右2人）
-  const unique=[...new Set(speakers)].slice(-2);
-  // 清除舊sprite
+  // 過濾系統/翻譯
+  const filtered=speakers.filter(s=>!/(系統|翻譯)/.test(s));
+  const unique=[...new Set(filtered)].slice(-2);
   container.innerHTML='';
   unique.forEach((spName,i)=>{
-    const cleanName=spName.replace(/[\u{1F000}-\u{1FFFF}]|[\u{2600}-\u{27BF}]|[\u{FE00}-\u{FEFF}]/gu,'').trim();
-    const charMatch=allParty().find(m=>spName.includes(m.name));
-    const npcId='npc_'+cleanName.replace(/\s/g,'_');
-    let src=charMatch?getPortraitSrc(charMatch.id):getCustomPortrait(npcId);
+    const src=avgGetSpriteSrc(spName);
     if(!src)return;
-    // 用更大的圖片版本
-    if(src.includes('pollinations.ai')&&src.includes('width=260')){
-      src=src.replace('width=260','width=400').replace('height=148','height=560');
-    }
     const img=document.createElement('img');
     img.className=`avg-sprite ${unique.length===1?'center':i===0?'left':'right'}`;
     img.src=src;
+    img.dataset.speaker=spName;
     img.onerror=()=>img.remove();
     container.appendChild(img);
     requestAnimationFrame(()=>requestAnimationFrame(()=>img.classList.add('show')));
@@ -1648,13 +1668,9 @@ function avgSetSprites(speakers){
 }
 
 function avgHighlightSpeaker(spName){
-  document.querySelectorAll('.avg-sprite').forEach(s=>s.classList.remove('active'));
-  if(!spName)return;
-  // 找到匹配的sprite
   document.querySelectorAll('.avg-sprite').forEach(s=>{
-    const charMatch=allParty().find(m=>spName.includes(m.name));
-    if(charMatch&&s.src.includes(charMatch.id))s.classList.add('active');
-    else if(s.src.includes(spName.replace(/\s/g,'_')))s.classList.add('active');
+    s.classList.remove('active');
+    if(spName&&s.dataset.speaker===spName)s.classList.add('active');
   });
 }
 
@@ -1690,14 +1706,28 @@ function avgShowFrame(frame){
   if(frame.type==='dial'){
     spRow.style.display='flex';
     spEl.textContent=frame.sp;
-    // 頭像
-    const cleanName=frame.sp.replace(/[\u{1F000}-\u{1FFFF}]|[\u{2600}-\u{27BF}]|[\u{FE00}-\u{FEFF}]/gu,'').trim();
-    const charMatch=allParty().find(m=>frame.sp.includes(m.name));
-    const npcId='npc_'+cleanName.replace(/\s/g,'_');
-    const portrait=charMatch?getPortraitSrc(charMatch.id):getCustomPortrait(npcId);
-    if(portrait){avEl.src=portrait;avEl.style.display='';}
+    // 頭像（用小圖）
+    const spriteSrc=avgGetSpriteSrc(frame.sp);
+    if(spriteSrc){avEl.src=spriteSrc;avEl.style.display='';}
     else avEl.style.display='none';
     txtEl.className='';
+    // 如果這個說話者還沒有立繪，動態加入
+    const existing=document.querySelector(`.avg-sprite[data-speaker="${frame.sp}"]`);
+    if(!existing&&!/(系統|翻譯)/.test(frame.sp)){
+      const container=document.getElementById('avg-sprites');
+      const sprites=container.querySelectorAll('.avg-sprite');
+      const src=avgGetSpriteSrc(frame.sp);
+      if(src){
+        // 超過2人時移除最早的
+        if(sprites.length>=2)sprites[0].remove();
+        const img=document.createElement('img');
+        img.className='avg-sprite '+(sprites.length===0||sprites.length>=2?'right':'right');
+        img.src=src;img.dataset.speaker=frame.sp;
+        img.onerror=()=>img.remove();
+        container.appendChild(img);
+        requestAnimationFrame(()=>requestAnimationFrame(()=>img.classList.add('show')));
+      }
+    }
     avgHighlightSpeaker(frame.sp);
     // 也寫入故事日誌
     appendEntryToDOM({type:'dial',sp:frame.sp,ln:frame.ln});
@@ -1718,6 +1748,8 @@ function avgShowFrame(frame){
 function avgAdvance(ev){
   // 不攔截按鈕點擊
   if(ev&&ev.target.closest('button,input,.ch-btn,.choices-wrap,.free-row'))return;
+  // 如果劇情回顧開著，先關閉
+  if(document.getElementById('story-scroll').classList.contains('avg-log')){closeAvgLog();return;}
   // 正在打字 → 跳到完整文字
   if(_avgState.typing&&_avgState.typingResolve){_avgState.typingResolve();return;}
   // 還有下一幀
@@ -1750,13 +1782,29 @@ function avgReset(){
 function toggleAvgLog(){
   const ss=document.getElementById('story-scroll');
   if(ss.classList.contains('avg-log')){
-    ss.classList.remove('avg-log');
-    ss.classList.add('avg-hidden');
+    closeAvgLog();
   }else{
     ss.classList.remove('avg-hidden');
     ss.classList.add('avg-log');
+    // 加入返回按鈕
+    let closeBtn=document.getElementById('avg-log-close');
+    if(!closeBtn){
+      closeBtn=document.createElement('button');
+      closeBtn.id='avg-log-close';
+      closeBtn.textContent='✕ 返回遊戲';
+      closeBtn.style.cssText='position:sticky;top:0;z-index:25;width:100%;padding:.55rem;background:rgba(8,11,18,.95);border:none;border-bottom:1px solid var(--brd);color:var(--gold);font-family:"Noto Serif TC",serif;font-size:.75rem;cursor:pointer;letter-spacing:.1em;';
+      closeBtn.onclick=closeAvgLog;
+      ss.prepend(closeBtn);
+    }
     ss.scrollTop=ss.scrollHeight;
   }
+}
+function closeAvgLog(){
+  const ss=document.getElementById('story-scroll');
+  ss.classList.remove('avg-log');
+  ss.classList.add('avg-hidden');
+  const btn=document.getElementById('avg-log-close');
+  if(btn)btn.remove();
 }
 
 // 鍵盤支持
