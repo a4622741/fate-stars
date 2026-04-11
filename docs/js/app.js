@@ -171,7 +171,15 @@ function renderStoryFromData(){
   const c=document.getElementById('story-content');c.innerHTML='';
   document.getElementById('scene-title').textContent=G.sceneTitle;
   document.getElementById('scene-loc').textContent=G.sceneLoc;
-  G.storyData.forEach(e=>appendEntryToDOM(e,false));
+  G.storyData.forEach(e=>{
+    appendEntryToDOM(e,false);
+    // 重新綁定長按編輯功能
+    if(e.type==='action'){
+      const entries=c.children;
+      const lastEl=entries[entries.length-1];
+      if(lastEl)makeActionEditable(lastEl,e.v);
+    }
+  });
   if(G.currentChoices.length)renderChoices(G.currentChoices,false);
   else renderFallback();
   scrollD();
@@ -1703,18 +1711,23 @@ function autoDetectStarPresence(d){
   let hasStarMention=starPatterns.some(p=>p.test(texts));
 
   // 策略3：偵測已知contact星辰名字出現在文字中但星辰錄可能需更新
-  [...TIANGANG,...DISHAT].filter(s=>s.status==='contact'&&s.name&&s.name!=='?').forEach(s=>{
-    if(texts.includes(s.name)){
-      // 檢查是否有真名揭露的暗示
-      const revealMatch=texts.match(new RegExp(`${s.name}[^。]{0,15}(?:真名|本名|其實叫|原來是|真正的名字|名字是)[「『]?([^「『」』」，。、\\s]{2,6})`));
-      const revealMatch2=texts.match(new RegExp(`(?:真名|本名|其實叫|原來是)[「『]?([^「『」』」，。、\\s]{2,6})[」』」]?[^。]{0,10}${s.name}`));
+  [...TIANGANG.map(s=>({...s,_t:'天罡'})),...DISHAT.map(s=>({...s,_t:'地煞'}))].filter(s=>s.status==='contact'&&s.name&&s.name!=='?').forEach(s=>{
+    if(!texts.includes(s.name))return;
+    // 檢查是否有真名揭露的暗示
+    const esc=s.name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+    try{
+      const revealMatch=texts.match(new RegExp(`${esc}[^。]{0,15}(?:真名|本名|其實叫|原來是|真正的名字|名字是)[「『]?([^「『」』」，。、\\s]{2,6})`));
+      const revealMatch2=texts.match(new RegExp(`(?:真名|本名|其實叫|原來是)[「『]?([^「『」』」，。、\\s]{2,6})[」』」]?[^。]{0,10}${esc}`));
       const realName=revealMatch?.[1]||revealMatch2?.[1]||null;
       if(realName&&realName!==s.name&&!/^[?？]+$/.test(realName)){
-        s.name=realName;
-        appendEntryToDOM({type:'sys',v:`⚙ 星辰錄自動更新：${s.type}第${s.num}星 真名→${realName}`});
+        // 更新原始陣列中的星辰
+        const arr=s._t==='天罡'?TIANGANG:DISHAT;
+        const orig=arr.find(x=>x.num===s.num);
+        if(orig){orig.name=realName;}
+        appendEntryToDOM({type:'sys',v:`⚙ 星辰錄自動更新：${s._t}第${s.num}星 真名→${realName}`});
         markDirty('stars');renderBoth('stars');saveGame();
       }
-    }
+    }catch(_){}
   });
 
   // 執行偵測到的星辰
@@ -6628,9 +6641,9 @@ function integrityCheck(){
   const recentText=G.history.slice(-20).map(m=>m.content||'').join(' ');
   const partyNames=allParty().map(m=>m.name);
   // 掃描 extraParty 和已知 contact 星辰
-  [...TIANGANG,...DISHAT].filter(s=>s.status==='contact'&&s.name&&s.name!=='?').forEach(s=>{
+  [...TIANGANG.map(s=>({...s,_t:'天罡'})),...DISHAT.map(s=>({...s,_t:'地煞'}))].filter(s=>s.status==='contact'&&s.name&&s.name!=='?').forEach(s=>{
     if(!partyNames.includes(s.name)&&recentText.includes(s.name)){
-      fixes.push(`⚠ 星辰「${s.name}」（${s.type}第${s.num}星）在劇情中出現但未加入隊伍。下次選擇時可嘗試邀請。`);
+      fixes.push(`⚠ 星辰「${s.name}」（${s._t}第${s.num}星）在劇情中出現但未加入隊伍。下次選擇時可嘗試邀請。`);
     }
   });
   // 7. 掃描歷史文字中的星名關鍵字，自動補登AI漏填sp的星辰
@@ -6666,39 +6679,47 @@ function integrityCheck(){
 
 async function syncAll(){
   if(G.thinking){showToast('AI 回應中，請稍候','inf');return;}
-  markAllDirty();
-  Object.keys(_renderCache).forEach(k=>delete _renderCache[k]);
-  updateGold();updateTimeDisplay();updateShopBtn();
-  ['party','stars','inv','quest','intel','log','guild','activities'].forEach(tab=>renderBoth(tab));
-  if(G.currentChoices?.length)renderChoices(G.currentChoices,false);
-  document.getElementById('scene-title').textContent=G.sceneTitle||'';
-  document.getElementById('scene-loc').textContent=G.sceneLoc||'';
-  saveGame();
-  // 按鈕動畫
-  const btn=document.querySelector('button[onclick="syncAll()"]');
-  if(btn){btn.style.transition='transform .5s';btn.style.transform='rotate(360deg)';setTimeout(()=>{btn.style.transform='';btn.style.transition='';},500);}
-  // 完整性檢查：修正不同步的資料
-  integrityCheck();
-  // 注入校正訊息到 history，讓 AI 下次回應時遵守新規則
-  const inv=getInv();
-  const pd=allParty().map(m=>`${m.name}/${getJob(m.id)||'?'}/HP${getHP(m.id).cur}`).join(',');
-  const correction=`【系統校正】請嚴格遵守以下規則：
+  try{
+    markAllDirty();
+    Object.keys(_renderCache).forEach(k=>delete _renderCache[k]);
+    updateGold();updateTimeDisplay();updateShopBtn();
+    ['party','stars','inv','quest','intel','log','guild','activities'].forEach(tab=>{try{renderBoth(tab);}catch(e){console.warn('renderBoth error:',tab,e);}});
+    if(G.currentChoices?.length)renderChoices(G.currentChoices,false);
+    document.getElementById('scene-title').textContent=G.sceneTitle||'';
+    document.getElementById('scene-loc').textContent=G.sceneLoc||'';
+    saveGame();
+    // 按鈕動畫
+    const btn=document.querySelector('button[onclick="syncAll()"]');
+    if(btn){btn.style.transition='transform .5s';btn.style.transform='rotate(360deg)';setTimeout(()=>{btn.style.transform='';btn.style.transition='';},500);}
+    // 完整性檢查：修正不同步的資料
+    try{integrityCheck();}catch(e){console.warn('integrityCheck error:',e);appendEntryToDOM({type:'sys',v:'⚙ 完整性檢查發生錯誤：'+e.message});}
+    // 注入校正訊息到 history，讓 AI 下次回應時遵守新規則
+    const pd=allParty().map(m=>`${m.name}/${getJob(m.id)||'?'}/HP${getHP(m.id).cur}`).join(',');
+    // 收集當前星辰狀態給AI知道
+    const knownStars=[...TIANGANG,...DISHAT].filter(s=>s.status!=='unknown');
+    const starSnap=knownStars.length?knownStars.map(s=>{const t=TIANGANG.includes(s)?'天罡':'地煞';return`${t}${s.num}=${s.name||'?'}(${s.status})`;}).join(','):'無已知星辰';
+    const correction=`【系統校正】請嚴格遵守以下規則：
 1. 只輸出純JSON。
-2. 遇到新的重要NPC時，若橘子感知到星辰氣息，必須填sp欄位：{"num":N,"type":"天罡或地煞","star":"星名","name":"???","hint":"外貌","cN":"暫稱"}。不填sp=星辰錄不更新。
-3. 與星辰角色同行一段時間後，ch選項必須包含「邀請加入隊伍」的選擇。玩家選擇後用nm欄位觸發入隊。
-4. 每次回應必須有nv（敘述）和dl（對話）。
-5. 當前狀態：隊伍=${pd}；金幣=金${G.gold.gold}銀${G.gold.silver}銅${G.gold.copper}；場景=${G.sceneTitle}/${G.sceneLoc}
+2. 遇到新的重要NPC時，若橘子感知到星辰氣息，【必須】填sp欄位：{"num":N,"type":"天罡或地煞","star":"星名","name":"???","hint":"外貌","cN":"暫稱"}。不填sp=星辰錄不更新=玩家看不到！
+3. 已知星辰再次出場也要填sp。已知星辰：${starSnap}
+4. 與星辰角色同行一段時間後，ch選項必須包含「邀請加入隊伍」的選擇。玩家選擇後用nm欄位觸發入隊。
+5. 每次回應必須有nv（敘述）和dl（對話）。
+6. 當前狀態：隊伍=${pd}；金幣=金${G.gold.gold}銀${G.gold.silver}銅${G.gold.copper}；場景=${G.sceneTitle}/${G.sceneLoc}
 請以JSON格式繼續當前場景。`;
-  // 移除舊的校正（如果有的話）
-  G.history=G.history.filter(m=>!(m.role==='user'&&m.content.includes('【系統校正】')));
-  G.history.push({role:'user',content:correction});
-  G.history.push({role:'assistant',content:`{"st":"${G.sceneTitle||'繼續'}","sl":"${G.sceneLoc||'📍 未知'}","nv":[],"dl":[],"sm":null,"gd":{"g":0,"s":0,"c":0},"ch":[],"nm":null,"cb":null,"iv":null,"sp":null,"shop":null,"fa":null,"hp":null,"qt":null,"tm":null,"rp":null,"info":null,"relic":null,"clue":null,"or":null,"job":null,"gu":null}`});
-  saveGame();
-  if(G.currentChoices?.length)renderChoices(G.currentChoices,false);
-  else renderFallback();
-  showToast('✦ 同步完成，AI已校正','ok');
-  appendEntryToDOM({type:'sys',v:'✦ AI 規則已校正。下次選擇時生效。'});
-  scrollD();
+    // 移除舊的校正（如果有的話）
+    G.history=G.history.filter(m=>!(m.role==='user'&&m.content.includes('【系統校正】')));
+    G.history.push({role:'user',content:correction});
+    G.history.push({role:'assistant',content:`{"st":"${G.sceneTitle||'繼續'}","sl":"${G.sceneLoc||'📍 未知'}","nv":[],"dl":[],"sm":null,"gd":{"g":0,"s":0,"c":0},"ch":[],"nm":null,"cb":null,"iv":null,"sp":null,"shop":null,"fa":null,"hp":null,"qt":null,"tm":null,"rp":null,"info":null,"relic":null,"clue":null,"or":null,"job":null,"gu":null}`});
+    saveGame();
+    if(G.currentChoices?.length)renderChoices(G.currentChoices,false);
+    else renderFallback();
+    showToast('✦ 同步完成，AI已校正','ok');
+    appendEntryToDOM({type:'sys',v:'✦ AI 規則已校正・星辰狀態已重新同步。下次選擇時生效。'});
+    scrollD();
+  }catch(e){
+    console.error('syncAll error:',e);
+    showToast('同步發生錯誤：'+e.message,'err');
+  }
 }
 window.addEventListener('resize',applyResp);
 
