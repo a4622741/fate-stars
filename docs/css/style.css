@@ -478,14 +478,18 @@ body{touch-action:manipulation;}
   background:linear-gradient(to bottom,rgba(8,11,18,.1) 0%,rgba(8,11,18,.15) 50%,rgba(8,11,18,.7) 80%,rgba(8,11,18,.95) 100%);
   pointer-events:none;}
 #avg-sprites{position:absolute;inset:0;z-index:2;display:flex;align-items:flex-end;justify-content:center;pointer-events:none;}
-.avg-sprite{position:absolute;bottom:0;max-height:65%;width:auto;max-width:40%;object-fit:contain;
-  transition:all .4s ease;filter:brightness(.55);opacity:0;transform:translateY(10px);}
-.avg-sprite.show{opacity:1;transform:translateY(0);}
-.avg-sprite.active{filter:brightness(1);z-index:3;}
-.avg-sprite.left{left:3%;}
-.avg-sprite.right{right:3%;}
-.avg-sprite.center{left:50%;transform:translateX(-50%);}
-.avg-sprite.center.show{transform:translateX(-50%) translateY(0);}
+.avg-sprite{position:absolute;bottom:0;max-height:70%;width:auto;max-width:38%;object-fit:contain;
+  transition:all .35s ease;filter:brightness(.5) saturate(.7);opacity:0;transform:translateY(15px) scale(.95);z-index:1;}
+.avg-sprite.show{opacity:1;transform:translateY(0) scale(.95);}
+.avg-sprite.active{filter:brightness(1) saturate(1);z-index:3;transform:translateY(-8px) scale(1)!important;}
+/* 位置：1人居中，2人左右，3人以上間隔排列 */
+.avg-sprite.pos-0{left:5%;}
+.avg-sprite.pos-1{right:5%;}
+.avg-sprite.pos-2{left:33%;transform:translateX(-50%) translateY(0) scale(.95);}
+.avg-sprite.pos-2.active{transform:translateX(-50%) translateY(-8px) scale(1)!important;}
+.avg-sprite.pos-center{left:50%;transform:translateX(-50%) translateY(0) scale(.95);}
+.avg-sprite.pos-center.show{transform:translateX(-50%) translateY(0) scale(.95);}
+.avg-sprite.pos-center.active{transform:translateX(-50%) translateY(-8px) scale(1)!important;}
 #avg-textbox{position:absolute;bottom:0;left:0;right:0;z-index:10;
   background:linear-gradient(to bottom,rgba(8,11,18,0) 0%,rgba(8,11,18,.92) 12%,rgba(8,11,18,.97) 100%);
   padding:.8rem 1.2rem 1rem;min-height:110px;display:flex;flex-direction:column;gap:.3rem;}

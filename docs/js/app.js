@@ -1634,22 +1634,20 @@ const _avgSpriteCache={};
 function avgGetSpriteSrc(spName){
   const cleanName=spName.replace(/[\u{1F000}-\u{1FFFF}]|[\u{2600}-\u{27BF}]|[\u{FE00}-\u{FEFF}]/gu,'').trim();
   if(!cleanName)return null;
-  // 已有快取
   if(_avgSpriteCache[cleanName])return _avgSpriteCache[cleanName];
-  // 查找角色配置取得prompt
   const charMatch=allParty().find(m=>spName.includes(m.name));
   const npcId='npc_'+cleanName.replace(/\s/g,'_');
   const cfg=charMatch?(PCFG[charMatch.id]||(G.extraPcfg&&G.extraPcfg[charMatch.id])):G.extraPcfg?.[npcId];
-  let prompt;
-  let seed;
+  let prompt;let seed;
   if(cfg?.prompt){
-    prompt=cfg.prompt.replace(/character portrait/,'half body portrait, upper body visible, standing pose');
+    prompt=cfg.prompt.replace(/character portrait/,'').trim();
     seed=cfg.seed||4000;
   }else{
-    // 沒有配置→用角色名字生成
-    prompt=`${cleanName}, fantasy character, half body portrait, upper body visible, standing pose, ${PORTRAIT_STYLE}`;
+    prompt=`${cleanName}, fantasy character, ${PORTRAIT_STYLE}`;
     seed=0;for(let i=0;i<cleanName.length;i++)seed=(seed*31+cleanName.charCodeAt(i))&0x7fff;seed+=1000;
   }
+  // 去背半身像：transparent background + centered
+  prompt+=', half body portrait, upper body visible, centered, transparent background, plain solid color background, single character, no background details';
   const url=`https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=400&height=600&seed=${seed}&nologo=true`;
   _avgSpriteCache[cleanName]=url;
   return url;
@@ -1657,25 +1655,27 @@ function avgGetSpriteSrc(spName){
 
 function avgSetSprites(speakers){
   const container=document.getElementById('avg-sprites');
-  // 過濾系統/翻譯
-  const filtered=speakers.filter(s=>!/(系統|翻譯)/.test(s));
-  const unique=[...new Set(filtered)].slice(-2);
+  const filtered=speakers.filter(s=>s&&!/(系統|翻譯)/.test(s));
+  const unique=[...new Set(filtered)];
   container.innerHTML='';
-  unique.forEach((spName,i)=>{
-    const src=avgGetSpriteSrc(spName);
-    if(!src)return;
-    _avgAddSprite(container,spName,src,unique.length===1?'center':i===0?'left':'right');
-  });
+  _avgState.lastSpeakers=unique;
+  if(unique.length===1){
+    _avgAddSprite(container,unique[0],avgGetSpriteSrc(unique[0]),'pos-center');
+  }else{
+    unique.forEach((spName,i)=>{
+      const pos=i===0?'pos-0':i===1?'pos-1':'pos-2';
+      _avgAddSprite(container,spName,avgGetSpriteSrc(spName),pos);
+    });
+  }
 }
-function _avgAddSprite(container,spName,src,pos){
+function _avgAddSprite(container,spName,src,posClass){
+  if(!src)return;
   const img=document.createElement('img');
-  img.className=`avg-sprite ${pos}`;
+  img.className=`avg-sprite ${posClass}`;
   img.dataset.speaker=spName;
-  // 載入失敗時保留佔位（不移除），3秒後重試一次
   let retried=false;
   img.onerror=()=>{
-    if(!retried){retried=true;setTimeout(()=>{img.src=src;},3000);}
-    else{img.style.opacity='0';}// 重試也失敗就隱藏但不移除
+    if(!retried){retried=true;setTimeout(()=>{img.src=src+'&retry=1';},2500);}
   };
   img.src=src;
   container.appendChild(img);
@@ -1727,14 +1727,17 @@ function avgShowFrame(frame){
     else avEl.style.display='none';
     txtEl.className='';
     // 如果這個說話者還沒有立繪，動態加入
-    const existing=document.querySelector(`.avg-sprite[data-speaker="${CSS.escape(frame.sp)}"]`);
+    let existing=false;
+    document.querySelectorAll('.avg-sprite').forEach(s=>{if(s.dataset.speaker===frame.sp)existing=true;});
     if(!existing&&!/(系統|翻譯)/.test(frame.sp)){
       const container=document.getElementById('avg-sprites');
       const sprites=container.querySelectorAll('.avg-sprite');
       const src=avgGetSpriteSrc(frame.sp);
       if(src){
-        if(sprites.length>=2)sprites[0].remove();
-        _avgAddSprite(container,frame.sp,src,sprites.length<=1?'right':'right');
+        // 超過3人移除最早的
+        if(sprites.length>=3)sprites[0].remove();
+        const posIdx=sprites.length;
+        _avgAddSprite(container,frame.sp,src,posIdx===0?'pos-center':posIdx===1?'pos-1':'pos-2');
       }
     }
     avgHighlightSpeaker(frame.sp);
