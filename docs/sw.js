@@ -1,75 +1,76 @@
-// Service Worker — 命運之星 PWA v32
-const CACHE_NAME = 'fate-stars-v100';
+// Service Worker — 命運之星 Fate Stars RPG
+const CACHE_NAME = 'fate-rpg-v1';
+
 const ASSETS = [
   './',
   './index.html',
   './css/style.css',
+  './js/data.js',
   './js/app.js',
   './manifest.json',
   './assets/icon-192.svg',
-  './assets/icon-512.svg',
+  './assets/icon-512.svg'
 ];
 
-// Install: cache assets + FORCE skip waiting
-self.addEventListener('install', e => {
-  self.skipWaiting();
-  e.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS)));
+// Install — pre-cache shell assets
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then((cache) => cache.addAll(ASSETS))
+      .then(() => self.skipWaiting())
+  );
 });
 
-// Activate: delete ALL old caches + claim
-self.addEventListener('activate', e => {
-  e.waitUntil(
+// Activate — purge old caches
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.map(k => caches.delete(k))))
-      .then(() => caches.open(CACHE_NAME))
-      .then(cache => cache.addAll(ASSETS))
+      .then((keys) =>
+        Promise.all(
+          keys
+            .filter((key) => key !== CACHE_NAME)
+            .map((key) => caches.delete(key))
+        )
+      )
       .then(() => self.clients.claim())
   );
 });
 
-// Message: force update
-self.addEventListener('message', e => {
-  if (e.data === 'skipWaiting') self.skipWaiting();
-  if (e.data === 'clearCache') {
-    caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k))));
-  }
-});
+// Fetch — network-first for local resources, cache-first for images & fonts
+self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url);
 
-// Fetch: ALWAYS network-first for local files
-self.addEventListener('fetch', e => {
-  const url = new URL(e.request.url);
-  if (url.hostname === 'api.anthropic.com') return;
+  // Skip non-GET and cross-origin API calls
+  if (event.request.method !== 'GET') return;
+  if (url.origin !== self.location.origin) return;
 
-  // Pollinations: cache-first (images don't change)
-  if (url.hostname === 'image.pollinations.ai') {
-    e.respondWith(
-      caches.match(e.request).then(c => c || fetch(e.request).then(r => {
-        const cl = r.clone();
-        caches.open(CACHE_NAME).then(cache => cache.put(e.request, cl));
-        return r;
-      }))
+  // Images & audio — cache-first
+  if (/\.(png|jpg|jpeg|gif|svg|webp|mp3|ogg|wav)$/i.test(url.pathname)) {
+    event.respondWith(
+      caches.match(event.request).then((cached) => {
+        if (cached) return cached;
+        return fetch(event.request).then((response) => {
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          }
+          return response;
+        });
+      })
     );
     return;
   }
 
-  // External: network → cache fallback
-  if (url.hostname !== location.hostname) {
-    e.respondWith(
-      fetch(e.request).then(r => {
-        const cl = r.clone();
-        caches.open(CACHE_NAME).then(cache => cache.put(e.request, cl));
-        return r;
-      }).catch(() => caches.match(e.request))
-    );
-    return;
-  }
-
-  // Local: NETWORK FIRST, always
-  e.respondWith(
-    fetch(e.request).then(r => {
-      const cl = r.clone();
-      caches.open(CACHE_NAME).then(cache => cache.put(e.request, cl));
-      return r;
-    }).catch(() => caches.match(e.request))
+  // Everything else — network-first, fallback to cache
+  event.respondWith(
+    fetch(event.request)
+      .then((response) => {
+        if (response.ok) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+        }
+        return response;
+      })
+      .catch(() => caches.match(event.request))
   );
 });

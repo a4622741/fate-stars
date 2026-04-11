@@ -1,428 +1,205 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh-Hant">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>命運之星 · 108星辰錄</title>
-<meta name="description" content="西方奇幻版水滸傳文字RPG — 108顆命運之星，聚旗終結輪迴">
-<meta name="theme-color" content="#c9a84c">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="命運之星">
-<link rel="manifest" href="manifest.json">
-<link rel="icon" href="assets/icon-192.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="assets/icon-192.svg">
-<link rel="stylesheet" href="css/style.css?v=9">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#080b12">
+  <meta name="description" content="命運之星・108星辰錄 — 西方奇幻版水滸傳 2D RPG">
+  <title>命運之星 — Fate Stars</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/svg+xml" href="assets/icon-192.svg">
+  <link rel="apple-touch-icon" href="assets/icon-512.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
-<!-- API KEY MODAL -->
-<div class="mlay" id="api-modal">
-  <div class="mbox api-mbox">
-    <div class="api-title">✦ 命運之星 ✦</div>
-    <div class="api-sub">
-      需要 Anthropic API 金鑰啟動故事引擎。<br>
-      免費取得：<a href="https://console.anthropic.com/keys" target="_blank">console.anthropic.com/keys</a>
-    </div>
-    <div class="api-warn" id="api-warn"></div>
-    <div class="flbl">API 金鑰</div>
-    <input class="finp" id="api-inp" type="password" placeholder="sk-ant-api03-xxxxxxxxxx…" autocomplete="off"/>
-    <button class="fbtn" onclick="saveKey()">✦ 開始遊戲</button>
-    <div class="api-note">金鑰僅存於您的瀏覽器本地（localStorage），不會傳送至任何第三方。</div>
-  </div>
-</div>
+  <!-- ===== Main Game Canvas ===== -->
+  <canvas id="game-canvas" width="480" height="320"></canvas>
 
-<!-- CORS HELP MODAL -->
-<div class="mlay" id="cors-modal">
-  <div class="mbox cors-mbox">
-    <button class="mclose" onclick="document.getElementById('cors-modal').classList.remove('open')">✕</button>
-    <div class="cors-title">
-      <span style="font-size:1.1rem">⚠</span> API 無法連線
-    </div>
-    <div class="cors-sub">
-      用 <code>file://</code> 直接開啟 HTML 時，瀏覽器安全機制會封鎖 API 請求。<br>
-      以下任一方式可解決，選擇最方便的：
-    </div>
-    <div class="cors-method">
-      <div class="cors-mhdr"><div class="cors-badge cb1">1</div><div class="cors-mtitle">Python（最推薦）</div></div>
-      <div class="cors-mbody">
-        在資料夾開終端機，執行：
-        <div class="code-block"><span id="c1">python3 -m http.server 8765</span><button class="copy-btn" id="cpb1" onclick="doCopy('c1','cpb1')">複製</button></div>
-        <div class="cors-step">然後瀏覽器開啟 <b>http://localhost:8765</b></div>
-      </div>
-    </div>
-    <div class="cors-method">
-      <div class="cors-mhdr"><div class="cors-badge cb2">2</div><div class="cors-mtitle">Node.js / npx</div></div>
-      <div class="cors-mbody">
-        <div class="code-block"><span id="c2">npx serve . -p 8765</span><button class="copy-btn" id="cpb2" onclick="doCopy('c2','cpb2')">複製</button></div>
-        <div class="cors-step">開啟 <b>http://localhost:8765</b></div>
-      </div>
-    </div>
-    <div class="cors-method">
-      <div class="cors-mhdr"><div class="cors-badge cb3">3</div><div class="cors-mtitle">VS Code → Live Server</div></div>
-      <div class="cors-mbody"><div class="cors-step">右下角點 <b>Go Live</b>。</div></div>
-    </div>
-    <div style="margin-top:.85rem;padding:.6rem .68rem;background:rgba(201,168,76,.05);border:1px solid var(--brd);border-radius:3px;font-size:.67rem;color:var(--sild);line-height:1.7;">
-      💡 改從 <b style="color:var(--sil)">http://localhost:8765</b> 開啟，API 就能正常使用。
-    </div>
-    <button class="cors-close-btn" onclick="document.getElementById('cors-modal').classList.remove('open')">關閉</button>
-  </div>
-</div>
-
-<!-- SETTINGS MODAL -->
-<div class="mlay" id="settings-modal">
-  <div class="mbox settings-mbox">
-    <div class="s-title">
-      <span>設定</span>
-      <button class="ib" onclick="closeSettings()" style="width:26px;height:26px;">✕</button>
-    </div>
-    <div class="s-row">
-      <div class="s-lbl">目前金鑰</div>
-      <div class="s-keydisp" id="key-disp">—</div>
-      <div class="s-status"><span class="s-dot" id="s-dot"></span><span id="s-stxt">未設定</span></div>
-      <div class="s-test-row">
-        <button class="s-test-btn" id="test-btn" onclick="testConn()">測試連接</button>
-        <span class="s-test-res" id="test-res"></span>
-      </div>
-    </div>
-    <div class="s-row">
-      <div class="s-lbl">更換金鑰</div>
-      <input class="s-inp" id="s-key" type="password" placeholder="sk-ant-api03-…" autocomplete="off"/>
-    </div>
-    <div class="s-row">
-      <div class="s-lbl">模型</div>
-      <select class="s-sel" id="s-model">
-        <option value="claude-sonnet-4-20250514">Claude Sonnet 4（推薦）</option>
-        <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5（快速省費）</option>
-        <option value="claude-opus-4-5">Claude Opus 4.5（最強・較慢）</option>
-      </select>
-    </div>
-    <div class="s-row">
-      <div class="s-lbl">回應長度</div>
-      <select class="s-sel" id="s-tok">
-        <option value="1000">1000・快速</option>
-        <option value="1500">1500・簡潔</option>
-        <option value="2000" selected>2000・標準</option>
-        <option value="3000">3000・長篇</option>
-      </select>
-    </div>
-    <hr class="s-divider">
-    <div class="s-row">
-      <div class="s-lbl">故事記憶管理</div>
-      <div style="font-size:.62rem;color:var(--sild);margin-bottom:.38rem;" id="history-stat">—</div>
-      <button class="sbn p" onclick="compressHistory()" id="compress-btn" style="width:100%;margin-bottom:.4rem;">✦ 整理記憶（壓縮故事歷史）</button>
-      <div style="font-size:.6rem;color:var(--sild);line-height:1.55;">對話累積過長時使用。</div>
-    </div>
-    <hr class="s-divider">
-    <div class="s-row">
-      <div class="s-lbl">背景音樂</div>
-      <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.4rem;">
-        <button class="sbn p" id="bgm-toggle" onclick="toggleBGM()" style="flex:1;">🎵 開啟音樂</button>
-        <select class="s-sel" id="bgm-mood" onchange="changeBGMMood(this.value)" style="flex:1;">
-          <option value="explore">探索（平靜）</option>
-          <option value="town">城鎮（溫暖）</option>
-          <option value="tension">緊張（危機）</option>
-          <option value="battle">戰鬥（激昂）</option>
-          <option value="night">夜晚（寂靜）</option>
-          <option value="sad">哀愁（悲傷）</option>
-        </select>
-      </div>
-      <div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.5rem;">
-        <span style="font-size:.55rem;color:var(--sild);">音量</span>
-        <input type="range" id="bgm-vol" min="0" max="100" value="30" oninput="setBGMVolume(this.value/100)" style="flex:1;accent-color:var(--gold);"/>
-      </div>
-      <div style="font-size:.58rem;color:var(--goldl);margin-bottom:.3rem;font-weight:600;">🎵 音樂設定（貼上MP3連結）</div>
-      <div style="font-size:.5rem;color:var(--sild);margin-bottom:.3rem;">為每種場景貼上音樂URL（MP3直鏈）。設定後按「開啟音樂」即可播放。推薦從YouTube轉MP3或使用免費音樂網站。</div>
-      <div id="bgm-url-inputs" style="display:flex;flex-direction:column;gap:.25rem;"></div>
-      <script>
-        document.addEventListener('DOMContentLoaded',()=>{
-          const box=document.getElementById('bgm-url-inputs');
-          if(!box)return;
-          const moods={explore:'🗺 探索',town:'🏘 城鎮',battle:'⚔ 戰鬥',tension:'⚡ 緊張',night:'🌙 夜晚',sad:'😢 悲傷'};
-          Object.entries(moods).forEach(([k,label])=>{
-            const row=document.createElement('div');
-            row.style.cssText='display:flex;align-items:center;gap:.3rem;';
-            row.innerHTML=`<span style="font-size:.52rem;color:var(--goldd);width:3.5rem;flex-shrink:0;">${label}</span>
-              <input type="url" id="bgm-url-${k}" placeholder="https://...mp3"
-                style="flex:1;background:var(--bg3);border:1px solid var(--brd);border-radius:2px;padding:.2rem .35rem;color:var(--sil);font-size:.55rem;font-family:'Noto Serif TC',serif;outline:none;"
-                onchange="BGM.setCustomUrl('${k}',this.value)"/>`;
-            box.appendChild(row);
-          });
-          // 恢復已存的URL
-          setTimeout(()=>{
-            Object.keys(moods).forEach(k=>{
-              const inp=document.getElementById('bgm-url-'+k);
-              if(inp&&BGM._customUrls[k])inp.value=BGM._customUrls[k];
-            });
-          },500);
-        });
-      </script>
-    </div>
-    <hr class="s-divider">
-    <div class="s-row">
-      <div class="s-lbl">應用程式</div>
-      <button class="sbn p" onclick="clearAppCache()" style="width:100%;margin-bottom:.4rem;">🔄 清除快取並重新載入</button>
-      <div style="font-size:.6rem;color:var(--sild);line-height:1.55;">更新後畫面沒變化時使用。會清除 Service Worker 快取並強制重載（遊戲存檔不受影響）。</div>
-    </div>
-    <hr class="s-divider">
-    <div class="s-row">
-      <div class="s-lbl">危險操作</div>
-      <button class="sbn c" onclick="resetGame()" style="width:100%;border-color:rgba(200,80,80,.35);color:#f99;">重置遊戲進度</button>
-    </div>
-    <hr class="s-divider">
-    <div class="s-row">
-      <div class="s-lbl">跨裝置同步</div>
-      <div style="font-size:.62rem;color:var(--sild);margin-bottom:.5rem;">匯出存檔 → 複製 → 新裝置貼上匯入</div>
-      <div style="display:flex;gap:.45rem;margin-bottom:.4rem;">
-        <button class="sbn p" onclick="exportSave()" style="flex:1;">📤 匯出</button>
-        <button class="sbn c" onclick="importSave()" style="flex:1;">📥 匯入</button>
-      </div>
-      <textarea id="save-io" style="width:100%;height:72px;background:var(--bg3);border:1px solid var(--brd);border-radius:3px;color:var(--sil);font-family:monospace;font-size:.6rem;padding:.4rem;resize:none;outline:none;" placeholder="匯入時在此貼上存檔文字…"></textarea>
-    </div>
-    <div class="s-btns">
-      <button class="sbn c" onclick="closeSettings()">取消</button>
-      <button class="sbn p" onclick="applySettings()">儲存設定</button>
-    </div>
-  </div>
-</div>
-
-<!-- DETAIL / SWAP / SHOP / DICE / MAP MODALS -->
-<div class="mlay" id="detail-modal" onclick="closeDOut(event)"><div class="mbox detail-mbox"><button class="mclose" onclick="closeD()">✕</button><div id="modal-inner"></div></div></div>
-<div class="mlay" id="swap-modal" onclick="if(event.target===this)this.classList.remove('open')"><div class="mbox" style="max-width:380px;padding:1.3rem 1.4rem;"><div id="swap-inner"></div></div></div>
-<div class="mlay" id="shop-modal" onclick="if(event.target===this)closeShop()">
-  <div class="mbox" style="max-width:460px;padding:0;overflow:hidden;border-radius:6px;">
-    <div style="padding:.65rem 1rem;background:linear-gradient(135deg,rgba(201,168,76,.12),transparent);border-bottom:1px solid var(--brd);display:flex;justify-content:space-between;align-items:center;">
-      <div><div id="shop-name" style="font-size:.85rem;color:var(--gold);font-weight:700;letter-spacing:.08em;"></div><div style="font-size:.65rem;color:var(--sild);margin-top:.1rem;">持有：<span id="shop-gold"></span></div></div>
-      <button class="mclose" onclick="closeShop()">✕</button>
-    </div>
-    <div style="display:flex;border-bottom:1px solid var(--brd);">
-      <button id="shop-tab-buy" onclick="switchShopTab('buy')" style="flex:1;padding:.4rem;background:rgba(201,168,76,.08);border:none;border-bottom:2px solid var(--goldd);color:var(--gold);font-size:.68rem;cursor:pointer;font-family:'Noto Serif TC',serif;">購買</button>
-      <button id="shop-tab-sell" onclick="switchShopTab('sell')" style="flex:1;padding:.4rem;background:transparent;border:none;border-bottom:2px solid transparent;color:var(--sild);font-size:.68rem;cursor:pointer;font-family:'Noto Serif TC',serif;">售出</button>
-    </div>
-    <div id="shop-items" style="max-height:360px;overflow-y:auto;padding:.6rem .9rem;display:flex;flex-direction:column;gap:.5rem;"></div>
-  </div>
-</div>
-<div class="mlay" id="poi-modal" onclick="if(event.target===this)closePoiModal()">
-  <div class="mbox" style="max-width:460px;padding:0;overflow:hidden;border-radius:6px;">
-    <div id="poi-modal-hdr" style="padding:.65rem 1rem;border-bottom:1px solid var(--brd);display:flex;justify-content:space-between;align-items:center;">
-      <div>
-        <div id="poi-modal-title" style="font-size:.85rem;color:var(--gold);font-weight:700;letter-spacing:.08em;"></div>
-        <div id="poi-modal-sub" style="font-size:.65rem;color:var(--sild);margin-top:.1rem;"></div>
-      </div>
-      <button class="mclose" onclick="closePoiModal()">✕</button>
-    </div>
-    <div id="poi-modal-inner" style="max-height:430px;overflow-y:auto;padding:.6rem .9rem;display:flex;flex-direction:column;gap:.45rem;"></div>
-  </div>
-</div>
-<div class="mlay" id="dice-modal" onclick="if(event.target===this)closeDiceModal()">
-  <div class="mbox" style="max-width:420px;padding:1.2rem 1.4rem;">
-    <div style="font-size:.85rem;color:var(--gold);letter-spacing:.1em;margin-bottom:.8rem;font-weight:700;">🎲 素質判定</div>
-    <div id="dice-char-select" style="margin-bottom:.7rem;"></div>
-    <div id="dice-stat-select" style="margin-bottom:.9rem;"></div>
-    <div id="dice-result" style="min-height:80px;display:flex;align-items:center;justify-content:center;"></div>
-    <div style="display:flex;gap:.5rem;margin-top:.85rem;">
-      <button onclick="rollDice()" id="roll-btn" style="flex:1;padding:.5rem;background:rgba(201,168,76,.15);border:1px solid rgba(201,168,76,.5);border-radius:3px;color:var(--gold);font-family:'Noto Serif TC',serif;font-size:.8rem;cursor:pointer;">投擲！</button>
-      <button onclick="confirmDiceResult()" id="confirm-dice-btn" style="display:none;flex:1;padding:.5rem;background:rgba(80,160,80,.15);border:1px solid rgba(80,160,80,.5);border-radius:3px;color:#6ab46a;font-family:'Noto Serif TC',serif;font-size:.8rem;cursor:pointer;">帶入故事</button>
-      <button onclick="closeDiceModal()" style="padding:.5rem .8rem;background:transparent;border:1px solid var(--brd);border-radius:3px;color:var(--sild);font-family:'Noto Serif TC',serif;font-size:.8rem;cursor:pointer;">取消</button>
-    </div>
-  </div>
-</div>
-<div class="mlay" id="combat-modal">
-  <div class="mbox" style="max-width:480px;max-height:85vh;overflow-y:auto;">
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:.5rem .7rem;border-bottom:1px solid var(--brd);">
-      <span style="font-size:.72rem;color:var(--gold);font-weight:600;letter-spacing:.1em;">⚔ 戰鬥 ⚔</span>
-    </div>
-    <div id="combat-inner" style="padding:.4rem .6rem;"></div>
-  </div>
-</div>
-<div class="mlay" id="map-modal" onclick="if(event.target===this)closeMap()">
-  <div class="mbox" style="max-width:680px;width:100%;padding:0;overflow:hidden;border-radius:6px;">
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:.65rem 1rem;background:linear-gradient(135deg,rgba(201,168,76,.1),transparent);border-bottom:1px solid var(--brd);">
-      <span id="map-breadcrumb" style="font-size:.75rem;color:var(--gold);letter-spacing:.08em;">艾爾薩大陸</span>
-      <button class="mclose" style="padding:.4rem .8rem;" onclick="closeMap()">✕</button>
-    </div>
-    <div id="map-container" style="position:relative;overflow:hidden;background:#060d14;"></div>
-    <div id="map-info" style="display:none;padding:.6rem 1rem;border-top:1px solid var(--brd);background:var(--bg2);"></div>
-  </div>
-</div>
-
-<div class="save-ind" id="save-indicator">✦ 已自動存檔</div>
-<div class="toast" id="toast"></div>
-
-<!-- HEADER -->
-<div class="hdr">
-  <div>
-    <div class="hdr-t">命運之星</div>
-    <div class="hdr-s">108 Stars · Elsa Continent · v3.0</div>
-  </div>
-  <div class="hdr-r">
-    <div class="hdr-g">🪙 <b id="gold-hdr">銀8・銅135</b></div>
-    <div id="time-hdr" style="font-size:.58rem;color:var(--sild);letter-spacing:.05em;"></div>
-    <button class="ib" onclick="openSettings()" title="設定"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="2"/><path d="M8 2a.65.65 0 00-.63.49l-.25.88a4.5 4.5 0 00-.76.44l-.85-.21a.65.65 0 00-.72.31l-.65 1.13a.65.65 0 00.15.82l.69.58a4.5 4.5 0 000 .88l-.69.58a.65.65 0 00-.15.82l.65 1.13a.65.65 0 00.72.31l.85-.21c.24.17.49.32.76.44l.25.88A.65.65 0 008 14a.65.65 0 00.63-.49l.25-.88c.27-.12.52-.27.76-.44l.85.21a.65.65 0 00.72-.31l.65-1.13a.65.65 0 00-.15-.82l-.69-.58a4.5 4.5 0 000-.88l.69-.58a.65.65 0 00.15-.82l-.65-1.13a.65.65 0 00-.72-.31l-.85.21a4.5 4.5 0 00-.76-.44l-.25-.88A.65.65 0 008 2z"/></svg></button>
-    <button class="ib" onclick="openMap()" title="地圖"><svg viewBox="0 0 16 16"><path d="M1 3l4 1.5 6-2 4 1.5v9l-4-1.5-6 2-4-1.5V3z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><line x1="5" y1="4.5" x2="5" y2="13" stroke="currentColor" stroke-width="1"/><line x1="11" y1="2.5" x2="11" y2="11" stroke="currentColor" stroke-width="1"/></svg></button>
-    <button class="ib" id="drawer-btn" onclick="toggleDrawer()" style="display:none"><svg viewBox="0 0 16 16"><rect x="1" y="2" width="14" height="2.5" rx="1"/><rect x="1" y="6.75" width="14" height="2.5" rx="1"/><rect x="1" y="11.5" width="14" height="2.5" rx="1"/></svg></button>
-    <button class="ib ac" id="panel-btn" onclick="togglePanel()"><svg viewBox="0 0 16 16"><rect x="1" y="2" width="14" height="2.5" rx="1"/><rect x="1" y="6.75" width="14" height="2.5" rx="1"/><rect x="1" y="11.5" width="14" height="2.5" rx="1"/></svg></button>
-    <button class="ib hdr-extra" id="bgm-hdr-btn" onclick="toggleBGM()" title="背景音樂"><svg viewBox="0 0 16 16"><path d="M2 5v6h3l4 4V1L5 5H2z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path id="bgm-icon-wave" d="M11 4.5a4 4 0 010 7M13 3a6.5 6.5 0 010 10" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" opacity=".4"/></svg></button>
-    <button class="ib hdr-extra" onclick="syncAll()" title="同步所有狀態"><svg viewBox="0 0 16 16"><path d="M13.5 8A5.5 5.5 0 012.5 8" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M11 5.5l2.5 2.5 2.5-2.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.5 8A5.5 5.5 0 0113.5 8" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M5 10.5L2.5 8 0 10.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-  </div>
-</div>
-
-<!-- MAIN -->
-<div class="app-body">
-  <div class="story-side">
-    <!-- ═══ RPG+AVG 主畫面 ═══ -->
-    <div id="game-view" onclick="avgTap(event)">
-      <!-- 場景背景 -->
-      <div id="rpg-bg"></div>
-      <div id="rpg-scene-overlay"></div>
-      <!-- 角色立繪 -->
-      <div id="rpg-sprites"></div>
-      <!-- RPG HUD：場景標題+隊伍狀態 -->
-      <div id="rpg-hud">
-        <div id="rpg-hud-top">
-          <span class="scene-t" id="scene-title">序章・Day 1　傍晚</span>
-          <span class="scene-l" id="scene-loc">📍 鐵霧城・碼頭</span>
+  <!-- ===== HUD (top bar) ===== -->
+  <div id="hud" class="overlay-ui" hidden>
+    <div id="hud-left">
+      <div class="hud-party">
+        <div class="hud-member" id="hud-member-0">
+          <div class="hud-portrait"></div>
+          <div class="hud-bars">
+            <span class="hud-name">—</span>
+            <div class="hud-hp-bar"><div class="hud-hp-fill"></div></div>
+            <div class="hud-mp-bar"><div class="hud-mp-fill"></div></div>
+          </div>
         </div>
-        <div id="rpg-hud-party"></div>
-      </div>
-      <!-- AVG對話框 -->
-      <div id="avg-box">
-        <div id="avg-box-speaker">
-          <img id="avg-box-avatar" class="avg-avatar"/>
-          <span id="avg-box-name"></span>
-          <button id="avg-log-btn" onclick="event.stopPropagation();toggleGameLog()">📜</button>
+        <div class="hud-member" id="hud-member-1">
+          <div class="hud-portrait"></div>
+          <div class="hud-bars">
+            <span class="hud-name">—</span>
+            <div class="hud-hp-bar"><div class="hud-hp-fill"></div></div>
+            <div class="hud-mp-bar"><div class="hud-mp-fill"></div></div>
+          </div>
         </div>
-        <div id="avg-box-text"></div>
-        <div id="avg-box-indicator">▼</div>
-      </div>
-      <!-- AI思考中 -->
-      <div id="avg-thinking" style="display:none;">
-        <div class="dot"></div><div class="dot"></div><div class="dot"></div>
-      </div>
-    </div>
-    <!-- 選項區（AVG幀播完後顯示） -->
-    <div class="choices-wrap" id="choices-wrap">
-      <div class="ch-grid" id="ch-grid"></div>
-      <div class="free-row" id="free-row">
-        <button id="dice-btn" onclick="openDiceModal()" title="素質判定" style="display:none;padding:.4rem .55rem;background:rgba(201,168,76,.12);border:1px solid var(--goldd);border-radius:3px;color:var(--gold);cursor:pointer;font-size:.85rem;flex-shrink:0;animation:pulse .9s infinite alternate;">🎲</button>
-        <button id="shop-btn" onclick="reopenShop()" title="商店" style="display:none;padding:.4rem .55rem;background:rgba(100,180,100,.12);border:1px solid rgba(100,180,100,.5);border-radius:3px;color:rgba(130,200,130,.9);cursor:pointer;font-size:.85rem;flex-shrink:0;">🏪</button>
-        <input class="free-inp" id="free-inp" placeholder="說話或行動…"/>
-        <button class="free-send" onclick="sendFree()">送出</button>
+        <div class="hud-member" id="hud-member-2">
+          <div class="hud-portrait"></div>
+          <div class="hud-bars">
+            <span class="hud-name">—</span>
+            <div class="hud-hp-bar"><div class="hud-hp-fill"></div></div>
+            <div class="hud-mp-bar"><div class="hud-mp-fill"></div></div>
+          </div>
+        </div>
       </div>
     </div>
-    <!-- 隱藏：故事日誌（點📜開啟） -->
-    <div id="game-log" style="display:none;">
-      <div id="game-log-bar"><span>劇情回顧</span><button onclick="toggleGameLog()">✕ 返回</button></div>
-      <div id="game-log-scroll">
-        <div id="story-content"></div>
-      </div>
-    </div>
-    <div class="sys-panel" id="sys-panel" style="display:none;"></div>
-    <!-- 隱藏的story-scroll容器（保持相容） -->
-    <div class="story-scroll" id="story-scroll" style="display:none;"></div>
-  </div>
-  <div class="panel-side" id="panel-side">
-    <div class="p-tabs">
-      <button class="ptab ac" onclick="switchTab(this,'p','party')">同伴</button>
-      <button class="ptab" onclick="switchTab(this,'p','stars')">星辰</button>
-      <button class="ptab" onclick="switchTab(this,'p','inv')">道具</button>
-      <button class="ptab" onclick="switchTab(this,'p','quest')">任務</button>
-      <button class="ptab" onclick="switchTab(this,'p','intel')">情報</button>
-      <button class="ptab" onclick="switchTab(this,'p','log')">劇誌</button>
-      <button class="ptab" onclick="switchTab(this,'p','wiki')">百科</button>
-      <button class="ptab" onclick="switchTab(this,'p','guild')">工會</button>
-      <button class="ptab" onclick="switchTab(this,'p','activities')">活動</button>
-      <button class="ptab" onclick="switchTab(this,'p','crest')">紋章</button>
-      <button class="ptab" id="hq-tab-p" onclick="switchTab(this,'p','hq')" style="opacity:.4;color:var(--sild);">據點🔒</button>
-    </div>
-    <div class="p-body">
-      <div class="ptc ac" id="p-party"></div>
-      <div class="ptc" id="p-stars"></div>
-      <div class="ptc" id="p-inv"></div>
-      <div class="ptc" id="p-quest"></div>
-      <div class="ptc" id="p-intel"></div>
-      <div class="ptc" id="p-log"></div>
-      <div class="ptc" id="p-wiki"></div>
-      <div class="ptc" id="p-guild"></div>
-      <div class="ptc" id="p-activities"></div>
-      <div class="ptc" id="p-crest"></div>
-      <div class="ptc" id="p-hq"></div>
+    <div id="hud-right">
+      <span id="hud-location">未知之地</span>
+      <span id="hud-gold"><i class="icon-gold">✦</i><span id="gold-amount">0</span></span>
     </div>
   </div>
-</div>
 
-<!-- MOBILE DRAWER -->
-<div class="drawer-ov" id="drawer-ov" onclick="closeDrawer()"></div>
-<div class="drawer" id="drawer">
-  <div class="drawer-hrow" onclick="toggleDrawer()">
-    <div class="drawer-handle"></div>
-    <div class="drawer-peek">
-      <span class="drawer-lbl">✦ 星辰面板</span>
-      <span class="drawer-gold" id="drawer-gold">🪙 銀8・銅135</span>
+  <!-- ===== Dialogue Box ===== -->
+  <div id="dialogue-box" class="overlay-ui" hidden>
+    <div id="dialogue-speaker"></div>
+    <div id="dialogue-text"></div>
+    <div id="dialogue-indicator">▼</div>
+  </div>
+
+  <!-- ===== Menu Overlay ===== -->
+  <div id="menu-overlay" class="overlay-ui fullscreen-overlay" hidden>
+    <div id="menu-container">
+      <nav id="menu-tabs">
+        <button class="menu-tab active" data-tab="party">同伴</button>
+        <button class="menu-tab" data-tab="inventory">道具</button>
+        <button class="menu-tab" data-tab="quests">任務</button>
+        <button class="menu-tab" data-tab="map">地圖</button>
+        <button class="menu-tab" data-tab="save">存檔</button>
+        <button class="menu-tab" data-tab="settings">設定</button>
+      </nav>
+      <div id="menu-content">
+        <section class="menu-panel active" data-panel="party">
+          <div id="party-list"></div>
+          <div id="party-detail"></div>
+        </section>
+        <section class="menu-panel" data-panel="inventory">
+          <div id="inventory-categories"></div>
+          <div id="inventory-list"></div>
+          <div id="inventory-detail"></div>
+        </section>
+        <section class="menu-panel" data-panel="quests">
+          <div id="quest-list"></div>
+          <div id="quest-detail"></div>
+        </section>
+        <section class="menu-panel" data-panel="map">
+          <canvas id="map-canvas" width="400" height="300"></canvas>
+        </section>
+        <section class="menu-panel" data-panel="save">
+          <div id="save-slots"></div>
+        </section>
+        <section class="menu-panel" data-panel="settings">
+          <div id="settings-form">
+            <label>BGM 音量<input type="range" id="setting-bgm" min="0" max="100" value="70"></label>
+            <label>SFX 音量<input type="range" id="setting-sfx" min="0" max="100" value="80"></label>
+            <label>文字速度<input type="range" id="setting-text-speed" min="1" max="5" value="3"></label>
+            <button id="setting-reset" class="btn-gold">重置設定</button>
+          </div>
+        </section>
+      </div>
+      <button id="menu-close" class="btn-icon" aria-label="關閉選單">✕</button>
     </div>
   </div>
-  <div class="drawer-tabs">
-    <button class="dtab ac" onclick="switchTab(this,'d','party')">同伴</button>
-    <button class="dtab" onclick="switchTab(this,'d','stars')">星辰</button>
-    <button class="dtab" onclick="switchTab(this,'d','inv')">道具</button>
-    <button class="dtab" onclick="switchTab(this,'d','quest')">任務</button>
-    <button class="dtab" onclick="switchTab(this,'d','intel')">情報</button>
-    <button class="dtab" onclick="switchTab(this,'d','log')">劇誌</button>
-    <button class="dtab" onclick="switchTab(this,'d','wiki')">百科</button>
-    <button class="dtab" onclick="switchTab(this,'d','guild')">工會</button>
-    <button class="dtab" onclick="switchTab(this,'d','activities')">活動</button>
-    <button class="dtab" onclick="switchTab(this,'d','crest')">紋章</button>
-    <button class="dtab" id="hq-tab-d" onclick="switchTab(this,'d','hq')" style="opacity:.4;color:var(--sild);">據點🔒</button>
-  </div>
-  <div class="drawer-body">
-    <div class="dtc ac" id="d-party"></div>
-    <div class="dtc" id="d-stars"></div>
-    <div class="dtc" id="d-inv"></div>
-    <div class="dtc" id="d-quest"></div>
-    <div class="dtc" id="d-intel"></div>
-    <div class="dtc" id="d-log"></div>
-    <div class="dtc" id="d-wiki"></div>
-    <div class="dtc" id="d-guild"></div>
-    <div class="dtc" id="d-activities"></div>
-    <div class="dtc" id="d-crest"></div>
-    <div class="dtc" id="d-hq"></div>
-  </div>
-</div>
 
-<!-- PWA Install Prompt -->
-<div id="pwa-install" style="display:none;position:fixed;bottom:1.2rem;left:50%;transform:translateX(-50%);z-index:998;background:var(--bg2);border:1px solid var(--brdb);border-radius:6px;padding:.5rem 1rem;display:none;align-items:center;gap:.6rem;box-shadow:0 4px 20px rgba(0,0,0,.5);">
-  <span style="font-size:.72rem;color:var(--sil);">✦ 安裝為 App</span>
-  <button id="pwa-install-btn" style="font-size:.68rem;padding:.28rem .6rem;background:rgba(201,168,76,.15);border:1px solid var(--goldd);border-radius:3px;color:var(--gold);cursor:pointer;font-family:'Noto Serif TC',serif;">安裝</button>
-  <button onclick="document.getElementById('pwa-install').style.display='none'" style="font-size:.8rem;background:none;border:none;color:var(--sild);cursor:pointer;">✕</button>
-</div>
+  <!-- ===== Battle Overlay ===== -->
+  <div id="battle-overlay" class="overlay-ui fullscreen-overlay" hidden>
+    <div id="battle-scene">
+      <div id="battle-enemies"></div>
+      <div id="battle-effects"></div>
+    </div>
+    <div id="battle-ui">
+      <div id="battle-party-status"></div>
+      <div id="battle-actions">
+        <button class="battle-btn" data-action="attack">攻擊</button>
+        <button class="battle-btn" data-action="skill">技能</button>
+        <button class="battle-btn" data-action="item">道具</button>
+        <button class="battle-btn" data-action="defend">防禦</button>
+        <button class="battle-btn" data-action="flee">逃跑</button>
+      </div>
+      <div id="battle-log"></div>
+    </div>
+  </div>
 
-<script src="js/app.js?v=12"></script>
-<script>
-// PWA Service Worker Registration
-if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('sw.js').then(reg=>{
-    reg.addEventListener('updatefound',()=>{
-      const w=reg.installing;
-      w.addEventListener('statechange',()=>{
-        if(w.state==='activated')showToast('✦ 已更新至最新版本','ok');
-      });
-    });
-  }).catch(e=>console.warn('SW registration failed:',e));
-}
-// PWA Install Prompt
-let _deferredPrompt;
-window.addEventListener('beforeinstallprompt',e=>{
-  e.preventDefault();_deferredPrompt=e;
-  document.getElementById('pwa-install').style.display='flex';
-});
-document.getElementById('pwa-install-btn')?.addEventListener('click',async()=>{
-  if(!_deferredPrompt)return;
-  _deferredPrompt.prompt();
-  const r=await _deferredPrompt.userChoice;
-  if(r.outcome==='accepted')showToast('✦ 已安裝到裝置','ok');
-  _deferredPrompt=null;
-  document.getElementById('pwa-install').style.display='none';
-});
-</script>
+  <!-- ===== Shop Overlay ===== -->
+  <div id="shop-overlay" class="overlay-ui fullscreen-overlay" hidden>
+    <div id="shop-container">
+      <div id="shop-header">
+        <h2 id="shop-name">商店</h2>
+        <span id="shop-gold"><i class="icon-gold">✦</i><span id="shop-gold-amount">0</span></span>
+        <button id="shop-close" class="btn-icon" aria-label="離開商店">✕</button>
+      </div>
+      <nav id="shop-tabs">
+        <button class="shop-tab active" data-shop="buy">購買</button>
+        <button class="shop-tab" data-shop="sell">販賣</button>
+      </nav>
+      <div id="shop-items"></div>
+      <div id="shop-item-detail"></div>
+    </div>
+  </div>
+
+  <!-- ===== Title Screen ===== -->
+  <div id="title-screen" class="overlay-ui fullscreen-overlay">
+    <div id="title-content">
+      <div id="title-logo">
+        <div id="title-en">Fate Stars</div>
+        <h1 id="title-zh">命運之星</h1>
+        <div id="title-sub">108 星辰錄</div>
+      </div>
+      <div id="title-buttons">
+        <button id="btn-new-game" class="btn-gold">新的旅程</button>
+        <button id="btn-continue" class="btn-gold">繼續冒險</button>
+      </div>
+      <div id="title-footer">v0.1 &mdash; 觸碰任意處開始</div>
+    </div>
+  </div>
+
+  <!-- ===== API Key Modal ===== -->
+  <div id="api-key-modal" class="overlay-ui fullscreen-overlay" hidden>
+    <div id="api-key-container">
+      <h2>設定 API 金鑰</h2>
+      <p>本遊戲使用 AI 生成動態劇情，請輸入您的 API 金鑰以啟動遊戲。</p>
+      <label for="api-key-input">API Key</label>
+      <input type="password" id="api-key-input" placeholder="sk-..." autocomplete="off">
+      <div id="api-key-error" hidden></div>
+      <button id="api-key-submit" class="btn-gold">確認</button>
+      <button id="api-key-skip" class="btn-subtle">略過（離線模式）</button>
+    </div>
+  </div>
+
+  <!-- ===== Mobile Touch Controls ===== -->
+  <div id="touch-controls" class="overlay-ui" hidden>
+    <div id="joystick-zone">
+      <div id="joystick-base">
+        <div id="joystick-thumb"></div>
+      </div>
+    </div>
+    <button id="btn-action" class="touch-btn" aria-label="互動">Ａ</button>
+    <button id="btn-cancel" class="touch-btn touch-btn-small" aria-label="取消">Ｂ</button>
+  </div>
+
+  <!-- ===== Menu Toggle (always visible during gameplay) ===== -->
+  <button id="btn-menu" class="overlay-ui btn-icon" hidden aria-label="選單">☰</button>
+
+  <!-- ===== Loading Spinner ===== -->
+  <div id="loading" class="overlay-ui fullscreen-overlay">
+    <div class="spinner"></div>
+    <div id="loading-text">讀取中…</div>
+  </div>
+
+  <!-- ===== Scripts ===== -->
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    }
+  </script>
 </body>
 </html>
