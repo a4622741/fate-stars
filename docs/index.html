@@ -12,7 +12,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="assets/icon-192.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="assets/icon-192.svg">
-<link rel="stylesheet" href="css/style.css?v=8">
+<link rel="stylesheet" href="css/style.css?v=9">
 </head>
 <body>
 
@@ -270,37 +270,56 @@
 <!-- MAIN -->
 <div class="app-body">
   <div class="story-side">
-    <div class="scene-bar">
-      <span class="scene-t" id="scene-title">序章・Day 1　傍晚</span>
-      <span class="scene-l" id="scene-loc">📍 鐵霧城・碼頭</span>
-      <div class="scene-tabs">
-        <button class="scene-tab ac" id="stab-story" onclick="switchStoryTab('story')">劇情</button>
-        <button class="scene-tab" id="stab-sys" onclick="switchStoryTab('sys')">系統</button>
+    <!-- ═══ RPG+AVG 主畫面 ═══ -->
+    <div id="game-view" onclick="avgTap(event)">
+      <!-- 場景背景 -->
+      <div id="rpg-bg"></div>
+      <div id="rpg-scene-overlay"></div>
+      <!-- 角色立繪 -->
+      <div id="rpg-sprites"></div>
+      <!-- RPG HUD：場景標題+隊伍狀態 -->
+      <div id="rpg-hud">
+        <div id="rpg-hud-top">
+          <span class="scene-t" id="scene-title">序章・Day 1　傍晚</span>
+          <span class="scene-l" id="scene-loc">📍 鐵霧城・碼頭</span>
+        </div>
+        <div id="rpg-hud-party"></div>
+      </div>
+      <!-- AVG對話框 -->
+      <div id="avg-box">
+        <div id="avg-box-speaker">
+          <img id="avg-box-avatar" class="avg-avatar"/>
+          <span id="avg-box-name"></span>
+          <button id="avg-log-btn" onclick="event.stopPropagation();toggleGameLog()">📜</button>
+        </div>
+        <div id="avg-box-text"></div>
+        <div id="avg-box-indicator">▼</div>
+      </div>
+      <!-- AI思考中 -->
+      <div id="avg-thinking" style="display:none;">
+        <div class="dot"></div><div class="dot"></div><div class="dot"></div>
       </div>
     </div>
-    <!-- 場景視窗（移動RPG風格） -->
-    <div id="rpg-scene">
-      <div id="rpg-bg"></div>
-      <div id="rpg-sprites"></div>
-      <div id="rpg-scene-overlay"></div>
-    </div>
-    <!-- 故事卷軸 -->
-    <div class="story-scroll" id="story-scroll">
-      <div id="story-content"></div>
-      <div id="scroll-anchor"></div>
-      <button class="scroll-top-btn" id="scroll-top-btn" onclick="document.getElementById('story-scroll').scrollTop=0" title="回到頂部">▲</button>
-    </div>
-    <div class="sys-panel" id="sys-panel" style="display:none;"></div>
-    <div class="choices-wrap">
-      <div class="ch-label">＊ 行動選擇 ＊</div>
+    <!-- 選項區（AVG幀播完後顯示） -->
+    <div class="choices-wrap" id="choices-wrap">
       <div class="ch-grid" id="ch-grid"></div>
       <div class="free-row" id="free-row">
-        <button id="dice-btn" onclick="openDiceModal()" title="素質判定" style="display:none;padding:.4rem .55rem;background:rgba(201,168,76,.12);border:1px solid var(--goldd);border-radius:3px;color:var(--gold);cursor:pointer;font-size:.85rem;flex-shrink:0;transition:all .2s;animation:pulse .9s infinite alternate;">🎲</button>
+        <button id="dice-btn" onclick="openDiceModal()" title="素質判定" style="display:none;padding:.4rem .55rem;background:rgba(201,168,76,.12);border:1px solid var(--goldd);border-radius:3px;color:var(--gold);cursor:pointer;font-size:.85rem;flex-shrink:0;animation:pulse .9s infinite alternate;">🎲</button>
         <button id="shop-btn" onclick="reopenShop()" title="商店" style="display:none;padding:.4rem .55rem;background:rgba(100,180,100,.12);border:1px solid rgba(100,180,100,.5);border-radius:3px;color:rgba(130,200,130,.9);cursor:pointer;font-size:.85rem;flex-shrink:0;">🏪</button>
-        <input class="free-inp" id="free-inp" placeholder="說話或行動… 例：你好 / 艾爾法：走進酒館"/>
+        <input class="free-inp" id="free-inp" placeholder="說話或行動…"/>
         <button class="free-send" onclick="sendFree()">送出</button>
       </div>
     </div>
+    <!-- 隱藏：故事日誌（點📜開啟） -->
+    <div id="game-log" style="display:none;">
+      <div id="game-log-bar"><span>劇情回顧</span><button onclick="toggleGameLog()">✕ 返回</button></div>
+      <div id="game-log-scroll">
+        <div id="story-content"></div>
+      </div>
+    </div>
+    <div class="sys-panel" id="sys-panel" style="display:none;"></div>
+    <!-- 隱藏的story-scroll容器（保持相容） -->
+    <div class="story-scroll" id="story-scroll" style="display:none;"></div>
   </div>
   <div class="panel-side" id="panel-side">
     <div class="p-tabs">
@@ -377,7 +396,7 @@
   <button onclick="document.getElementById('pwa-install').style.display='none'" style="font-size:.8rem;background:none;border:none;color:var(--sild);cursor:pointer;">✕</button>
 </div>
 
-<script src="js/app.js?v=11"></script>
+<script src="js/app.js?v=12"></script>
 <script>
 // PWA Service Worker Registration
 if('serviceWorker' in navigator){

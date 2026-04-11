@@ -180,10 +180,27 @@ function renderStoryFromData(){
       if(lastEl)makeActionEditable(lastEl,e.v);
     }
   });
-  // RPG場景：恢復背景和最後的立繪
+  // RPG+AVG：恢復場景+HUD+最後對話
   rpgUpdateBg(G.sceneTitle,G.sceneLoc);
+  rpgRenderHUD();
   const lastDials=G.storyData.filter(e=>e.type==='dial').slice(-3);
-  if(lastDials.length)rpgSetSprites(lastDials.map(e=>e.sp));
+  if(lastDials.length){
+    rpgSetSprites(lastDials.map(e=>e.sp));
+    const last=lastDials[lastDials.length-1];
+    document.getElementById('avg-box-name').textContent=last.sp||'';
+    document.getElementById('avg-box-text').textContent='\u300C'+(last.ln||'')+'\u300D';
+    const src=rpgGetSpriteSrc(last.sp);
+    const av=document.getElementById('avg-box-avatar');
+    if(src){av.src=src;av.style.display='';}else av.style.display='none';
+    rpgHighlight(last.sp);
+  }else{
+    const lastNarr=G.storyData.filter(e=>e.type==='narr').pop();
+    if(lastNarr){
+      document.getElementById('avg-box-speaker').style.display='none';
+      document.getElementById('avg-box-text').textContent=lastNarr.v||'';
+      document.getElementById('avg-box-text').className='narr';
+    }
+  }
   if(G.currentChoices.length)renderChoices(G.currentChoices,false);
   else renderFallback();
   scrollD();
@@ -1288,10 +1305,12 @@ function tryParseJSON(raw){
 
 // ═══ STORY ENGINE ═══
 function mk(tag,cls){const e=document.createElement(tag);if(cls)e.className=cls;return e;}
-function scrollD(){const s=document.getElementById('story-scroll');setTimeout(()=>s.scrollTop=s.scrollHeight,60);}
+function scrollD(){const s=document.getElementById('game-log-scroll');if(s)setTimeout(()=>s.scrollTop=s.scrollHeight,60);}
 
-// ═══ RPG 場景系統 ═══
-const _rpgScene={bgUrl:null,bgCache:{},spriteCache:{}};
+// ═══ RPG+AVG 整合引擎 ═══
+const _rpg={bgUrl:null,bgCache:{},spriteCache:{},
+  // AVG 幀佇列
+  queue:[],idx:0,typing:false,typingDone:null,choicesData:null,combatData:null};
 const _RPG_LOC_KW={
   '城':'medieval city','鎮':'small town','村':'village','港':'harbor port','碼頭':'dock harbor','酒館':'tavern interior warm light',
   '旅店':'inn interior','客棧':'inn interior','商店':'shop interior','市集':'marketplace','公會':'guild hall interior',
@@ -1300,94 +1319,175 @@ const _RPG_LOC_KW={
   '宮殿':'palace','要塞':'fortress','塔':'tower','書庫':'library','海':'ocean sea','河':'river','橋':'stone bridge',
   '營地':'campsite','夜':'night dark','傍晚':'dusk sunset','早晨':'morning sunrise','霧':'foggy misty','雨':'rainy','月':'moonlight',
 };
-function rpgBuildBgUrl(title,loc){
-  const key=(title||'')+'|'+(loc||'');
-  if(_rpgScene.bgCache[key])return _rpgScene.bgCache[key];
-  const combined=(title||'')+' '+(loc||'');
-  const parts=[];
-  Object.entries(_RPG_LOC_KW).forEach(([zh,en])=>{if(combined.includes(zh))parts.push(en);});
+
+// ── 場景背景 ──
+function rpgBuildBgUrl(t,l){
+  const key=(t||'')+'|'+(l||'');
+  if(_rpg.bgCache[key])return _rpg.bgCache[key];
+  const c=(t||'')+' '+(l||'');const parts=[];
+  Object.entries(_RPG_LOC_KW).forEach(([zh,en])=>{if(c.includes(zh))parts.push(en);});
   if(!parts.length)parts.push('dark fantasy medieval landscape');
   const prompt=`${[...new Set(parts)].join(', ')}, dark fantasy, wide angle, atmospheric, cinematic lighting, concept art, no characters, no text`;
-  let seed=0;for(let i=0;i<(loc||'').length;i++)seed=(seed*31+loc.charCodeAt(i))&0x7fffffff;
-  const url=`https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=960&height=400&seed=${seed}&nologo=true`;
-  _rpgScene.bgCache[key]=url;
-  return url;
+  let seed=0;for(let i=0;i<(l||'').length;i++)seed=(seed*31+l.charCodeAt(i))&0x7fffffff;
+  const url=`https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=960&height=540&seed=${seed}&nologo=true`;
+  _rpg.bgCache[key]=url;return url;
 }
-function rpgUpdateBg(title,loc){
-  const url=rpgBuildBgUrl(title,loc);
-  if(url===_rpgScene.bgUrl)return;
-  _rpgScene.bgUrl=url;
-  const el=document.getElementById('rpg-bg');
-  if(!el)return;
+function rpgUpdateBg(t,l){
+  const url=rpgBuildBgUrl(t,l);if(url===_rpg.bgUrl)return;_rpg.bgUrl=url;
+  const el=document.getElementById('rpg-bg');if(!el)return;
   el.classList.remove('loaded');
   const img=new Image();
   img.onload=()=>{el.style.backgroundImage=`url('${url}')`;el.classList.add('loaded');};
   img.src=url;
 }
+
+// ── 角色立繪 ──
 function rpgGetSpriteSrc(spName){
-  const cleanName=spName.replace(/[\u{1F000}-\u{1FFFF}]|[\u{2600}-\u{27BF}]|[\u{FE00}-\u{FEFF}]/gu,'').trim();
-  if(!cleanName)return null;
-  if(_rpgScene.spriteCache[cleanName])return _rpgScene.spriteCache[cleanName];
-  const charMatch=allParty().find(m=>spName.includes(m.name));
-  const npcId='npc_'+cleanName.replace(/\s/g,'_');
-  const cfg=charMatch?(PCFG[charMatch.id]||(G.extraPcfg&&G.extraPcfg[charMatch.id])):G.extraPcfg?.[npcId];
+  const cn=spName.replace(/[\u{1F000}-\u{1FFFF}]|[\u{2600}-\u{27BF}]|[\u{FE00}-\u{FEFF}]/gu,'').trim();
+  if(!cn)return null;
+  if(_rpg.spriteCache[cn])return _rpg.spriteCache[cn];
+  const cm=allParty().find(m=>spName.includes(m.name));
+  const nid='npc_'+cn.replace(/\s/g,'_');
+  const cfg=cm?(PCFG[cm.id]||(G.extraPcfg&&G.extraPcfg[cm.id])):G.extraPcfg?.[nid];
   let prompt,seed;
   if(cfg?.prompt){prompt=cfg.prompt.replace(/character portrait/,'').trim();seed=cfg.seed||4000;}
-  else{prompt=`${cleanName}, fantasy character, ${PORTRAIT_STYLE}`;seed=0;for(let i=0;i<cleanName.length;i++)seed=(seed*31+cleanName.charCodeAt(i))&0x7fff;seed+=1000;}
+  else{prompt=`${cn}, fantasy character, ${PORTRAIT_STYLE}`;seed=0;for(let i=0;i<cn.length;i++)seed=(seed*31+cn.charCodeAt(i))&0x7fff;seed+=1000;}
   prompt+=', half body portrait, upper body, centered, plain dark background, single character';
   const url=`https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=300&height=450&seed=${seed}&nologo=true`;
-  _rpgScene.spriteCache[cleanName]=url;
-  return url;
+  _rpg.spriteCache[cn]=url;return url;
 }
 function rpgSetSprites(speakers){
-  const container=document.getElementById('rpg-sprites');
-  if(!container)return;
-  const filtered=speakers.filter(s=>s&&!/(系統|翻譯)/.test(s));
-  const unique=[...new Set(filtered)].slice(0,3);
-  container.innerHTML='';
-  unique.forEach((sp,i)=>{
-    const src=rpgGetSpriteSrc(sp);
-    if(!src)return;
+  const c=document.getElementById('rpg-sprites');if(!c)return;
+  const f=speakers.filter(s=>s&&!/(系統|翻譯)/.test(s));
+  const u=[...new Set(f)].slice(0,3);c.innerHTML='';
+  u.forEach((sp,i)=>{
+    const src=rpgGetSpriteSrc(sp);if(!src)return;
     const img=document.createElement('img');
-    const pos=unique.length===1?'pos-center':i===0?'pos-0':i===1?'pos-1':'pos-2';
-    img.className=`rpg-sprite ${pos}`;
+    img.className=`rpg-sprite ${u.length===1?'pos-center':i===0?'pos-0':i===1?'pos-1':'pos-2'}`;
     img.dataset.speaker=sp;
-    let retried=false;
-    img.onerror=()=>{if(!retried){retried=true;setTimeout(()=>{img.src=src+'&r=1';},3000);}};
-    img.src=src;
-    container.appendChild(img);
+    let r=false;img.onerror=()=>{if(!r){r=true;setTimeout(()=>{img.src=src+'&r=1';},3000);}};
+    img.src=src;c.appendChild(img);
     requestAnimationFrame(()=>requestAnimationFrame(()=>img.classList.add('show')));
   });
 }
-function rpgHighlight(spName){
-  document.querySelectorAll('.rpg-sprite').forEach(s=>{
-    s.classList.toggle('active',!!spName&&s.dataset.speaker===spName);
+function rpgHighlight(sp){document.querySelectorAll('.rpg-sprite').forEach(s=>{s.classList.toggle('active',!!sp&&s.dataset.speaker===sp);});}
+function rpgEnsureSprite(sp){
+  if(!sp||/(系統|翻譯)/.test(sp))return;
+  const c=document.getElementById('rpg-sprites');if(!c)return;
+  let found=false;c.querySelectorAll('.rpg-sprite').forEach(s=>{if(s.dataset.speaker===sp)found=true;});
+  if(found){rpgHighlight(sp);return;}
+  const sprites=c.querySelectorAll('.rpg-sprite');
+  if(sprites.length>=3)sprites[0].remove();
+  const src=rpgGetSpriteSrc(sp);if(!src)return;
+  const img=document.createElement('img');
+  img.className=`rpg-sprite ${sprites.length===0?'pos-center':sprites.length===1?'pos-1':'pos-2'}`;
+  img.dataset.speaker=sp;
+  let r=false;img.onerror=()=>{if(!r){r=true;setTimeout(()=>{img.src=src+'&r=1';},3000);}};
+  img.src=src;c.appendChild(img);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>img.classList.add('show')));
+  rpgHighlight(sp);
+}
+
+// ── RPG HUD（隊伍狀態列） ──
+function rpgRenderHUD(){
+  const el=document.getElementById('rpg-hud-party');if(!el)return;
+  el.innerHTML=allParty().map(c=>{
+    const hp=getHP(c.id);const pct=hp.max?Math.round(hp.cur/hp.max*100):100;
+    const src=getPortraitSrc(c.id);
+    const imgH=src?`<img src="${src}" onerror="this.style.display='none'"/>`:`<span style="font-size:.7rem">${c.emoji||'?'}</span>`;
+    return `<div class="hud-char" onclick="event.stopPropagation();openChar('${c.id}')">
+      ${imgH}
+      <div class="hud-char-info"><div class="hud-char-name">${c.name}</div>
+      <div class="hud-hp"><div class="hud-hp-fill" style="width:${pct}%;background:${pct>50?'#44aa66':pct>25?'#cc8844':'#cc4444'}"></div></div></div>
+    </div>`;
+  }).join('');
+}
+
+// ── AVG 打字機 ──
+function avgType(el,text,speed=25){
+  return new Promise(resolve=>{
+    _rpg.typing=true;el.textContent='';let i=0;
+    const skip=()=>{el.textContent=text;_rpg.typing=false;_rpg.typingDone=null;resolve();};
+    _rpg.typingDone=skip;
+    const tick=()=>{
+      if(!_rpg.typing){skip();return;}
+      if(i<text.length){el.textContent+=text[i];i++;
+        const ch=text[i-1];const d='，。！？、；：'.includes(ch)?speed*3:'…—'.includes(ch)?speed*2:speed;
+        setTimeout(tick,d);
+      }else{_rpg.typing=false;_rpg.typingDone=null;resolve();}
+    };tick();
   });
 }
-// 對話時動態加入新角色立繪
-function rpgEnsureSprite(spName){
-  if(!spName||/(系統|翻譯)/.test(spName))return;
-  const container=document.getElementById('rpg-sprites');
-  if(!container)return;
-  let found=false;
-  container.querySelectorAll('.rpg-sprite').forEach(s=>{if(s.dataset.speaker===spName)found=true;});
-  if(found){rpgHighlight(spName);return;}
-  const sprites=container.querySelectorAll('.rpg-sprite');
-  if(sprites.length>=3)sprites[0].remove();
-  const src=rpgGetSpriteSrc(spName);
-  if(!src)return;
-  const img=document.createElement('img');
-  const pos=sprites.length===0?'pos-center':sprites.length===1?'pos-1':'pos-2';
-  img.className=`rpg-sprite ${pos}`;
-  img.dataset.speaker=spName;
-  let retried=false;
-  img.onerror=()=>{if(!retried){retried=true;setTimeout(()=>{img.src=src+'&r=1';},3000);}};
-  img.src=src;
-  container.appendChild(img);
-  requestAnimationFrame(()=>requestAnimationFrame(()=>img.classList.add('show')));
-  rpgHighlight(spName);
+
+// ── AVG 幀顯示 ──
+function avgShowFrame(frame){
+  const nameEl=document.getElementById('avg-box-name');
+  const avatarEl=document.getElementById('avg-box-avatar');
+  const textEl=document.getElementById('avg-box-text');
+  const indEl=document.getElementById('avg-box-indicator');
+  const spkRow=document.getElementById('avg-box-speaker');
+  indEl.style.display='none';
+
+  if(frame.type==='dial'){
+    spkRow.style.display='flex';
+    nameEl.textContent=frame.sp;
+    const src=rpgGetSpriteSrc(frame.sp);
+    if(src){avatarEl.src=src;avatarEl.style.display='';}else avatarEl.style.display='none';
+    textEl.className='';
+    rpgEnsureSprite(frame.sp);
+    appendEntryToDOM({type:'dial',sp:frame.sp,ln:frame.ln});
+    avgType(textEl,'\u300C'+frame.ln+'\u300D').then(()=>{indEl.style.display='';});
+  }else if(frame.type==='narr'){
+    spkRow.style.display='none';
+    textEl.className='narr';
+    appendEntryToDOM({type:'narr',v:frame.text});
+    avgType(textEl,frame.text).then(()=>{indEl.style.display='';});
+  }else if(frame.type==='sys'){
+    spkRow.style.display='none';
+    textEl.className='sys';
+    appendEntryToDOM({type:'sys',v:frame.text});
+    avgType(textEl,frame.text,15).then(()=>{indEl.style.display='';});
+  }
 }
-G._avgMode=false;
+
+// ── 點擊推進 ──
+function avgTap(ev){
+  if(ev&&ev.target.closest('button,input,.ch-btn,.choices-wrap,.free-row,.hud-char'))return;
+  // 日誌開著→關閉
+  const log=document.getElementById('game-log');
+  if(log&&log.classList.contains('open')){toggleGameLog();return;}
+  // 打字中→跳過
+  if(_rpg.typing&&_rpg.typingDone){_rpg.typingDone();return;}
+  // 下一幀
+  _rpg.idx++;
+  if(_rpg.idx<_rpg.queue.length){
+    avgShowFrame(_rpg.queue[_rpg.idx]);
+  }else{
+    // 播完→顯示選項
+    document.getElementById('choices-wrap').style.display='';
+    document.getElementById('avg-box-indicator').style.display='none';
+    if(_rpg.combatData){const cb=_rpg.combatData;_rpg.combatData=null;setTimeout(()=>autoCombat(cb),600);}
+    else if(_rpg.choicesData?.length){renderChoices(_rpg.choicesData);_rpg.choicesData=null;}
+  }
+}
+
+// ── 遊戲日誌 ──
+function toggleGameLog(){
+  const log=document.getElementById('game-log');
+  if(log.classList.contains('open')){log.classList.remove('open');log.style.display='none';}
+  else{log.classList.add('open');log.style.display='flex';
+    const s=document.getElementById('game-log-scroll');if(s)s.scrollTop=s.scrollHeight;}
+}
+
+// ── 鍵盤 ──
+document.addEventListener('keydown',e=>{
+  if(e.key===' '||e.key==='Enter'){
+    if(document.activeElement?.tagName==='INPUT'||document.activeElement?.tagName==='TEXTAREA')return;
+    e.preventDefault();avgTap({target:document.getElementById('game-view')});
+  }
+});
+
+G._avgMode=true;
 
 // 本地事件推入 history 的輔助函式：合併連續同類事件，避免膨脹
 const _EMPTY_RESP='{"st":"—","sl":"—","nv":[],"dl":[],"sm":null,"gd":{"g":0,"s":0,"c":0},"ch":[],"nm":null,"cb":null,"iv":null,"sp":null,"shop":null,"fa":null,"hp":null,"qt":null,"tm":null,"rp":null,"info":null,"relic":null,"clue":null,"or":null,"job":null,"gu":null}';
@@ -2126,20 +2226,22 @@ function renderResp(d){
       G.inShop=false;
     }
   }
-  // ═══ RPG場景更新：背景+立繪 ═══
+  // ═══ RPG+AVG：場景更新+幀佇列 ═══
   if(d.st||d.sl)rpgUpdateBg(d.st||G.sceneTitle,d.sl||G.sceneLoc);
+  rpgRenderHUD();
+  // 建立AVG幀佇列
+  _rpg.queue=[];_rpg.idx=0;_rpg.typing=false;_rpg.typingDone=null;_rpg.choicesData=null;_rpg.combatData=null;
   const _dlArr=Array.isArray(d.dl)?d.dl:d.dl?[d.dl]:[];
-  const _dlSpeakers=_dlArr.filter(x=>x&&x.sp).map(x=>String(x.sp));
-  if(_dlSpeakers.length)rpgSetSprites(_dlSpeakers);
-  // 正常顯示文字（滾動模式）
-  (Array.isArray(d.nv)?d.nv:d.nv?[d.nv]:[]).forEach(p=>{if(p)appendEntryToDOM({type:'narr',v:String(p)});});
-  _dlArr.forEach(dl=>{
-    if(dl&&(dl.sp||dl.ln)){
-      appendEntryToDOM({type:'dial',sp:String(dl.sp||''),ln:String(dl.ln||'')});
-      rpgEnsureSprite(String(dl.sp||''));
-    }
-  });
-  if(d.sm&&d.sm!=='null')appendEntryToDOM({type:'sys',v:String(d.sm)});
+  (Array.isArray(d.nv)?d.nv:d.nv?[d.nv]:[]).forEach(p=>{if(p)_rpg.queue.push({type:'narr',text:String(p)});});
+  _dlArr.forEach(dl=>{if(dl&&(dl.sp||dl.ln))_rpg.queue.push({type:'dial',sp:String(dl.sp||''),ln:String(dl.ln||'')});});
+  if(d.sm&&d.sm!=='null')_rpg.queue.push({type:'sys',text:String(d.sm)});
+  // 設定立繪
+  const _speakers=_dlArr.filter(x=>x&&x.sp).map(x=>String(x.sp));
+  if(_speakers.length)rpgSetSprites(_speakers);
+  // 隱藏選項，開始播放
+  document.getElementById('choices-wrap').style.display='none';
+  if(_rpg.queue.length)avgShowFrame(_rpg.queue[0]);
+  else document.getElementById('choices-wrap').style.display='';
   if(d.gd)applyGold(d.gd);
   // 安全網：偵測敘述/系統訊息中有金幣描述但 gd 未填的情況
   if((!d.gd||(d.gd.g===0&&d.gd.s===0&&d.gd.c===0))){
@@ -2216,12 +2318,15 @@ function renderResp(d){
   const _vc=detectCity();if(_vc&&!G._visitedCities)G._visitedCities=[];if(_vc&&!G._visitedCities.includes(_vc))G._visitedCities.push(_vc);
   renderAll();
   updateShopBtn();
-  if(d.cb){
+  // AVG模式：選項/戰鬥延遲到幀播完
+  if(d.cb){_rpg.combatData=d.cb;saveGame();}
+  else{
+    if(d.ch?.length)_rpg.choicesData=d.ch;
     saveGame();
-    setTimeout(()=>autoCombat(d.cb),800);
-  }else{
-    if(d.ch?.length)renderChoices(d.ch);
-    saveGame();
+    if(!_rpg.queue.length){
+      document.getElementById('choices-wrap').style.display='';
+      if(d.ch?.length)renderChoices(d.ch);
+    }
   }
 }
 // Check and auto-trigger quests based on location
@@ -2387,7 +2492,14 @@ function openEditAction(actionEl,originalTxt){
     inp.focus();inp.select();
   }
 }
-function addThink(){const w=mk('div','sentry');w.innerHTML='<div style="font-size:.62rem;color:var(--goldd);text-align:center;letter-spacing:.08em;margin-bottom:.3rem;">✦ AI 思考中…</div><div class="think-row"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>';document.getElementById('story-content').appendChild(w);scrollD();return w;}
+function addThink(){
+  // AVG模式：在場景中顯示思考動畫
+  const el=document.getElementById('avg-thinking');
+  if(el){el.style.display='flex';document.getElementById('avg-box-text').textContent='';
+    document.getElementById('avg-box-indicator').style.display='none';
+    document.getElementById('choices-wrap').style.display='none';}
+  return{remove:()=>{if(el)el.style.display='none';}};
+}
 function addErr(msg,isCors){
   const w=mk('div','sentry'),e=mk('div','s-err');
   e.textContent='⚠ '+msg+(isCors?' — 點此查看解決方法':'');
