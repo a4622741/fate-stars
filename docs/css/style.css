@@ -470,8 +470,9 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%;}
 body{touch-action:manipulation;}
 
 /* ═══ AVG MODE ═══ */
-#avg-viewport{position:relative;flex:1;overflow:hidden;min-height:0;cursor:pointer;background:#060d14;}
-#avg-bg{position:absolute;inset:0;background-size:cover;background-position:center;transition:opacity .8s ease;z-index:0;opacity:0;}
+#avg-viewport{position:relative;flex:1;overflow:hidden;min-height:200px;cursor:pointer;background:#060d14;display:flex;flex-direction:column;}
+#avg-bg{position:absolute;inset:0;background-size:cover;background-position:center;transition:opacity .8s ease;z-index:0;opacity:0;
+  background-color:#0a1020;}
 #avg-bg.loaded{opacity:1;}
 #avg-dim{position:absolute;inset:0;z-index:1;
   background:linear-gradient(to bottom,rgba(8,11,18,.1) 0%,rgba(8,11,18,.15) 50%,rgba(8,11,18,.7) 80%,rgba(8,11,18,.95) 100%);
