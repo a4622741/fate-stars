@@ -180,30 +180,13 @@ function renderStoryFromData(){
       if(lastEl)makeActionEditable(lastEl,e.v);
     }
   });
-  // AVG模式：顯示最後一段內容+場景背景
-  if(G._avgMode){
-    avgSetBg(G.sceneTitle,G.sceneLoc);
-    // 找最後的對話/敘述顯示在AVG文字框
-    const lastNarr=G.storyData.filter(e=>e.type==='narr').pop();
-    const lastDial=G.storyData.filter(e=>e.type==='dial').pop();
-    const last=lastDial||lastNarr;
-    if(last){
-      if(last.type==='dial'){
-        document.getElementById('avg-speaker').textContent=last.sp;
-        document.getElementById('avg-text').textContent='「'+last.ln+'」';
-        document.getElementById('avg-text').className='';
-        // 立繪
-        avgSetSprites([last.sp]);
-      }else{
-        document.getElementById('avg-speaker-row').style.display='none';
-        document.getElementById('avg-text').textContent=last.v;
-        document.getElementById('avg-text').className='narr';
-      }
-    }
-  }
+  // RPG場景：恢復背景和最後的立繪
+  rpgUpdateBg(G.sceneTitle,G.sceneLoc);
+  const lastDials=G.storyData.filter(e=>e.type==='dial').slice(-3);
+  if(lastDials.length)rpgSetSprites(lastDials.map(e=>e.sp));
   if(G.currentChoices.length)renderChoices(G.currentChoices,false);
   else renderFallback();
-  if(!G._avgMode)scrollD();
+  scrollD();
 }
 function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function appendEntryToDOM(e,save=true){
@@ -1587,249 +1570,106 @@ function tryParseJSON(raw){
 
 // ═══ STORY ENGINE ═══
 function mk(tag,cls){const e=document.createElement(tag);if(cls)e.className=cls;return e;}
-function scrollD(){if(G._avgMode)return;const s=document.getElementById('story-scroll');setTimeout(()=>s.scrollTop=s.scrollHeight,60);}
+function scrollD(){const s=document.getElementById('story-scroll');setTimeout(()=>s.scrollTop=s.scrollHeight,60);}
 
-// ═══ AVG 視覺小說引擎 ═══
-const _avgState={queue:[],idx:0,typing:false,typingResolve:null,bgUrl:null,bgCache:{},lastSpeakers:[],choicesData:null,combatData:null};
-const _AVG_LOC_KEYWORDS={
-  '城':'medieval city','鎮':'small town','村':'village','港':'harbor port','碼頭':'dock harbor','酒館':'tavern interior',
-  '旅店':'inn interior','旅館':'inn interior','客棧':'inn interior','商店':'shop interior','市集':'marketplace',
-  '公會':'guild hall interior','工會':'guild hall interior','廣場':'town square','城門':'city gate',
-  '森林':'forest','翠林':'enchanted forest','沼澤':'dark swamp','沙漠':'desert','雪':'snow ice',
-  '霜':'frost ice','山':'mountain','洞窟':'cave','遺跡':'ruins','廢墟':'ruins','地下':'underground dungeon',
-  '宮殿':'palace','要塞':'fortress','塔':'tower','書庫':'library','碼頭區':'harbor district',
-  '海':'ocean sea','河':'river','橋':'stone bridge','路':'road path','營地':'campsite',
-  '夜':'night dark','晚':'evening dusk','傍晚':'dusk sunset','早晨':'morning sunrise','白天':'daytime',
-  '霧':'foggy misty','雨':'rainy','雪':'snowy','暴風':'stormy','月':'moonlight',
+// ═══ RPG 場景系統 ═══
+const _rpgScene={bgUrl:null,bgCache:{},spriteCache:{}};
+const _RPG_LOC_KW={
+  '城':'medieval city','鎮':'small town','村':'village','港':'harbor port','碼頭':'dock harbor','酒館':'tavern interior warm light',
+  '旅店':'inn interior','客棧':'inn interior','商店':'shop interior','市集':'marketplace','公會':'guild hall interior',
+  '廣場':'town square','城門':'city gate','森林':'forest','翠林':'enchanted forest','沼澤':'dark swamp',
+  '沙漠':'desert','霜':'frost ice','山':'mountain','遺跡':'ruins','廢墟':'ruins','地下':'underground dungeon',
+  '宮殿':'palace','要塞':'fortress','塔':'tower','書庫':'library','海':'ocean sea','河':'river','橋':'stone bridge',
+  '營地':'campsite','夜':'night dark','傍晚':'dusk sunset','早晨':'morning sunrise','霧':'foggy misty','雨':'rainy','月':'moonlight',
 };
-
-function avgBuildSceneBg(title,loc){
+function rpgBuildBgUrl(title,loc){
   const key=(title||'')+'|'+(loc||'');
-  if(_avgState.bgCache[key])return _avgState.bgCache[key];
+  if(_rpgScene.bgCache[key])return _rpgScene.bgCache[key];
   const combined=(title||'')+' '+(loc||'');
   const parts=[];
-  Object.entries(_AVG_LOC_KEYWORDS).forEach(([zh,en])=>{if(combined.includes(zh))parts.push(en);});
+  Object.entries(_RPG_LOC_KW).forEach(([zh,en])=>{if(combined.includes(zh))parts.push(en);});
   if(!parts.length)parts.push('dark fantasy medieval landscape');
-  const prompt=`${[...new Set(parts)].join(', ')}, dark fantasy, wide angle establishing shot, atmospheric, cinematic lighting, detailed environment, concept art, no characters, no text, no UI`;
+  const prompt=`${[...new Set(parts)].join(', ')}, dark fantasy, wide angle, atmospheric, cinematic lighting, concept art, no characters, no text`;
   let seed=0;for(let i=0;i<(loc||'').length;i++)seed=(seed*31+loc.charCodeAt(i))&0x7fffffff;
-  const url=`https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1280&height=720&seed=${seed}&nologo=true`;
-  _avgState.bgCache[key]=url;
+  const url=`https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=960&height=400&seed=${seed}&nologo=true`;
+  _rpgScene.bgCache[key]=url;
   return url;
 }
-
-function avgSetBg(title,loc){
-  const url=avgBuildSceneBg(title,loc);
-  if(url===_avgState.bgUrl)return;
-  _avgState.bgUrl=url;
-  const el=document.getElementById('avg-bg');
+function rpgUpdateBg(title,loc){
+  const url=rpgBuildBgUrl(title,loc);
+  if(url===_rpgScene.bgUrl)return;
+  _rpgScene.bgUrl=url;
+  const el=document.getElementById('rpg-bg');
+  if(!el)return;
   el.classList.remove('loaded');
   const img=new Image();
   img.onload=()=>{el.style.backgroundImage=`url('${url}')`;el.classList.add('loaded');};
-  img.onerror=()=>{el.style.backgroundImage='none';};
   img.src=url;
 }
-
-// AVG半身立繪快取
-const _avgSpriteCache={};
-function avgGetSpriteSrc(spName){
+function rpgGetSpriteSrc(spName){
   const cleanName=spName.replace(/[\u{1F000}-\u{1FFFF}]|[\u{2600}-\u{27BF}]|[\u{FE00}-\u{FEFF}]/gu,'').trim();
   if(!cleanName)return null;
-  if(_avgSpriteCache[cleanName])return _avgSpriteCache[cleanName];
+  if(_rpgScene.spriteCache[cleanName])return _rpgScene.spriteCache[cleanName];
   const charMatch=allParty().find(m=>spName.includes(m.name));
   const npcId='npc_'+cleanName.replace(/\s/g,'_');
   const cfg=charMatch?(PCFG[charMatch.id]||(G.extraPcfg&&G.extraPcfg[charMatch.id])):G.extraPcfg?.[npcId];
-  let prompt;let seed;
-  if(cfg?.prompt){
-    prompt=cfg.prompt.replace(/character portrait/,'').trim();
-    seed=cfg.seed||4000;
-  }else{
-    prompt=`${cleanName}, fantasy character, ${PORTRAIT_STYLE}`;
-    seed=0;for(let i=0;i<cleanName.length;i++)seed=(seed*31+cleanName.charCodeAt(i))&0x7fff;seed+=1000;
-  }
-  // 去背半身像：transparent background + centered
-  prompt+=', half body portrait, upper body visible, centered, transparent background, plain solid color background, single character, no background details';
-  const url=`https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=400&height=600&seed=${seed}&nologo=true`;
-  _avgSpriteCache[cleanName]=url;
+  let prompt,seed;
+  if(cfg?.prompt){prompt=cfg.prompt.replace(/character portrait/,'').trim();seed=cfg.seed||4000;}
+  else{prompt=`${cleanName}, fantasy character, ${PORTRAIT_STYLE}`;seed=0;for(let i=0;i<cleanName.length;i++)seed=(seed*31+cleanName.charCodeAt(i))&0x7fff;seed+=1000;}
+  prompt+=', half body portrait, upper body, centered, plain dark background, single character';
+  const url=`https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=300&height=450&seed=${seed}&nologo=true`;
+  _rpgScene.spriteCache[cleanName]=url;
   return url;
 }
-
-function avgSetSprites(speakers){
-  const container=document.getElementById('avg-sprites');
+function rpgSetSprites(speakers){
+  const container=document.getElementById('rpg-sprites');
+  if(!container)return;
   const filtered=speakers.filter(s=>s&&!/(系統|翻譯)/.test(s));
-  const unique=[...new Set(filtered)];
+  const unique=[...new Set(filtered)].slice(0,3);
   container.innerHTML='';
-  _avgState.lastSpeakers=unique;
-  if(unique.length===1){
-    _avgAddSprite(container,unique[0],avgGetSpriteSrc(unique[0]),'pos-center');
-  }else{
-    unique.forEach((spName,i)=>{
-      const pos=i===0?'pos-0':i===1?'pos-1':'pos-2';
-      _avgAddSprite(container,spName,avgGetSpriteSrc(spName),pos);
-    });
-  }
+  unique.forEach((sp,i)=>{
+    const src=rpgGetSpriteSrc(sp);
+    if(!src)return;
+    const img=document.createElement('img');
+    const pos=unique.length===1?'pos-center':i===0?'pos-0':i===1?'pos-1':'pos-2';
+    img.className=`rpg-sprite ${pos}`;
+    img.dataset.speaker=sp;
+    let retried=false;
+    img.onerror=()=>{if(!retried){retried=true;setTimeout(()=>{img.src=src+'&r=1';},3000);}};
+    img.src=src;
+    container.appendChild(img);
+    requestAnimationFrame(()=>requestAnimationFrame(()=>img.classList.add('show')));
+  });
 }
-function _avgAddSprite(container,spName,src,posClass){
+function rpgHighlight(spName){
+  document.querySelectorAll('.rpg-sprite').forEach(s=>{
+    s.classList.toggle('active',!!spName&&s.dataset.speaker===spName);
+  });
+}
+// 對話時動態加入新角色立繪
+function rpgEnsureSprite(spName){
+  if(!spName||/(系統|翻譯)/.test(spName))return;
+  const container=document.getElementById('rpg-sprites');
+  if(!container)return;
+  let found=false;
+  container.querySelectorAll('.rpg-sprite').forEach(s=>{if(s.dataset.speaker===spName)found=true;});
+  if(found){rpgHighlight(spName);return;}
+  const sprites=container.querySelectorAll('.rpg-sprite');
+  if(sprites.length>=3)sprites[0].remove();
+  const src=rpgGetSpriteSrc(spName);
   if(!src)return;
   const img=document.createElement('img');
-  img.className=`avg-sprite ${posClass}`;
+  const pos=sprites.length===0?'pos-center':sprites.length===1?'pos-1':'pos-2';
+  img.className=`rpg-sprite ${pos}`;
   img.dataset.speaker=spName;
   let retried=false;
-  img.onerror=()=>{
-    if(!retried){retried=true;setTimeout(()=>{img.src=src+'&retry=1';},2500);}
-  };
+  img.onerror=()=>{if(!retried){retried=true;setTimeout(()=>{img.src=src+'&r=1';},3000);}};
   img.src=src;
   container.appendChild(img);
   requestAnimationFrame(()=>requestAnimationFrame(()=>img.classList.add('show')));
+  rpgHighlight(spName);
 }
-
-function avgHighlightSpeaker(spName){
-  document.querySelectorAll('.avg-sprite').forEach(s=>{
-    s.classList.remove('active');
-    if(spName&&s.dataset.speaker===spName)s.classList.add('active');
-  });
-}
-
-function avgTypewriter(el,text,speed=28){
-  return new Promise(resolve=>{
-    _avgState.typing=true;
-    el.textContent='';
-    let i=0;
-    const skip=()=>{el.textContent=text;_avgState.typing=false;_avgState.typingResolve=null;resolve();};
-    _avgState.typingResolve=skip;
-    const tick=()=>{
-      if(!_avgState.typing){skip();return;}
-      if(i<text.length){
-        el.textContent+=text[i];i++;
-        // 標點稍慢
-        const ch=text[i-1];
-        const delay='，。！？、；：'.includes(ch)?speed*3:'…—'.includes(ch)?speed*2:speed;
-        setTimeout(tick,delay);
-      }else{_avgState.typing=false;_avgState.typingResolve=null;resolve();}
-    };
-    tick();
-  });
-}
-
-function avgShowFrame(frame){
-  const spRow=document.getElementById('avg-speaker-row');
-  const spEl=document.getElementById('avg-speaker');
-  const avEl=document.getElementById('avg-speaker-avatar');
-  const txtEl=document.getElementById('avg-text');
-  const indEl=document.getElementById('avg-indicator');
-  indEl.style.display='none';
-
-  if(frame.type==='dial'){
-    spRow.style.display='flex';
-    spEl.textContent=frame.sp;
-    // 頭像（用小圖）
-    const spriteSrc=avgGetSpriteSrc(frame.sp);
-    if(spriteSrc){avEl.src=spriteSrc;avEl.style.display='';}
-    else avEl.style.display='none';
-    txtEl.className='';
-    // 如果這個說話者還沒有立繪，動態加入
-    let existing=false;
-    document.querySelectorAll('.avg-sprite').forEach(s=>{if(s.dataset.speaker===frame.sp)existing=true;});
-    if(!existing&&!/(系統|翻譯)/.test(frame.sp)){
-      const container=document.getElementById('avg-sprites');
-      const sprites=container.querySelectorAll('.avg-sprite');
-      const src=avgGetSpriteSrc(frame.sp);
-      if(src){
-        // 超過3人移除最早的
-        if(sprites.length>=3)sprites[0].remove();
-        const posIdx=sprites.length;
-        _avgAddSprite(container,frame.sp,src,posIdx===0?'pos-center':posIdx===1?'pos-1':'pos-2');
-      }
-    }
-    avgHighlightSpeaker(frame.sp);
-    // 也寫入故事日誌
-    appendEntryToDOM({type:'dial',sp:frame.sp,ln:frame.ln});
-    avgTypewriter(txtEl,'「'+frame.ln+'」').then(()=>{indEl.style.display='';});
-  }else if(frame.type==='narr'){
-    spRow.style.display='none';
-    txtEl.className='narr';
-    appendEntryToDOM({type:'narr',v:frame.text});
-    avgTypewriter(txtEl,frame.text).then(()=>{indEl.style.display='';});
-  }else if(frame.type==='sys'){
-    spRow.style.display='none';
-    txtEl.className='sys';
-    appendEntryToDOM({type:'sys',v:frame.text});
-    avgTypewriter(txtEl,frame.text,15).then(()=>{indEl.style.display='';});
-  }
-}
-
-function avgAdvance(ev){
-  // 不攔截按鈕點擊
-  if(ev&&ev.target.closest('button,input,.ch-btn,.choices-wrap,.free-row'))return;
-  // 如果劇情回顧開著，先關閉
-  if(document.getElementById('story-scroll').classList.contains('avg-log')){closeAvgLog();return;}
-  // 正在打字 → 跳到完整文字
-  if(_avgState.typing&&_avgState.typingResolve){_avgState.typingResolve();return;}
-  // 還有下一幀
-  _avgState.idx++;
-  if(_avgState.idx<_avgState.queue.length){
-    avgShowFrame(_avgState.queue[_avgState.idx]);
-  }else{
-    // 所有幀播完 → 顯示選項
-    document.querySelector('.choices-wrap').style.display='';
-    document.getElementById('avg-indicator').style.display='none';
-    if(_avgState.combatData){
-      const cb=_avgState.combatData;_avgState.combatData=null;
-      setTimeout(()=>autoCombat(cb),600);
-    }else if(_avgState.choicesData?.length){
-      renderChoices(_avgState.choicesData);
-      _avgState.choicesData=null;
-    }
-  }
-}
-
-function avgReset(){
-  _avgState.queue=[];_avgState.idx=0;_avgState.typing=false;_avgState.typingResolve=null;
-  _avgState.lastSpeakers=[];_avgState.choicesData=null;_avgState.combatData=null;
-  document.getElementById('avg-text').textContent='';
-  document.getElementById('avg-speaker').textContent='';
-  document.getElementById('avg-speaker-avatar').style.display='none';
-  document.getElementById('avg-indicator').style.display='none';
-}
-
-function toggleAvgLog(){
-  const ss=document.getElementById('story-scroll');
-  if(ss.classList.contains('avg-log')){
-    closeAvgLog();
-  }else{
-    ss.classList.remove('avg-hidden');
-    ss.classList.add('avg-log');
-    // 加入返回按鈕
-    let closeBtn=document.getElementById('avg-log-close');
-    if(!closeBtn){
-      closeBtn=document.createElement('button');
-      closeBtn.id='avg-log-close';
-      closeBtn.textContent='✕ 返回遊戲';
-      closeBtn.style.cssText='position:sticky;top:0;z-index:25;width:100%;padding:.55rem;background:rgba(8,11,18,.95);border:none;border-bottom:1px solid var(--brd);color:var(--gold);font-family:"Noto Serif TC",serif;font-size:.75rem;cursor:pointer;letter-spacing:.1em;';
-      closeBtn.onclick=closeAvgLog;
-      ss.prepend(closeBtn);
-    }
-    ss.scrollTop=ss.scrollHeight;
-  }
-}
-function closeAvgLog(){
-  const ss=document.getElementById('story-scroll');
-  ss.classList.remove('avg-log');
-  ss.classList.add('avg-hidden');
-  const btn=document.getElementById('avg-log-close');
-  if(btn)btn.remove();
-}
-
-// 鍵盤支持
-document.addEventListener('keydown',e=>{
-  if(!G._avgMode)return;
-  if(e.key===' '||e.key==='Enter'){
-    if(document.activeElement?.tagName==='INPUT'||document.activeElement?.tagName==='TEXTAREA')return;
-    e.preventDefault();avgAdvance({target:document.getElementById('avg-viewport')});
-  }
-});
-
-// 初始化AVG模式（預設開啟）
-G._avgMode=true;
+G._avgMode=false;
 
 // 本地事件推入 history 的輔助函式：合併連續同類事件，避免膨脹
 const _EMPTY_RESP='{"st":"—","sl":"—","nv":[],"dl":[],"sm":null,"gd":{"g":0,"s":0,"c":0},"ch":[],"nm":null,"cb":null,"iv":null,"sp":null,"shop":null,"fa":null,"hp":null,"qt":null,"tm":null,"rp":null,"info":null,"relic":null,"clue":null,"or":null,"job":null,"gu":null}';
@@ -2568,29 +2408,20 @@ function renderResp(d){
       G.inShop=false;
     }
   }
-  if(G._avgMode){
-    // ═══ AVG MODE：建立幀佇列，逐幀播放 ═══
-    avgReset();
-    const frames=[];
-    (Array.isArray(d.nv)?d.nv:d.nv?[d.nv]:[]).forEach(p=>{if(p)frames.push({type:'narr',text:String(p)});});
-    (Array.isArray(d.dl)?d.dl:d.dl?[d.dl]:[]).forEach(dl=>{if(dl&&(dl.sp||dl.ln))frames.push({type:'dial',sp:String(dl.sp||''),ln:String(dl.ln||'')});});
-    if(d.sm&&d.sm!=='null')frames.push({type:'sys',text:String(d.sm)});
-    _avgState.queue=frames;_avgState.idx=0;
-    // 更新場景背景
-    if(d.st||d.sl)avgSetBg(d.st||G.sceneTitle,d.sl||G.sceneLoc);
-    // 收集說話者以生成立繪
-    const speakers=frames.filter(f=>f.type==='dial').map(f=>f.sp);
-    if(speakers.length)avgSetSprites(speakers);
-    // 隱藏選項（等播完再顯示）
-    document.querySelector('.choices-wrap').style.display='none';
-    // 播放第一幀
-    if(frames.length)avgShowFrame(frames[0]);
-    else document.querySelector('.choices-wrap').style.display='';
-  }else{
-    (Array.isArray(d.nv)?d.nv:d.nv?[d.nv]:[]).forEach(p=>{if(p)appendEntryToDOM({type:'narr',v:String(p)});});
-    (Array.isArray(d.dl)?d.dl:d.dl?[d.dl]:[]).forEach(dl=>{if(dl&&(dl.sp||dl.ln))appendEntryToDOM({type:'dial',sp:String(dl.sp||''),ln:String(dl.ln||'')});});
-    if(d.sm&&d.sm!=='null')appendEntryToDOM({type:'sys',v:String(d.sm)});
-  }
+  // ═══ RPG場景更新：背景+立繪 ═══
+  if(d.st||d.sl)rpgUpdateBg(d.st||G.sceneTitle,d.sl||G.sceneLoc);
+  const _dlArr=Array.isArray(d.dl)?d.dl:d.dl?[d.dl]:[];
+  const _dlSpeakers=_dlArr.filter(x=>x&&x.sp).map(x=>String(x.sp));
+  if(_dlSpeakers.length)rpgSetSprites(_dlSpeakers);
+  // 正常顯示文字（滾動模式）
+  (Array.isArray(d.nv)?d.nv:d.nv?[d.nv]:[]).forEach(p=>{if(p)appendEntryToDOM({type:'narr',v:String(p)});});
+  _dlArr.forEach(dl=>{
+    if(dl&&(dl.sp||dl.ln)){
+      appendEntryToDOM({type:'dial',sp:String(dl.sp||''),ln:String(dl.ln||'')});
+      rpgEnsureSprite(String(dl.sp||''));
+    }
+  });
+  if(d.sm&&d.sm!=='null')appendEntryToDOM({type:'sys',v:String(d.sm)});
   if(d.gd)applyGold(d.gd);
   // 安全網：偵測敘述/系統訊息中有金幣描述但 gd 未填的情況
   if((!d.gd||(d.gd.g===0&&d.gd.s===0&&d.gd.c===0))){
@@ -2667,26 +2498,12 @@ function renderResp(d){
   const _vc=detectCity();if(_vc&&!G._visitedCities)G._visitedCities=[];if(_vc&&!G._visitedCities.includes(_vc))G._visitedCities.push(_vc);
   renderAll();
   updateShopBtn();
-  if(G._avgMode){
-    // AVG模式：延遲選項和戰鬥到幀播放結束
-    if(d.cb){_avgState.combatData=d.cb;saveGame();}
-    else{
-      if(d.ch?.length)_avgState.choicesData=d.ch;
-      saveGame();
-      // 如果沒有任何幀，直接顯示選項
-      if(!_avgState.queue.length){
-        document.querySelector('.choices-wrap').style.display='';
-        if(d.ch?.length)renderChoices(d.ch);
-      }
-    }
+  if(d.cb){
+    saveGame();
+    setTimeout(()=>autoCombat(d.cb),800);
   }else{
-    if(d.cb){
-      saveGame();
-      setTimeout(()=>autoCombat(d.cb),800);
-    }else{
-      if(d.ch?.length)renderChoices(d.ch);
-      saveGame();
-    }
+    if(d.ch?.length)renderChoices(d.ch);
+    saveGame();
   }
 }
 // Check and auto-trigger quests based on location
@@ -2852,17 +2669,7 @@ function openEditAction(actionEl,originalTxt){
     inp.focus();inp.select();
   }
 }
-function addThink(){
-  if(G._avgMode){
-    const el=document.getElementById('avg-thinking');el.style.display='flex';
-    document.getElementById('avg-text').textContent='';
-    document.getElementById('avg-speaker').textContent='';
-    document.getElementById('avg-indicator').style.display='none';
-    document.querySelector('.choices-wrap').style.display='none';
-    return{remove:()=>{el.style.display='none';}};
-  }
-  const w=mk('div','sentry');w.innerHTML='<div style="font-size:.62rem;color:var(--goldd);text-align:center;letter-spacing:.08em;margin-bottom:.3rem;">✦ AI 思考中…</div><div class="think-row"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>';document.getElementById('story-content').appendChild(w);scrollD();return w;
-}
+function addThink(){const w=mk('div','sentry');w.innerHTML='<div style="font-size:.62rem;color:var(--goldd);text-align:center;letter-spacing:.08em;margin-bottom:.3rem;">✦ AI 思考中…</div><div class="think-row"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>';document.getElementById('story-content').appendChild(w);scrollD();return w;}
 function addErr(msg,isCors){
   const w=mk('div','sentry'),e=mk('div','s-err');
   e.textContent='⚠ '+msg+(isCors?' — 點此查看解決方法':'');
