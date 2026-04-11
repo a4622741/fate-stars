@@ -1,5 +1,5 @@
 // Service Worker — 命運之星 PWA v32
-const CACHE_NAME = 'fate-stars-v93';
+const CACHE_NAME = 'fate-stars-v100';
 const ASSETS = [
   './',
   './index.html',

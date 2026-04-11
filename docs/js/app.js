@@ -243,12 +243,11 @@ function switchStoryTab(tab){
   const tabStory=document.getElementById('stab-story');
   const tabSys=document.getElementById('stab-sys');
   if(tab==='story'){
-    story.style.display='';sys.style.display='none';
-    tabStory.classList.add('ac');tabSys.classList.remove('ac');
+    if(story)story.style.display='';if(sys)sys.style.display='none';
+    if(tabStory)tabStory.classList.add('ac');if(tabSys)tabSys.classList.remove('ac');
   }else{
-    story.style.display='none';sys.style.display='';
-    tabStory.classList.remove('ac');tabSys.classList.add('ac');
-    sys.innerHTML=buildSysInfo();
+    if(story)story.style.display='none';if(sys){sys.style.display='';sys.innerHTML=buildSysInfo();}
+    if(tabStory)tabStory.classList.remove('ac');if(tabSys)tabSys.classList.add('ac');
   }
 }
 function appendSysLog(text){
@@ -5431,7 +5430,7 @@ function openTrueCrest(id){
       ${st.awakened?`<span style="color:#6ab46a;">✦ 已覺醒</span>`:`<span style="color:var(--sild);">休眠中</span>`}
     </div>
   `;
-  document.getElementById('modal-wrap').classList.add('open');
+  document.getElementById('detail-modal').classList.add('open');
 }
 
 function repPriceMultiplier(factionId){
