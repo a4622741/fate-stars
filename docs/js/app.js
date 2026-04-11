@@ -1395,16 +1395,18 @@ const SYS=`你是文字RPG引擎。只輸出純JSON，從{開始到}結束，不
   {"sp":"橘子🐈😒","ln":"喵——"},{"sp":"系統","ln":"〔翻譯：實際意思〕"}
 翻譯要有趣、毒舌、一針見血。橘子是整個遊戲的吐槽擔當。
 
-【星辰登場 — 重要】當故事中出現可能是108星的角色時，必須同時填寫sp欄位：
+【星辰登場 — 最高優先級！】這是最容易遺漏的欄位。每當故事中出現、提到、或暗示任何可能是108星的角色時，【必須】同時填寫sp欄位，否則星辰錄不會更新、玩家看不到！
   初遇→ "sp":{"num":星號,"type":"天罡或地煞","star":"星名","name":"???","hint":"外貌描述","cN":"暫稱"}
   得知真名→ "sp":{"num":同一星號,"type":"天罡或地煞","star":"星名","name":"真名"}
+  已知星辰再次出場→ 一樣要填sp（含已知的num/type/star/name）以確保同步
   同時讓橘子喵一聲＋系統翻譯說明感知到星辰氣息。
+  ⚠ 不填sp＝星辰不存在！敘述中提到任何星辰相關角色都必須填sp！
 
 【招募】與星辰角色建立關係後，ch中必須有「邀請加入」vs「暫時分別」的選擇。
   玩家選邀請且同意→填nm欄位：
   "nm":{"id":"英文id","name":"名字","star":"星名","type":"天罡或地煞","num":星號,"title":"稱號","emoji":"emoji","desc":"描述","portrait":"英文外貌描述","stats":{"武力":50,"知力":50,"統率":35,"魅力":40,"幸運":50},"tl":[{"n":"技能名","s":false,"d":"說明"}],"eq":{"武器":"名","防具":"名","飾品":"——"},"baseLv":1}
 
-【數據同步】敘述提到金幣收支→gd必填。道具→iv必填。HP變化→hp必填。好感→fa必填。任務→qt必填。時間推進→tm必填。純文字不會改變數值！
+【數據同步】敘述提到金幣收支→gd必填。道具→iv必填。HP變化→hp必填。好感→fa必填。任務→qt必填。時間推進→tm必填。星辰出場→sp必填！純文字不會改變數值或星辰錄！每個JSON欄位都是資料庫指令，不填就不會生效。
 
 【戰鬥觸發】遭遇戰鬥時用cb欄位。遭遇戰→cb:{"enemies":["enemy_id","enemy_id"],"boss":false,"desc":"描述"}。可用ID：goblin/wolf/bandit/mist_thug/snake/spider/bat/skeleton/pirate/forest_sprite/ice_wolf/sand_worm/marsh_golem/dark_knight/dragon_spawn/thief/mercenary/mage_apprentice/smuggler/cave_troll/ghost/harpy/lizardman/undead_knight/sea_monster/fire_elemental/ice_elemental/forest_guardian/shadow_assassin/wyvern/lich。BOSS：mist_leader/imperial_shade/sea_serpent/ancient_dragon/frost_wyrm/shadow_lord/forest_king/merchant_king。填cb時ch設[]。
 
@@ -1655,6 +1657,92 @@ function handleStarPresence(sp){
     // 自動生成星辰頭像
     generateStarPortrait(sp.type,sp.num,dispName,sp.hint||'');
   }
+}
+
+// ═══ 星辰自動偵測安全網 ═══
+// 當AI忘記填sp欄位時，掃描敘述/對話/系統訊息中的星辰關鍵詞
+const _ALL_STAR_NAMES=[...TGS,...DSS,'天魁星','地魁星'];
+function autoDetectStarPresence(d){
+  // 已有sp → AI有正確填寫，不需要安全網
+  if(d.sp)return;
+  // 收集所有文字
+  const texts=[
+    ...(Array.isArray(d.nv)?d.nv:d.nv?[d.nv]:[]),
+    ...(Array.isArray(d.dl)?d.dl:d.dl?[d.dl]:[]).map(x=>(x.sp||'')+' '+(x.ln||'')),
+    d.sm||''
+  ].join('\n');
+  if(!texts)return;
+
+  // 策略1：偵測明確的星名（天機星、地煞星等）
+  const detectedStars=[];
+  _ALL_STAR_NAMES.forEach(starName=>{
+    if(!texts.includes(starName))return;
+    // 找到是哪顆星
+    let arr=TIANGANG,idx=arr.findIndex(s=>s.star===starName);
+    if(idx<0){arr=DISHAT;idx=arr.findIndex(s=>s.star===starName);}
+    if(idx<0)return;
+    const star=arr[idx];
+    if(star.status==='recruited')return; // 已招募的不需處理
+    // 嘗試從文字中擷取角色名
+    const nameMatch=texts.match(new RegExp(`(${starName})[・\\.\\s]*[「『]?([^「『」』」，。、\\s]{2,6})[」』」]?`));
+    const nameMatch2=texts.match(new RegExp(`([^，。、\\s]{2,6})[^，。]{0,8}${starName}`));
+    const foundName=nameMatch?.[2]||nameMatch2?.[1]||null;
+    // 過濾掉普通詞彙
+    const badNames=['一個','這個','那個','有人','某人','據說','傳說','似乎','可能','正在','已經','突然','原來'];
+    const cleanName=foundName&&!badNames.includes(foundName)?foundName:null;
+    detectedStars.push({num:star.num,type:arr===TIANGANG?'天罡':'地煞',star:starName,name:cleanName||'???',hint:'',cN:cleanName||null});
+  });
+
+  // 策略2：偵測「星辰氣息」「命運之星」「XX星」等關鍵模式（AI在敘述中提到但沒填sp）
+  const starPatterns=[
+    /(?:橘子|喵|感知|感應|感覺)[^。]{0,30}(?:星辰|星之|命運之星|星宿|星辰氣息)/,
+    /(?:天罡|地煞)\s*第?\s*(\d+)\s*星/,
+    /第\s*(\d+)\s*(?:顆|位)?\s*(?:天罡|地煞|命運之星|星辰)/,
+    /(?:星辰之力|星光閃|星辰共鳴|星辰降世|星辰之人)/
+  ];
+  let hasStarMention=starPatterns.some(p=>p.test(texts));
+
+  // 策略3：偵測已知contact星辰名字出現在文字中但星辰錄可能需更新
+  [...TIANGANG,...DISHAT].filter(s=>s.status==='contact'&&s.name&&s.name!=='?').forEach(s=>{
+    if(texts.includes(s.name)){
+      // 檢查是否有真名揭露的暗示
+      const revealMatch=texts.match(new RegExp(`${s.name}[^。]{0,15}(?:真名|本名|其實叫|原來是|真正的名字|名字是)[「『]?([^「『」』」，。、\\s]{2,6})`));
+      const revealMatch2=texts.match(new RegExp(`(?:真名|本名|其實叫|原來是)[「『]?([^「『」』」，。、\\s]{2,6})[」』」]?[^。]{0,10}${s.name}`));
+      const realName=revealMatch?.[1]||revealMatch2?.[1]||null;
+      if(realName&&realName!==s.name&&!/^[?？]+$/.test(realName)){
+        s.name=realName;
+        appendEntryToDOM({type:'sys',v:`⚙ 星辰錄自動更新：${s.type}第${s.num}星 真名→${realName}`});
+        markDirty('stars');renderBoth('stars');saveGame();
+      }
+    }
+  });
+
+  // 執行偵測到的星辰
+  if(detectedStars.length){
+    detectedStars.forEach(sp=>{
+      const arr=sp.type==='天罡'?TIANGANG:DISHAT;
+      const star=arr.find(s=>s.num===sp.num);
+      if(!star||star.status==='recruited')return;
+      if(star.status==='unknown'){
+        // 自動觸發星辰感知
+        handleStarPresence(sp);
+        appendEntryToDOM({type:'sys',v:`⚙ 系統自動偵測：${sp.star}出現於敘述中（AI未填sp欄位，已自動補正）`});
+      }
+    });
+  }else if(hasStarMention&&!detectedStars.length){
+    // 有星辰相關描述但無法確認具體是哪顆 → 標記提醒
+    appendEntryToDOM({type:'sys',v:`⚙ 偵測到星辰相關描述。若有新星辰登場，可按「同步」刷新。`});
+    markDirty('stars');
+  }
+
+  // 策略4：掃描對話中出現的NPC名字是否已知為某星辰（已contact/recruited），確保面板同步
+  const knownStarNames=[...TIANGANG,...DISHAT].filter(s=>s.status!=='unknown'&&s.name&&s.name!=='?').map(s=>s.name);
+  const dlSpeakers=(Array.isArray(d.dl)?d.dl:d.dl?[d.dl]:[]).map(x=>String(x.sp||'').replace(/[🐈😒⚔️🛡️💰🕵️🧙🐉🏴‍☠️🚧🧝👑🦅⚙️📦📜🐟🕷️🏜️⚗️]/g,'').trim()).filter(Boolean);
+  dlSpeakers.forEach(spkr=>{
+    if(knownStarNames.some(n=>spkr.includes(n))){
+      markDirty('stars');renderBoth('stars');
+    }
+  });
 }
 
 function applyInv(iv){
@@ -2260,6 +2348,9 @@ function renderResp(d){
   if(d.cr)applyCrestUpdate(d.cr);
   tickBondCooldowns();
   if(d.fa){const _fa=Array.isArray(d.fa)?d.fa:[d.fa];_fa.forEach(f=>{if(f.id&&f.delta){setFavor(f.id,f.delta);const _n=getCharData(f.id)?.name||f.id;showToast(`${_n} 好感 ${f.delta>0?'+':''}${f.delta}`,f.delta>0?'ok':'inf');}});renderChanged('party');}
+  // ═══ 安全網：星辰自動偵測 ═══
+  // AI經常忘記填sp，掃描文字中的星辰關鍵詞自動同步
+  autoDetectStarPresence(d);
   scrollD();
   G.log.push({sec:d.st||'',loc:(d.sl||'').replace('📍 ',''),lines:[...(Array.isArray(d.nv)?d.nv:d.nv?[d.nv]:[]).filter(Boolean).map(v=>({t:'txt',v:String(v)})),...(Array.isArray(d.dl)?d.dl:d.dl?[d.dl]:[]).filter(x=>x&&x.sp).map(dl=>({t:'txt',v:`${dl.sp||''}：「${dl.ln||''}」`})),...(d.sm&&d.sm!=='null'?[{t:'sys',v:String(d.sm)}]:[]) ]});
   if(G.log.length>200)G.log.splice(0,G.log.length-200);
@@ -6541,6 +6632,22 @@ function integrityCheck(){
     if(!partyNames.includes(s.name)&&recentText.includes(s.name)){
       fixes.push(`⚠ 星辰「${s.name}」（${s.type}第${s.num}星）在劇情中出現但未加入隊伍。下次選擇時可嘗試邀請。`);
     }
+  });
+  // 7. 掃描歷史文字中的星名關鍵字，自動補登AI漏填sp的星辰
+  _ALL_STAR_NAMES.forEach(starName=>{
+    if(!recentText.includes(starName))return;
+    let arr=TIANGANG,idx=arr.findIndex(s=>s.star===starName);
+    if(idx<0){arr=DISHAT;idx=arr.findIndex(s=>s.star===starName);}
+    if(idx<0)return;
+    const star=arr[idx];
+    if(star.status!=='unknown')return;
+    // 嘗試從上下文提取角色名
+    const ctx=recentText.slice(Math.max(0,recentText.indexOf(starName)-50),recentText.indexOf(starName)+50);
+    const nm=ctx.match(/[「『]([^「『」』」]{2,6})[」』」]/)|| ctx.match(/([^\s，。、]{2,6})[^，。]{0,5}(?:是|就是|名叫)/);
+    const cN=nm?.[1]||null;
+    star.status='contact';
+    if(cN)star.cN=cN;
+    fixes.push(`星辰錄自動補登：${arr===TIANGANG?'天罡':'地煞'}第${star.num}星・${starName}${cN?`（${cN}）`:''}`);
   });
 
   if(fixes.length){
